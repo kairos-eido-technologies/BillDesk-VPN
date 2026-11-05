@@ -30,7 +30,7 @@ function InvoiceDetail() {
     },
   });
 
-  const i = inv.data?.invoice;
+  const i = inv.data;
   const items = inv.data?.items ?? [];
   const storeSettings = db.getSettings();
 

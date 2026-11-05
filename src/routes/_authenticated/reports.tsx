@@ -63,7 +63,7 @@ function ReportsPage() {
         const catMap: Record<string, number> = {};
         const invMap = new Map(store.inventory.map((p) => [p.id, p]));
         store.invoice_items.forEach((ii) => {
-          const prod = invMap.get(ii.product_id);
+          const prod = ii.product_id ? invMap.get(ii.product_id) : undefined;
           const cat = prod?.category || "General";
           catMap[cat] = (catMap[cat] || 0) + ii.total_price;
         });
@@ -74,6 +74,7 @@ function ReportsPage() {
         // Map per-product sales & profit details
         const productSalesMap: Record<string, { unitsSold: number; revenue: number }> = {};
         store.invoice_items.forEach((ii) => {
+          if (!ii.product_id) return;
           if (!productSalesMap[ii.product_id]) {
             productSalesMap[ii.product_id] = { unitsSold: 0, revenue: 0 };
           }

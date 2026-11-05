@@ -1,10 +1,12 @@
-import Dexie, { type Table } from 'dexie';
-import { generateUtensilsSeedData } from './seed-utensils';
-
 /**
- * Ponmani Agencies Offline - Local Relational Database Engine
- * Zero internet dependency. Powered by Dexie (IndexedDB) for high-performance scale,
- * supporting 1,000,000+ data rows with synchronous memory cache access for the UI.
+ * ============================================================================
+ * BILLDESK-VPN — LOCAL SQLITE DATABASE ENGINE & EMBEDDED SERVER STORE
+ * ============================================================================
+ * 
+ * 100% Offline-capable, zero external cloud dependency.
+ * Stores data locally in SQLite on the desktop machine.
+ * The desktop machine acts as a local host server, feeding live data to
+ * mobile apps via Wi-Fi or VPN/tunneling (Tailscale / Cloudflare Tunnel).
  */
 
 export interface User {
@@ -25,52 +27,13 @@ export interface InventoryItem {
   selling_price: number;
   mrp?: number;
   stock_qty: number;
-  godown_qty: number;
-  moq: number;
+  godown_qty?: number;
+  moq?: number;
   min_stock_alert: number;
   sku_code?: string;
   gst_rate: number;
   image_path?: string;
   created_at: string;
-}
-
-export interface Vendor {
-  id: string;
-  name: string;
-  company_name: string;
-  phone: string;
-  email: string;
-  gst_number: string;
-  address: string;
-  balance_due: number;
-  created_at: string;
-}
-
-export interface PurchaseOrder {
-  id: string;
-  po_number: string;
-  vendor_id: string;
-  vendor_name: string;
-  status: 'Draft' | 'Ordered' | 'Received';
-  total_amount: number;
-  paid_amount: number;
-  tax_amount?: number;
-  discount_amount?: number;
-  notes?: string;
-  expected_date?: string;
-  created_at: string;
-}
-
-export interface PurchaseItem {
-  id: string;
-  po_id: string;
-  product_id?: string;
-  product_name: string;
-  qty: number;
-  unit?: string;
-  cost_price: number;
-  gst_rate?: number;
-  total: number;
 }
 
 export interface Customer {
@@ -80,17 +43,27 @@ export interface Customer {
   email: string;
   address: string;
   gst_number: string;
+  balance_due: number; // Outstanding amount to pay (Khata due)
   loyalty_points: number;
   total_spent: number;
   created_at: string;
 }
 
-export interface LoyaltyLedger {
+export interface InvoiceItem {
   id: string;
-  customer_id: string;
-  points_change: number;
-  reason: string;
-  created_at: string;
+  invoice_id: string;
+  product_id?: string;
+  barcode?: string;
+  product_name: string;
+  qty: number;
+  unit?: string;
+  unit_price: number;
+  mrp?: number;
+  gst_rate?: number;
+  tax_rate?: number;
+  tax_amount?: number;
+  total_price: number;
+  total?: number;
 }
 
 export interface Invoice {
@@ -99,103 +72,122 @@ export interface Invoice {
   customer_id?: string;
   customer_name: string;
   customer_mobile: string;
+  customer_address?: string;
+  customer_gstin?: string;
   invoice_type: 'GST' | 'NON_GST' | 'MIXED';
   subtotal: number;
   tax_amount: number;
   discount_amount: number;
   exchange_amount?: number;
   exchange_notes?: string;
+  round_off?: number;
   grand_total: number;
-  payment_method: 'CASH' | 'UPI' | 'CARD' | 'CREDIT';
-  payment_status: 'PAID' | 'PENDING';
+  amount_paid: number;
+  balance_due: number;
+  payment_method: 'CASH' | 'UPI' | 'CARD' | 'CREDIT' | 'SPLIT';
+  payment_status: 'PAID' | 'UNPAID' | 'PARTIAL' | 'PENDING';
+  items: InvoiceItem[];
+  notes?: string;
+  created_by?: string;
   created_at: string;
-  is_synced?: number; // 0 = unsynced, 1 = synced
 }
 
-export interface InvoiceItem {
+export interface LedgerEntry {
   id: string;
-  invoice_id: string;
-  product_id: string;
-  barcode: string;
-  product_name: string;
-  qty: number;
-  unit_price: number;
-  mrp?: number;
-  tax_rate: number;
-  total_price: number;
-  is_return?: boolean;
-}
-
-export interface ServiceTicket {
-  id: string;
-  ticket_number: string;
-  queue_number?: string;
-  customer_id?: string;
+  customer_id: string;
   customer_name: string;
-  customer_mobile: string;
-  device_name: string;
-  serial_number: string;
-  issue_description: string;
-  estimated_cost: number;
-  final_cost: number;
-  advance_paid?: number;
-  assigned_technician?: string;
-  status: 'Intake' | 'In Progress' | 'Ready' | 'Delivered';
-  created_at: string;
-  updated_at: string;
-}
-
-export interface ScrapEntry {
-  id: string;
-  customer_name: string;
-  customer_mobile: string;
-  item_type: string;
-  weight_kg: number;
-  price_per_kg: number;
-  total_payout: number;
-  notes: string;
-  created_at: string;
-  is_exchange?: boolean;
-  invoice_id?: string;
-}
-
-export interface GodownTransfer {
-  id: string;
-  product_id: string;
-  product_name: string;
-  transfer_type: 'SHOP_TO_GODOWN' | 'GODOWN_TO_SHOP';
-  qty: number;
-  notes: string;
+  customer_mobile?: string;
+  date: string;
+  type: 'DEBIT' | 'CREDIT'; // DEBIT = sale on credit / invoice due; CREDIT = payment received
+  amount: number;
+  balance_after: number;
+  reference_type: 'INVOICE' | 'PAYMENT' | 'OPENING' | 'ADJUSTMENT' | 'INVOICE_SETTLEMENT';
+  reference_id: string;
+  payment_mode?: 'CASH' | 'UPI' | 'CARD' | 'BANK' | 'CHEQUE' | 'CREDIT' | 'SPLIT';
+  notes?: string;
   created_at: string;
 }
 
 export interface BackupLog {
   id: string;
   filename: string;
-  type: 'MANUAL' | 'SCHEDULED';
-  timestamp: string;
+  type: string;
   size_kb: number;
-  status: 'SUCCESS' | 'FAILED';
+  timestamp: string;
+  status: string;
+}
+
+export interface Settings {
+  shop_name: string;
+  legal_name?: string;
+  phone: string;
+  email?: string;
+  gstin: string;
+  upi_id: string;
+  address_line1: string;
+  address_line2?: string;
+  city_pincode: string;
+  invoice_prefix: string;
+  receipt_footer_message?: string;
+  terms_line1?: string;
+  terms_line2?: string;
+  currency_symbol?: string;
+  api_key?: string;
+  server_port?: string;
+  custom_tunnel_url?: string;
+  [key: string]: any;
+}
+
+export interface ServerInfo {
+  status: string;
+  name: string;
+  port: number;
+  local_ips: string[];
+  connection_urls: string[];
+  timestamp: string;
 }
 
 export interface DBStore {
   users: User[];
   inventory: InventoryItem[];
-  vendors: Vendor[];
-  purchase_orders: PurchaseOrder[];
-  purchase_items: PurchaseItem[];
   customers: Customer[];
-  loyalty_ledger: LoyaltyLedger[];
   invoices: Invoice[];
   invoice_items: InvoiceItem[];
-  service_tickets: ServiceTicket[];
-  scrap_entries: ScrapEntry[];
-  godown_transfers: GodownTransfer[];
+  ledger: LedgerEntry[];
+  settings: Settings;
+  vendors: any[];
+  purchase_orders: any[];
+  purchase_items: any[];
+  service_tickets: any[];
+  scrap_entries: any[];
+  godown_transfers: any[];
   backups_log: BackupLog[];
-  settings: Record<string, any>;
+  loyalty_ledger: any[];
 }
 
-const INITIAL_SEED: DBStore = {
+const LOCAL_STORAGE_KEY = 'billdesk_vpn_store_v1';
+
+const DEFAULT_SETTINGS: Settings = {
+  shop_name: 'BillDesk Store',
+  legal_name: 'BillDesk POS',
+  phone: '9876543210',
+  email: 'admin@billdesk.local',
+  gstin: '33AAAAA0000A1Z5',
+  upi_id: 'billdesk@upi',
+  address_line1: '123 Commercial Hub, Main Road',
+  address_line2: 'Market Complex',
+  city_pincode: 'Chennai, TN - 600001',
+  invoice_prefix: 'BD-',
+  receipt_footer_message: 'Thank you for shopping with us!',
+  terms_line1: '1. Goods once sold can be exchanged with valid bill within 7 days.',
+  terms_line2: '2. All disputes subject to local jurisdiction.',
+  currency_symbol: '₹',
+  api_key: 'bd_secret_key_88',
+  server_port: '3000',
+  custom_tunnel_url: '',
+};
+
+const DEFAULT_STORE: DBStore = {
   users: [
     {
       id: 'usr-1',
@@ -212,1386 +204,483 @@ const INITIAL_SEED: DBStore = {
       created_at: new Date().toISOString(),
     },
   ],
-  inventory: [],
+  inventory: [
+    {
+      id: 'inv-1',
+      barcode: 'BD8901001',
+      name: 'Stainless Steel Flask 1000ml',
+      category: 'Utensils',
+      unit: 'Pcs',
+      cost_price: 350,
+      selling_price: 550,
+      mrp: 650,
+      stock_qty: 45,
+      min_stock_alert: 5,
+      gst_rate: 18,
+      sku_code: 'FLASK-1L',
+      created_at: new Date().toISOString(),
+    },
+    {
+      id: 'inv-2',
+      barcode: 'BD8901002',
+      name: 'Hard Anodised Cooker 5L',
+      category: 'Cookware',
+      unit: 'Pcs',
+      cost_price: 1200,
+      selling_price: 1750,
+      mrp: 1999,
+      stock_qty: 20,
+      min_stock_alert: 3,
+      gst_rate: 12,
+      sku_code: 'COOKER-5L',
+      created_at: new Date().toISOString(),
+    },
+    {
+      id: 'inv-3',
+      barcode: 'BD8901003',
+      name: 'Electric Mixer Grinder 750W',
+      category: 'Appliances',
+      unit: 'Pcs',
+      cost_price: 1850,
+      selling_price: 2600,
+      mrp: 2999,
+      stock_qty: 12,
+      min_stock_alert: 2,
+      gst_rate: 18,
+      sku_code: 'MIXER-750',
+      created_at: new Date().toISOString(),
+    },
+  ],
+  customers: [
+    {
+      id: 'cust-1',
+      name: 'Ramesh Kumar',
+      mobile: '9840123456',
+      email: 'ramesh@example.com',
+      address: '14, North Car Street',
+      gst_number: '',
+      balance_due: 1500,
+      loyalty_points: 150,
+      total_spent: 8500,
+      created_at: new Date().toISOString(),
+    },
+    {
+      id: 'cust-2',
+      name: 'Priya Sundar',
+      mobile: '9840987654',
+      email: 'priya@example.com',
+      address: '77, Bazaar Street',
+      gst_number: '',
+      balance_due: 0,
+      loyalty_points: 240,
+      total_spent: 12400,
+      created_at: new Date().toISOString(),
+    },
+  ],
+  invoices: [],
+  invoice_items: [],
+  ledger: [
+    {
+      id: 'ledg-1',
+      customer_id: 'cust-1',
+      customer_name: 'Ramesh Kumar',
+      customer_mobile: '9840123456',
+      date: new Date(Date.now() - 86400000 * 2).toISOString(),
+      type: 'DEBIT',
+      amount: 2500,
+      balance_after: 2500,
+      reference_type: 'INVOICE',
+      reference_id: 'BD-1001',
+      payment_mode: 'CREDIT',
+      notes: 'Credit sale invoice #BD-1001',
+      created_at: new Date(Date.now() - 86400000 * 2).toISOString(),
+    },
+    {
+      id: 'ledg-2',
+      customer_id: 'cust-1',
+      customer_name: 'Ramesh Kumar',
+      customer_mobile: '9840123456',
+      date: new Date(Date.now() - 86400000).toISOString(),
+      type: 'CREDIT',
+      amount: 1000,
+      balance_after: 1500,
+      reference_type: 'PAYMENT',
+      reference_id: 'PAY-1001',
+      payment_mode: 'UPI',
+      notes: 'Partial payment received via UPI',
+      created_at: new Date(Date.now() - 86400000).toISOString(),
+    },
+  ],
+  settings: DEFAULT_SETTINGS,
   vendors: [],
   purchase_orders: [],
   purchase_items: [],
-  customers: [],
-  loyalty_ledger: [],
-  invoices: [],
-  invoice_items: [],
   service_tickets: [],
   scrap_entries: [],
   godown_transfers: [],
   backups_log: [],
-  settings: {
-    shop_name: "Ponmani Agencies",
-    shop_address: "Main Road, Market Center",
-    shop_phone: "+91 98765 43210",
-    shop_gstin: "",
-    receipt_header_note: "Retail & Service Management",
-    receipt_footer_note: "Goods once sold can be exchanged with valid bill.",
-    thermal_printer_width: "80mm",
-    app_lang: "en",
-    system_initialized: "true",
-  },
-};
-
-const EMPTY_STORE: DBStore = {
-  users: [],
-  inventory: [],
-  vendors: [],
-  purchase_orders: [],
-  purchase_items: [],
-  customers: [],
   loyalty_ledger: [],
-  invoices: [],
-  invoice_items: [],
-  service_tickets: [],
-  scrap_entries: [],
-  godown_transfers: [],
-  backups_log: [],
-  settings: {},
 };
 
-let isSyncingFromSQLite = false;
-
-function postRowToSQLite(action: 'upsert' | 'delete' | 'reset', table?: string, data?: any, id?: any): Promise<any> | void {
-  if (isSyncingFromSQLite) return;
-  if (typeof window === 'undefined') return;
-
-  return fetch('/api/db', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ action, table, data, id }),
-  }).catch((err) => {
-    console.warn('[SQLite Sync Error] Failed mirroring to server:', err);
-  });
-}
-
-function postInvoiceToSQLite(invoice: any, items: any[]): Promise<any> | void {
-  if (isSyncingFromSQLite) return;
-  if (typeof window === 'undefined') return;
-
-  return fetch('/api/db', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      action: 'upsert_invoice',
-      invoice,
-      items,
-    }),
-  }).catch((err) => {
-    console.warn('[SQLite Sync Error] Failed mirroring invoice to server:', err);
-  });
-}
-
-// Dexie Database Declaration
-class PonmaniDatabase extends Dexie {
-  users!: Table<User>;
-  inventory!: Table<InventoryItem>;
-  vendors!: Table<Vendor>;
-  purchase_orders!: Table<PurchaseOrder>;
-  purchase_items!: Table<PurchaseItem>;
-  customers!: Table<Customer>;
-  loyalty_ledger!: Table<LoyaltyLedger>;
-  invoices!: Table<Invoice>;
-  invoice_items!: Table<InvoiceItem>;
-  service_tickets!: Table<ServiceTicket>;
-  scrap_entries!: Table<ScrapEntry>;
-  godown_transfers!: Table<GodownTransfer>;
-  backups_log!: Table<BackupLog>;
-  settings!: Table<{ key: string; value: any }>;
-
-  constructor() {
-    super('PonmaniDatabase');
-    this.version(1).stores({
-      users: 'id, username',
-      inventory: 'id, barcode, name, category',
-      vendors: 'id, name, company_name',
-      purchase_orders: 'id, po_number, vendor_id',
-      purchase_items: 'id, po_id, product_id',
-      customers: 'id, mobile, name',
-      loyalty_ledger: 'id, customer_id',
-      invoices: 'id, invoice_number, customer_id, created_at',
-      invoice_items: 'id, invoice_id, product_id, barcode',
-      service_tickets: 'id, ticket_number, customer_id',
-      scrap_entries: 'id, customer_mobile',
-      godown_transfers: 'id, product_id',
-      backups_log: 'id',
-      settings: 'key',
-    });
-    this.version(2).stores({
-      invoices: 'id, invoice_number, customer_id, created_at, is_synced',
-    });
-
-    // Automatically mirror writes to local SQLite server in background
-    const tables = [
-      'users', 'inventory', 'vendors', 'purchase_orders', 'purchase_items',
-      'customers', 'loyalty_ledger',
-      'service_tickets', 'scrap_entries', 'godown_transfers', 'backups_log', 'settings'
-    ];
-
-    tables.forEach((tableName) => {
-      this.table(tableName).hook('creating', (primKey, obj) => {
-        postRowToSQLite('upsert', tableName, obj);
-      });
-      this.table(tableName).hook('updating', (modifications, primKey, obj) => {
-        const updatedObj = { ...obj, ...modifications };
-        postRowToSQLite('upsert', tableName, updatedObj);
-      });
-      this.table(tableName).hook('deleting', (primKey) => {
-        postRowToSQLite('delete', tableName, undefined, primKey);
-      });
-    });
-  }
-}
-
-class OfflineDB {
-  private memoryData: DBStore;
-  private barcodeMap = new Map<string, InventoryItem>();
-  private idMap = new Map<string, InventoryItem>();
-  private dexieDb!: PonmaniDatabase;
-  public isLoaded = false;
+class BillDeskDB {
+  private store: DBStore = { ...DEFAULT_STORE };
+  public isLoaded: boolean = false;
   public loadPromise: Promise<void>;
 
   constructor() {
-    this.memoryData = { ...EMPTY_STORE };
-    this.rebuildInventoryMaps();
-    
-    if (typeof window === 'undefined') {
-      this.isLoaded = true;
-      this.loadPromise = Promise.resolve();
-    } else {
-      this.dexieDb = new PonmaniDatabase();
-      this.loadPromise = this.loadFromIndexedDB();
-    }
+    this.loadPromise = this.init();
   }
 
-  public rebuildInventoryMaps() {
-    this.barcodeMap.clear();
-    this.idMap.clear();
-    const inv = this.memoryData.inventory || [];
-    for (let i = 0; i < inv.length; i++) {
-      const item = inv[i];
-      if (item.barcode) {
-        this.barcodeMap.set(item.barcode.trim(), item);
-      }
-      if (item.id) {
-        this.idMap.set(item.id, item);
-      }
-    }
-  }
-
-  private async loadFromIndexedDB() {
-    // 1. Try to fetch from the server-side SQLite API first
-    try {
-      const response = await fetch('/api/db');
-      if (response.ok) {
-        const store = await response.json();
-        // If server SQLite database is brand new and completely empty (zero users and zero settings), initialize with seed
-        const isCompletelyUninitialized = (!store.users || store.users.length === 0) && (!store.settings || Object.keys(store.settings).length === 0);
-        if (isCompletelyUninitialized) {
-          console.log('[SQLite Server] SQLite database is brand new and uninitialized. Seeding initial data...');
-          this.memoryData = { ...INITIAL_SEED };
-          this.isLoaded = true;
-          // Seed the SQLite server in background
-          await this.syncLocalStoreToSQLite(INITIAL_SEED);
-          // Sync local IndexedDB fallback cache
-          await this.syncLocalStoreToIndexedDB(INITIAL_SEED);
-          return;
-        }
-
-        // Initialize cache with SQLite store data
-        this.memoryData = {
-          users: store.users || [],
-          inventory: store.inventory || [],
-          vendors: store.vendors || [],
-          purchase_orders: store.purchase_orders || [],
-          purchase_items: store.purchase_items || [],
-          customers: store.customers || [],
-          loyalty_ledger: store.loyalty_ledger || [],
-          invoices: store.invoices || [],
-          invoice_items: store.invoice_items || [],
-          service_tickets: store.service_tickets || [],
-          scrap_entries: store.scrap_entries || [],
-          godown_transfers: store.godown_transfers || [],
-          backups_log: store.backups_log || [],
-          settings: store.settings || {},
-        };
-        this.rebuildInventoryMaps();
-        this.isLoaded = true;
-        return;
-      }
-    } catch (e) {
-      console.warn('[SQLite Server] API unavailable, falling back to local browser IndexedDB:', e);
-    }
-
-    // 2. Fallback: Load from local IndexedDB if server is not reachable
-    try {
-      const [
-        users,
-        inventory,
-        vendors,
-        purchase_orders,
-        purchase_items,
-        customers,
-        loyalty_ledger,
-        invoices,
-        invoice_items,
-        service_tickets,
-        scrap_entries,
-        godown_transfers,
-        backups_log,
-        settingsArr,
-      ] = await Promise.all([
-        this.dexieDb.users.toArray(),
-        this.dexieDb.inventory.toArray(),
-        this.dexieDb.vendors.toArray(),
-        this.dexieDb.purchase_orders.toArray(),
-        this.dexieDb.purchase_items.toArray(),
-        this.dexieDb.customers.toArray(),
-        this.dexieDb.loyalty_ledger.toArray(),
-        this.dexieDb.invoices.toArray(),
-        this.dexieDb.invoice_items.toArray(),
-        this.dexieDb.service_tickets.toArray(),
-        this.dexieDb.scrap_entries.toArray(),
-        this.dexieDb.godown_transfers.toArray(),
-        this.dexieDb.backups_log.toArray(),
-        this.dexieDb.settings.toArray(),
-      ]);
-
-      const settings: Record<string, any> = {};
-      settingsArr.forEach((s) => {
-        settings[s.key] = s.value;
-      });
-
-      if (users.length === 0 && (!settings || Object.keys(settings).length === 0)) {
-        await this.seedInitialData();
-      } else {
-        this.memoryData = {
-          users,
-          inventory,
-          vendors,
-          purchase_orders,
-          purchase_items,
-          customers,
-          loyalty_ledger,
-          invoices,
-          invoice_items,
-          service_tickets,
-          scrap_entries,
-          godown_transfers,
-          backups_log,
-          settings: settings || {},
-        };
-      }
-    } catch (err) {
-      console.error('Failed loading IndexedDB database, falling back to seed:', err);
-      this.memoryData = { ...INITIAL_SEED };
-    } finally {
-      this.rebuildInventoryMaps();
-      this.isLoaded = true;
-    }
-  }
-
-  private async syncLocalStoreToSQLite(store: DBStore) {
-    try {
-      isSyncingFromSQLite = true;
-      await fetch('/api/db', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'bulk_seed', store }),
-      });
-      isSyncingFromSQLite = false;
-    } catch (e) {
-      console.error('[SQLite Server] Seeding/Syncing store failed:', e);
-      isSyncingFromSQLite = false;
-    }
-  }
-
-  private async syncLocalStoreToIndexedDB(store: DBStore) {
-    try {
-      isSyncingFromSQLite = true;
-      await Promise.all([
-        this.dexieDb.users.clear(),
-        this.dexieDb.inventory.clear(),
-        this.dexieDb.vendors.clear(),
-        this.dexieDb.purchase_orders.clear(),
-        this.dexieDb.purchase_items.clear(),
-        this.dexieDb.customers.clear(),
-        this.dexieDb.loyalty_ledger.clear(),
-        this.dexieDb.invoices.clear(),
-        this.dexieDb.invoice_items.clear(),
-        this.dexieDb.service_tickets.clear(),
-        this.dexieDb.scrap_entries.clear(),
-        this.dexieDb.godown_transfers.clear(),
-        this.dexieDb.backups_log.clear(),
-        this.dexieDb.settings.clear(),
-      ]);
-
-      await Promise.all([
-        this.dexieDb.users.bulkPut(store.users),
-        this.dexieDb.inventory.bulkPut(store.inventory),
-        this.dexieDb.vendors.bulkPut(store.vendors),
-        this.dexieDb.purchase_orders.bulkPut(store.purchase_orders),
-        this.dexieDb.purchase_items.bulkPut(store.purchase_items),
-        this.dexieDb.customers.bulkPut(store.customers),
-        this.dexieDb.loyalty_ledger.bulkPut(store.loyalty_ledger),
-        this.dexieDb.invoices.bulkPut(store.invoices),
-        this.dexieDb.invoice_items.bulkPut(store.invoice_items),
-        this.dexieDb.service_tickets.bulkPut(store.service_tickets),
-        this.dexieDb.scrap_entries.bulkPut(store.scrap_entries),
-        this.dexieDb.godown_transfers.bulkPut(store.godown_transfers),
-        this.dexieDb.backups_log.bulkPut(store.backups_log),
-        this.dexieDb.settings.bulkPut(Object.entries(store.settings).map(([k, v]) => ({ key: k, value: v }))),
-      ]);
-      isSyncingFromSQLite = false;
-    } catch (e) {
-      console.warn('[IndexedDB Fallback Cache] Syncing failed:', e);
-      isSyncingFromSQLite = false;
-    }
-  }
-
-  public async pullServerUpdates() {
-    try {
-      const response = await fetch('/api/db');
-      if (response.ok) {
-        const store = await response.json();
-        
-        isSyncingFromSQLite = true;
-        this.memoryData = {
-          users: store.users || [],
-          inventory: store.inventory || [],
-          vendors: store.vendors || [],
-          purchase_orders: store.purchase_orders || [],
-          purchase_items: store.purchase_items || [],
-          customers: store.customers || [],
-          loyalty_ledger: store.loyalty_ledger || [],
-          invoices: store.invoices || [],
-          invoice_items: store.invoice_items || [],
-          service_tickets: store.service_tickets || [],
-          scrap_entries: store.scrap_entries || [],
-          godown_transfers: store.godown_transfers || [],
-          backups_log: store.backups_log || [],
-          settings: store.settings || {},
-        };
-        this.rebuildInventoryMaps();
-        isSyncingFromSQLite = false;
-      }
-    } catch (e) {
-      console.warn('[SQLite Server Refresh] Failed polling updates:', e);
-      isSyncingFromSQLite = false;
-    }
-  }
-
-  private async seedInitialData() {
-    this.memoryData = { ...INITIAL_SEED };
-    try {
-      await Promise.all([
-        this.dexieDb.users.bulkAdd(INITIAL_SEED.users),
-        this.dexieDb.settings.bulkAdd(
-          Object.entries(INITIAL_SEED.settings).map(([key, value]) => ({ key, value }))
-        ),
-      ]);
-    } catch (err) {
-      console.error('Seeding database failed:', err);
-    }
-  }
-
-  public getStore(): DBStore {
-    return this.memoryData;
-  }
-
-  public async resetToSeed() {
-    try {
-      await Promise.all([
-        this.dexieDb.users.clear(),
-        this.dexieDb.inventory.clear(),
-        this.dexieDb.vendors.clear(),
-        this.dexieDb.purchase_orders.clear(),
-        this.dexieDb.purchase_items.clear(),
-        this.dexieDb.customers.clear(),
-        this.dexieDb.loyalty_ledger.clear(),
-        this.dexieDb.invoices.clear(),
-        this.dexieDb.invoice_items.clear(),
-        this.dexieDb.service_tickets.clear(),
-        this.dexieDb.scrap_entries.clear(),
-        this.dexieDb.godown_transfers.clear(),
-        this.dexieDb.backups_log.clear(),
-        this.dexieDb.settings.clear(),
-      ]);
-      await this.seedInitialData();
-    } catch (err) {
-      console.error('Failed resetting Dexie database:', err);
-    }
-    return this.memoryData;
-  }
-
-  public async clearTransactionsOnly(): Promise<void> {
-    try {
-      await fetch('/api/db', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'clear_transactions' }),
-      });
-    } catch (e) {
-      console.warn('[DB] SQLite clear_transactions failed:', e);
-    }
-
-    await Promise.all([
-      this.dexieDb.invoices.clear(),
-      this.dexieDb.invoice_items.clear(),
-      this.dexieDb.service_tickets.clear(),
-      this.dexieDb.scrap_entries.clear(),
-      this.dexieDb.godown_transfers.clear(),
-      this.dexieDb.purchase_orders.clear(),
-      this.dexieDb.purchase_items.clear(),
-      this.dexieDb.loyalty_ledger.clear(),
-    ]);
-
-    await this.pullServerUpdates();
-  }
-
-  public async factoryResetStore(options?: {
-    shop_name?: string;
-    shop_address?: string;
-    shop_phone?: string;
-    shop_gstin?: string;
-    receipt_header_note?: string;
-    receipt_footer_note?: string;
-    keepProducts?: boolean;
-  }): Promise<void> {
-    try {
-      await fetch('/api/db', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'factory_reset', options }),
-      });
-    } catch (e) {
-      console.warn('[DB] SQLite factory_reset failed:', e);
-    }
-
-    // Wipe ALL Dexie tables completely including product catalog
-    const clearPromises = [
-      this.dexieDb.inventory.clear(),
-      this.dexieDb.invoices.clear(),
-      this.dexieDb.invoice_items.clear(),
-      this.dexieDb.service_tickets.clear(),
-      this.dexieDb.scrap_entries.clear(),
-      this.dexieDb.godown_transfers.clear(),
-      this.dexieDb.purchase_orders.clear(),
-      this.dexieDb.purchase_items.clear(),
-      this.dexieDb.loyalty_ledger.clear(),
-      this.dexieDb.customers.clear(),
-      this.dexieDb.vendors.clear(),
-      this.dexieDb.backups_log.clear(),
-      this.dexieDb.users.clear(),
-      this.dexieDb.settings.clear(),
-    ];
-
-    await Promise.all(clearPromises);
-
-    const defaultUsers: User[] = [
-      {
-        id: 'usr-admin-1',
-        username: 'admin',
-        pin: '1234',
-        role: 'Admin',
-        created_at: new Date().toISOString(),
-      },
-      {
-        id: 'usr-cashier-1',
-        username: 'cashier',
-        pin: '0000',
-        role: 'Cashier',
-        created_at: new Date().toISOString(),
-      },
-    ];
-
-    const cleanSettings: Record<string, any> = {
-      shop_name: options?.shop_name?.trim() || 'Ponmani Agencies',
-      shop_address: options?.shop_address?.trim() || '',
-      shop_phone: options?.shop_phone?.trim() || '',
-      shop_gstin: options?.shop_gstin?.trim() || '',
-      receipt_header_note: options?.receipt_header_note?.trim() || 'Retail & Service Management',
-      receipt_footer_note: options?.receipt_footer_note?.trim() || 'Goods once sold can be exchanged with valid bill.',
-      thermal_printer_width: '80mm',
-      app_lang: 'en',
-      system_initialized: 'true',
-    };
-
-    await this.dexieDb.users.bulkPut(defaultUsers);
-    await this.dexieDb.settings.bulkPut(
-      Object.entries(cleanSettings).map(([key, value]) => ({ key, value }))
-    );
-
-    this.barcodeMap.clear();
-    this.idMap.clear();
-    this.memoryData = {
-      users: defaultUsers,
-      inventory: [],
-      vendors: [],
-      customers: [],
-      purchase_orders: [],
-      purchase_items: [],
-      invoices: [],
-      invoice_items: [],
-      loyalty_ledger: [],
-      service_tickets: [],
-      scrap_entries: [],
-      godown_transfers: [],
-      backups_log: [],
-      settings: cleanSettings,
-    };
-
+  private async init() {
+    // 1. Instantly load from localStorage for zero initial load delay
     if (typeof window !== 'undefined') {
       try {
-        localStorage.removeItem('ponmani_simple_shopping_list_v2');
-        localStorage.removeItem('ponmani_restock_shopping_list_v1');
-        localStorage.removeItem('pos_held_bills');
-        const keysToRemove: string[] = [];
-        for (let i = 0; i < localStorage.length; i++) {
-          const key = localStorage.key(i);
-          if (key && key !== 'ponmani_lang') {
-            keysToRemove.push(key);
-          }
+        const cached = localStorage.getItem(LOCAL_STORAGE_KEY);
+        if (cached) {
+          const parsed = JSON.parse(cached);
+          this.store = {
+            ...DEFAULT_STORE,
+            ...parsed,
+            settings: { ...DEFAULT_SETTINGS, ...parsed.settings },
+          };
         }
-        keysToRemove.forEach((k) => localStorage.removeItem(k));
-      } catch (e) {}
+      } catch (err) {
+        console.warn('[BillDesk DB] LocalStorage parse warning:', err);
+      }
     }
 
-    await this.pullServerUpdates();
+    this.isLoaded = true;
+
+    // 2. Fetch ground-truth state from the local SQLite API server
+    await this.fetchFromServer();
   }
 
-  public async wipeAndSeedUtensils(onProgress?: (msg: string) => void): Promise<void> {
-    const log = (msg: string) => { console.log('[Seed]', msg); onProgress?.(msg); };
+  private persistLocal() {
+    if (typeof window !== 'undefined') {
+      try {
+        localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(this.store));
+      } catch (err) {
+        console.warn('[BillDesk DB] LocalStorage write error:', err);
+      }
+    }
+  }
 
-    log('Generating utensils seed data...');
-    const seed = generateUtensilsSeedData();
+  /**
+   * Dispatch background write operation to the local SQLite database API
+   */
+  private async syncToServer(action: string, payload: any = {}): Promise<any> {
+    if (typeof window === 'undefined') return null;
 
-    log('Resetting SQLite server database...');
     try {
-      await fetch('/api/db', {
+      const response = await fetch('/api/db', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'reset' }),
+        body: JSON.stringify({ action, ...payload }),
       });
-    } catch (e) { console.warn('[Seed] SQLite reset failed (offline mode):', e); }
-
-    log('Clearing local IndexedDB...');
-    await Promise.all([
-      this.dexieDb.inventory.clear(),
-      this.dexieDb.vendors.clear(),
-      this.dexieDb.purchase_orders.clear(),
-      this.dexieDb.purchase_items.clear(),
-      this.dexieDb.customers.clear(),
-      this.dexieDb.loyalty_ledger.clear(),
-      this.dexieDb.invoices.clear(),
-      this.dexieDb.invoice_items.clear(),
-      this.dexieDb.service_tickets.clear(),
-      this.dexieDb.scrap_entries.clear(),
-      this.dexieDb.godown_transfers.clear(),
-      this.dexieDb.backups_log.clear(),
-      this.dexieDb.settings.clear(),
-    ]);
-
-    isSyncingFromSQLite = true;
-    log('Writing inventory & vendors...');
-    await this.dexieDb.inventory.bulkPut(seed.inventory);
-    await this.dexieDb.vendors.bulkPut(seed.vendors);
-
-    log(`Writing ${seed.customers.length} customers...`);
-    await this.dexieDb.customers.bulkPut(seed.customers);
-
-    log(`Writing ${seed.purchase_orders.length} purchase orders & ${seed.purchase_items.length} items...`);
-    await this.dexieDb.purchase_orders.bulkPut(seed.purchase_orders);
-    await this.dexieDb.purchase_items.bulkPut(seed.purchase_items);
-
-    const INV_BATCH = 500;
-    for (let i = 0; i < seed.invoices.length; i += INV_BATCH) {
-      const current = Math.min(i + INV_BATCH, seed.invoices.length);
-      log(`Writing invoices (${current} / ${seed.invoices.length})...`);
-      await this.dexieDb.invoices.bulkPut(seed.invoices.slice(i, current));
+      return await response.json();
+    } catch (err) {
+      console.warn(`[BillDesk DB Sync Error] Action ${action}:`, err);
+      return null;
     }
-
-    const II_BATCH = 1500;
-    for (let i = 0; i < seed.invoice_items.length; i += II_BATCH) {
-      const current = Math.min(i + II_BATCH, seed.invoice_items.length);
-      log(`Writing invoice line items (${current} / ${seed.invoice_items.length})...`);
-      await this.dexieDb.invoice_items.bulkPut(seed.invoice_items.slice(i, current));
-    }
-
-    log('Writing service tickets, scrap & transfers...');
-    await this.dexieDb.service_tickets.bulkPut(seed.service_tickets);
-    await this.dexieDb.scrap_entries.bulkPut(seed.scrap_entries);
-    await this.dexieDb.godown_transfers.bulkPut(seed.godown_transfers);
-    await this.dexieDb.loyalty_ledger.bulkPut(seed.loyalty_ledger);
-
-    log('Writing settings...');
-    await this.dexieDb.settings.bulkPut(
-      Object.entries(seed.settings).map(([key, value]) => ({ key, value }))
-    );
-    isSyncingFromSQLite = false;
-
-    // Update memory cache immediately
-    this.memoryData = {
-      users: this.memoryData.users,
-      inventory: seed.inventory,
-      vendors: seed.vendors,
-      customers: seed.customers,
-      purchase_orders: seed.purchase_orders,
-      purchase_items: seed.purchase_items,
-      invoices: [...seed.invoices].reverse(),
-      invoice_items: seed.invoice_items,
-      loyalty_ledger: seed.loyalty_ledger,
-      service_tickets: [...seed.service_tickets].reverse(),
-      scrap_entries: [...seed.scrap_entries].reverse(),
-      godown_transfers: [...seed.godown_transfers].reverse(),
-      backups_log: [],
-      settings: seed.settings as any,
-    };
-
-    // Sync to SQLite server (instant bulk_seed single transaction)
-    log('Syncing to server database...');
-    await this.syncLocalStoreToSQLite(this.memoryData);
-    log('Seed complete!');
   }
 
-  public async restoreFullBackup(newData: DBStore) {
-    this.memoryData = newData;
-    try {
-      await this.dexieDb.transaction(
-        'rw',
-        [
-          this.dexieDb.users,
-          this.dexieDb.inventory,
-          this.dexieDb.vendors,
-          this.dexieDb.purchase_orders,
-          this.dexieDb.purchase_items,
-          this.dexieDb.customers,
-          this.dexieDb.loyalty_ledger,
-          this.dexieDb.invoices,
-          this.dexieDb.invoice_items,
-          this.dexieDb.service_tickets,
-          this.dexieDb.scrap_entries,
-          this.dexieDb.godown_transfers,
-          this.dexieDb.backups_log,
-          this.dexieDb.settings,
-        ],
-        async () => {
-          await Promise.all([
-            this.dexieDb.users.clear(),
-            this.dexieDb.inventory.clear(),
-            this.dexieDb.vendors.clear(),
-            this.dexieDb.purchase_orders.clear(),
-            this.dexieDb.purchase_items.clear(),
-            this.dexieDb.customers.clear(),
-            this.dexieDb.loyalty_ledger.clear(),
-            this.dexieDb.invoices.clear(),
-            this.dexieDb.invoice_items.clear(),
-            this.dexieDb.service_tickets.clear(),
-            this.dexieDb.scrap_entries.clear(),
-            this.dexieDb.godown_transfers.clear(),
-            this.dexieDb.backups_log.clear(),
-            this.dexieDb.settings.clear(),
-          ]);
+  /**
+   * Hydrate local store with ground-truth records from local SQLite
+   */
+  public async fetchFromServer(): Promise<boolean> {
+    if (typeof window === 'undefined') return false;
 
-          await Promise.all([
-            this.dexieDb.users.bulkPut(newData.users || []),
-            this.dexieDb.inventory.bulkPut(newData.inventory || []),
-            this.dexieDb.vendors.bulkPut(newData.vendors || []),
-            this.dexieDb.purchase_orders.bulkPut(newData.purchase_orders || []),
-            this.dexieDb.purchase_items.bulkPut(newData.purchase_items || []),
-            this.dexieDb.customers.bulkPut(newData.customers || []),
-            this.dexieDb.loyalty_ledger.bulkPut(newData.loyalty_ledger || []),
-            this.dexieDb.invoices.bulkPut(newData.invoices || []),
-            this.dexieDb.invoice_items.bulkPut(newData.invoice_items || []),
-            this.dexieDb.service_tickets.bulkPut(newData.service_tickets || []),
-            this.dexieDb.scrap_entries.bulkPut(newData.scrap_entries || []),
-            this.dexieDb.godown_transfers.bulkPut(newData.godown_transfers || []),
-            this.dexieDb.backups_log.bulkPut(newData.backups_log || []),
-            this.dexieDb.settings.bulkPut(
-              Object.entries(newData.settings || {}).map(([key, value]) => ({ key, value }))
-            ),
-          ]);
+    try {
+      const res = await fetch('/api/db');
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = await res.json();
+
+      if (data && typeof data === 'object') {
+        if (Array.isArray(data.inventory)) this.store.inventory = data.inventory;
+        if (Array.isArray(data.customers)) this.store.customers = data.customers;
+        if (Array.isArray(data.ledger)) this.store.ledger = data.ledger;
+        if (Array.isArray(data.users) && data.users.length > 0) this.store.users = data.users;
+
+        if (Array.isArray(data.invoices)) {
+          const itemsByInv: Record<string, InvoiceItem[]> = {};
+          if (Array.isArray(data.invoice_items)) {
+            data.invoice_items.forEach((it: InvoiceItem) => {
+              if (!itemsByInv[it.invoice_id]) itemsByInv[it.invoice_id] = [];
+              itemsByInv[it.invoice_id].push(it);
+            });
+            this.store.invoice_items = data.invoice_items;
+          }
+          this.store.invoices = data.invoices.map((inv: Invoice) => ({
+            ...inv,
+            items: itemsByInv[inv.id] || inv.items || [],
+          }));
         }
-      );
-      return true;
+
+        if (data.settings && typeof data.settings === 'object') {
+          this.store.settings = { ...this.store.settings, ...data.settings };
+        }
+
+        this.persistLocal();
+        return true;
+      }
+      return false;
     } catch (err) {
-      console.error('Failed database restore:', err);
+      console.warn('[BillDesk DB] SQLite server sync:', err);
       return false;
     }
   }
 
-  // --- QUERY METHODS ---
-
-  // Auth & Users
-  public getUsers(): User[] {
-    return this.memoryData.users;
-  }
-
-  public authenticate(username: string, pin: string): User | null {
-    const user = this.memoryData.users.find(
-      (u) => u.username.toLowerCase() === username.toLowerCase() && u.pin === pin
-    );
-    return user || null;
-  }
-
-  public saveUser(user: Partial<User> & { username: string; pin: string; role: 'Admin' | 'Cashier' }) {
-    if (user.id) {
-      const idx = this.memoryData.users.findIndex((u) => u.id === user.id);
-      if (idx >= 0) {
-        const updated = { ...this.memoryData.users[idx], ...user };
-        this.memoryData.users[idx] = updated;
-        this.dexieDb.users.put(updated).catch(console.error);
-      }
-    } else {
-      const newUser: User = {
-        id: 'usr-' + Date.now(),
-        username: user.username,
-        pin: user.pin,
-        role: user.role,
-        created_at: new Date().toISOString(),
-      };
-      this.memoryData.users.push(newUser);
-      this.dexieDb.users.add(newUser).catch(console.error);
+  /**
+   * Query network details and server host status for mobile connection pairing
+   */
+  public async getServerInfo(): Promise<ServerInfo | null> {
+    if (typeof window === 'undefined') return null;
+    try {
+      const res = await fetch('/api/server-info');
+      if (!res.ok) return null;
+      return await res.json();
+    } catch {
+      return null;
     }
   }
 
-  public deleteUser(userIdOrUsername: string): boolean {
-    const idx = this.memoryData.users.findIndex(
-      (u) => u.id === userIdOrUsername || u.username.toLowerCase() === userIdOrUsername.toLowerCase()
-    );
-    if (idx >= 0) {
-      const u = this.memoryData.users[idx];
-      this.memoryData.users.splice(idx, 1);
-      this.dexieDb.users.delete(u.id).catch(console.error);
-      return true;
-    }
-    return false;
-  }
+  // ==========================================
+  // INVENTORY METHODS
+  // ==========================================
 
-  // Inventory
   public getInventory(): InventoryItem[] {
-    return this.memoryData.inventory;
+    return [...this.store.inventory];
   }
 
-  public getProductByBarcode(barcode: string): InventoryItem | undefined {
-    if (!barcode) return undefined;
-    const clean = barcode.trim();
-    return this.barcodeMap.get(clean);
+  public getProductByBarcode(code: string): InventoryItem | undefined {
+    const query = code.trim().toLowerCase();
+    return this.store.inventory.find(
+      (p) => p.barcode?.toLowerCase() === query || p.sku_code?.toLowerCase() === query
+    );
   }
 
   public getProductById(id: string): InventoryItem | undefined {
-    if (!id) return undefined;
-    return this.idMap.get(id);
+    return this.store.inventory.find((p) => p.id === id);
   }
 
-  public saveInventoryItem(item: Partial<InventoryItem> & { name: string; selling_price: number }) {
-    if (item.id) {
-      const idx = this.memoryData.inventory.findIndex((i) => i.id === item.id);
-      if (idx >= 0) {
-        const existing = this.memoryData.inventory[idx];
-        const updated = {
-          ...existing,
-          ...item,
-          mrp: item.mrp !== undefined && item.mrp !== null ? Number(item.mrp) : existing.mrp,
-        };
-        this.memoryData.inventory[idx] = updated;
-        this.dexieDb.inventory.put(updated).catch(console.error);
-        if (updated.barcode) this.barcodeMap.set(updated.barcode.trim(), updated);
-        this.idMap.set(updated.id, updated);
-      }
+  public saveInventoryItem(item: Partial<InventoryItem>): InventoryItem {
+    const existingIndex = this.store.inventory.findIndex((p) => p.id === item.id);
+    const now = new Date().toISOString();
+
+    let savedItem: InventoryItem;
+    if (existingIndex >= 0) {
+      savedItem = {
+        ...this.store.inventory[existingIndex],
+        ...item,
+        cost_price: Number(item.cost_price ?? this.store.inventory[existingIndex].cost_price ?? 0),
+        selling_price: Number(item.selling_price ?? this.store.inventory[existingIndex].selling_price ?? 0),
+        mrp: Number(item.mrp ?? this.store.inventory[existingIndex].mrp ?? 0),
+        stock_qty: Number(item.stock_qty ?? this.store.inventory[existingIndex].stock_qty ?? 0),
+        min_stock_alert: Number(item.min_stock_alert ?? this.store.inventory[existingIndex].min_stock_alert ?? 0),
+        gst_rate: Number(item.gst_rate ?? this.store.inventory[existingIndex].gst_rate ?? 0),
+      };
+      this.store.inventory[existingIndex] = savedItem;
     } else {
-      const newItem: InventoryItem = {
-        id: 'prod-' + Date.now(),
-        barcode: item.barcode || 'PMA' + Math.floor(100000 + Math.random() * 900000),
-        name: item.name,
+      savedItem = {
+        id: item.id || `inv-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}`,
+        barcode: item.barcode || `BD${Date.now().toString().slice(-7)}`,
+        name: item.name || 'Untitled Item',
         category: item.category || 'General',
-        unit: item.unit || 'Piece',
-        cost_price: Number(item.cost_price) || 0,
-        selling_price: Number(item.selling_price) || 0,
-        mrp: item.mrp !== undefined && item.mrp !== null ? Number(item.mrp) : 0,
-        stock_qty: Number(item.stock_qty) || 0,
-        godown_qty: Number(item.godown_qty) || 0,
-        moq: Number(item.moq) || 1,
-        min_stock_alert: Number(item.min_stock_alert) || 5,
-        sku_code: item.sku_code || item.barcode || ('PMA' + Math.floor(100000 + Math.random() * 900000)),
-        gst_rate: Number(item.gst_rate) || 18,
-        image_path: item.image_path || '',
-        created_at: new Date().toISOString(),
-      };
-      this.memoryData.inventory.unshift(newItem);
-      this.dexieDb.inventory.add(newItem).catch(console.error);
-      if (newItem.barcode) this.barcodeMap.set(newItem.barcode.trim(), newItem);
-      this.idMap.set(newItem.id, newItem);
-    }
-  }
-
-  public deleteInventoryItem(id: string) {
-    const item = this.idMap.get(id);
-    if (item?.barcode) {
-      this.barcodeMap.delete(item.barcode.trim());
-    }
-    this.idMap.delete(id);
-    this.memoryData.inventory = this.memoryData.inventory.filter((i) => i.id !== id);
-    this.dexieDb.inventory.delete(id).catch(console.error);
-  }
-
-  public bulkImportInventory(items: Partial<InventoryItem>[]): { success: boolean; count: number; errors: string[] } {
-    const errors: string[] = [];
-    const validated: InventoryItem[] = [];
-    const tempBarcodes = new Set<string>();
-
-    for (let i = 0; i < items.length; i++) {
-      const raw = items[i];
-      if (!raw.name) {
-        errors.push(`Row ${i + 1}: Missing product name`);
-        continue;
-      }
-      const barcode = raw.barcode?.toString().trim() || ('PMA' + Math.floor(100000 + Math.random() * 900000));
-      if (this.barcodeMap.has(barcode) || tempBarcodes.has(barcode)) {
-        errors.push(`Row ${i + 1}: Duplicate barcode ${barcode}`);
-        continue;
-      }
-      tempBarcodes.add(barcode);
-
-      validated.push({
-        id: 'prod-' + Date.now() + '-' + i,
-        barcode,
-        name: raw.name,
-        category: raw.category || 'General',
-        unit: raw.unit || 'Piece',
-        cost_price: Number(raw.cost_price) || 0,
-        selling_price: Number(raw.selling_price) || 0,
-        mrp: raw.mrp !== undefined && raw.mrp !== null ? Number(raw.mrp) : 0,
-        stock_qty: Number(raw.stock_qty) || 0,
-        godown_qty: Number(raw.godown_qty) || 0,
-        moq: Number(raw.moq) || 1,
-        min_stock_alert: Number(raw.min_stock_alert) || 5,
-        sku_code: raw.sku_code || barcode,
-        gst_rate: Number(raw.gst_rate) || 18,
-        image_path: raw.image_path || '',
-        created_at: new Date().toISOString(),
-      });
-    }
-
-    if (errors.length > 0) {
-      return { success: false, count: 0, errors };
-    }
-
-    this.memoryData.inventory.unshift(...validated);
-    for (const item of validated) {
-      if (item.barcode) this.barcodeMap.set(item.barcode.trim(), item);
-      this.idMap.set(item.id, item);
-    }
-    
-    // Batch Dexie writes in chunks of 2,000 to prevent memory lockup
-    const BATCH_SIZE = 2000;
-    (async () => {
-      for (let i = 0; i < validated.length; i += BATCH_SIZE) {
-        const batch = validated.slice(i, i + BATCH_SIZE);
-        await this.dexieDb.inventory.bulkAdd(batch).catch(console.error);
-      }
-    })();
-
-    return { success: true, count: validated.length, errors: [] };
-  }
-
-  // Vendors & Purchases
-  public getVendors(): Vendor[] {
-    return this.memoryData.vendors;
-  }
-
-  public saveVendor(vendor: Partial<Vendor> & { name: string }) {
-    let savedVendor: Vendor;
-    if (vendor.id) {
-      const idx = this.memoryData.vendors.findIndex((v) => v.id === vendor.id);
-      if (idx >= 0) {
-        savedVendor = { ...this.memoryData.vendors[idx], ...vendor };
-        this.memoryData.vendors[idx] = savedVendor;
-        this.dexieDb.vendors.put(savedVendor).catch(console.error);
-      } else {
-        savedVendor = {
-          id: vendor.id,
-          name: vendor.name,
-          company_name: vendor.company_name || vendor.name,
-          phone: vendor.phone || '',
-          email: vendor.email || '',
-          gst_number: vendor.gst_number || '',
-          address: vendor.address || '',
-          balance_due: Number(vendor.balance_due) || 0,
-          created_at: new Date().toISOString(),
-        };
-        this.memoryData.vendors.unshift(savedVendor);
-        this.dexieDb.vendors.put(savedVendor).catch(console.error);
-      }
-    } else {
-      savedVendor = {
-        id: 'ven-' + Date.now(),
-        name: vendor.name,
-        company_name: vendor.company_name || vendor.name,
-        phone: vendor.phone || '',
-        email: vendor.email || '',
-        gst_number: vendor.gst_number || '',
-        address: vendor.address || '',
-        balance_due: Number(vendor.balance_due) || 0,
-        created_at: new Date().toISOString(),
-      };
-      this.memoryData.vendors.unshift(savedVendor);
-      this.dexieDb.vendors.add(savedVendor).catch(console.error);
-    }
-    postRowToSQLite('upsert', 'vendors', savedVendor);
-  }
-
-  public deleteVendor(id: string) {
-    this.memoryData.vendors = this.memoryData.vendors.filter((v) => v.id !== id);
-    this.dexieDb.vendors.delete(id).catch(console.error);
-    postRowToSQLite('delete', 'vendors', undefined, id);
-  }
-
-  public getPurchaseOrders(): { order: PurchaseOrder; items: PurchaseItem[] }[] {
-    const itemsMap = new Map<string, PurchaseItem[]>();
-    const allItems = this.memoryData.purchase_items || [];
-    for (let i = 0; i < allItems.length; i++) {
-      const pi = allItems[i];
-      if (pi.po_id) {
-        let arr = itemsMap.get(pi.po_id);
-        if (!arr) {
-          arr = [];
-          itemsMap.set(pi.po_id, arr);
-        }
-        arr.push(pi);
-      }
-    }
-
-    const allOrders = this.memoryData.purchase_orders || [];
-    const list = new Array(allOrders.length);
-    for (let i = 0; i < allOrders.length; i++) {
-      const po = allOrders[i];
-      const items = itemsMap.get(po.id) || [];
-      list[i] = { order: po, items };
-    }
-    return list;
-  }
-
-  public getPurchaseOrder(id: string): { order: PurchaseOrder; items: PurchaseItem[] } | null {
-    const order = this.memoryData.purchase_orders.find((po) => po.id === id);
-    if (!order) return null;
-    const items = this.memoryData.purchase_items.filter((pi) => pi.po_id === id);
-    return { order, items };
-  }
-
-  public savePurchaseOrder(
-    poData: Partial<PurchaseOrder> & { vendor_id: string; status: 'Draft' | 'Ordered' | 'Received'; paid_amount: number },
-    items: { product_id?: string; product_name: string; qty: number; unit?: string; cost_price: number; gst_rate?: number; update_inventory_cost?: boolean }[]
-  ): PurchaseOrder {
-    const isEdit = Boolean(poData.id);
-    const vendor = this.memoryData.vendors.find((v) => v.id === poData.vendor_id);
-    const vendorName = vendor?.company_name || vendor?.name || poData.vendor_name || 'Vendor';
-
-    let oldPO: PurchaseOrder | undefined;
-    let oldItems: PurchaseItem[] = [];
-
-    if (isEdit) {
-      oldPO = this.memoryData.purchase_orders.find((p) => p.id === poData.id);
-      oldItems = this.memoryData.purchase_items.filter((pi) => pi.po_id === poData.id);
-    }
-
-    // Revert stock from old PO if it was Received
-    if (oldPO && oldPO.status === 'Received') {
-      oldItems.forEach((pi) => {
-        if (pi.product_id) {
-          const inv = this.memoryData.inventory.find((i) => i.id === pi.product_id);
-          if (inv) {
-            inv.stock_qty = Math.max(0, inv.stock_qty - pi.qty);
-            this.dexieDb.inventory.put(inv).catch(console.error);
-          }
-        }
-      });
-    }
-
-    // Revert vendor balance from old PO
-    if (oldPO) {
-      const oldVendor = this.memoryData.vendors.find((v) => v.id === oldPO!.vendor_id);
-      if (oldVendor) {
-        const oldDue = oldPO.total_amount - oldPO.paid_amount;
-        oldVendor.balance_due = Math.max(0, oldVendor.balance_due - oldDue);
-        this.dexieDb.vendors.put(oldVendor).catch(console.error);
-      }
-    }
-
-    const poId = poData.id || ('po-' + Date.now());
-    const poNumber = poData.po_number || oldPO?.po_number || ('PO-' + new Date().getFullYear() + '-' + String(this.memoryData.purchase_orders.length + 1).padStart(3, '0'));
-
-    let totalAmount = 0;
-    const poItems: PurchaseItem[] = items.map((item) => {
-      const lineTotal = item.qty * item.cost_price;
-      totalAmount += lineTotal;
-
-      if (item.product_id && item.update_inventory_cost) {
-        const inv = this.memoryData.inventory.find((i) => i.id === item.product_id);
-        if (inv) {
-          inv.cost_price = item.cost_price;
-          this.dexieDb.inventory.put(inv).catch(console.error);
-        }
-      }
-
-      return {
-        id: 'pi-' + Math.random().toString(36).substr(2, 9),
-        po_id: poId,
-        product_id: item.product_id || '',
-        product_name: item.product_name,
-        qty: item.qty,
         unit: item.unit || 'Pcs',
-        cost_price: item.cost_price,
-        gst_rate: item.gst_rate || 0,
-        total: lineTotal,
+        cost_price: Number(item.cost_price || 0),
+        selling_price: Number(item.selling_price || 0),
+        mrp: Number(item.mrp || 0),
+        stock_qty: Number(item.stock_qty || 0),
+        min_stock_alert: Number(item.min_stock_alert || 0),
+        gst_rate: Number(item.gst_rate || 0),
+        sku_code: item.sku_code || '',
+        created_at: now,
       };
-    });
-
-    const taxAmount = Number(poData.tax_amount) || 0;
-    const discountAmount = Number(poData.discount_amount) || 0;
-    const grandTotal = Math.max(0, totalAmount + taxAmount - discountAmount);
-
-    const updatedPO: PurchaseOrder = {
-      id: poId,
-      po_number: poNumber,
-      vendor_id: poData.vendor_id,
-      vendor_name: vendorName,
-      status: poData.status,
-      total_amount: grandTotal,
-      paid_amount: Number(poData.paid_amount) || 0,
-      tax_amount: taxAmount,
-      discount_amount: discountAmount,
-      notes: poData.notes || '',
-      expected_date: poData.expected_date || '',
-      created_at: oldPO?.created_at || new Date().toISOString(),
-    };
-
-    if (isEdit) {
-      const idx = this.memoryData.purchase_orders.findIndex((p) => p.id === poId);
-      if (idx >= 0) {
-        this.memoryData.purchase_orders[idx] = updatedPO;
-      }
-      this.memoryData.purchase_items = this.memoryData.purchase_items.filter((pi) => pi.po_id !== poId);
-      this.memoryData.purchase_items.push(...poItems);
-
-      this.dexieDb.purchase_orders.put(updatedPO).catch(console.error);
-      this.dexieDb.purchase_items.where('po_id').equals(poId).delete().then(() => {
-        this.dexieDb.purchase_items.bulkAdd(poItems).catch(console.error);
-      }).catch(console.error);
-    } else {
-      this.memoryData.purchase_orders.unshift(updatedPO);
-      this.memoryData.purchase_items.push(...poItems);
-
-      this.dexieDb.purchase_orders.add(updatedPO).catch(console.error);
-      this.dexieDb.purchase_items.bulkAdd(poItems).catch(console.error);
+      this.store.inventory.unshift(savedItem);
     }
 
-    if (poData.status === 'Received') {
-      poItems.forEach((pi) => {
-        if (pi.product_id) {
-          const inv = this.memoryData.inventory.find((i) => i.id === pi.product_id);
-          if (inv) {
-            inv.stock_qty += pi.qty;
-            this.dexieDb.inventory.put(inv).catch(console.error);
-          }
-        }
-      });
-    }
-
-    if (vendor) {
-      const due = grandTotal - updatedPO.paid_amount;
-      vendor.balance_due += due;
-      this.dexieDb.vendors.put(vendor).catch(console.error);
-      postRowToSQLite('upsert', 'vendors', vendor);
-    }
-
-    // Mirror PO & Items to SQLite database explicitly
-    postRowToSQLite('upsert', 'purchase_orders', updatedPO);
-    poItems.forEach((pi) => {
-      postRowToSQLite('upsert', 'purchase_items', pi);
-    });
-
-    return updatedPO;
+    this.persistLocal();
+    this.syncToServer('upsert', { table: 'inventory', data: savedItem });
+    return savedItem;
   }
 
-  public createPurchaseOrder(
-    poData: { vendor_id: string; status: 'Draft' | 'Ordered' | 'Received'; paid_amount: number; notes?: string },
-    items: { product_id: string; product_name: string; qty: number; cost_price: number }[]
-  ) {
-    return this.savePurchaseOrder(poData, items);
+  public deleteInventoryItem(id: string): boolean {
+    this.store.inventory = this.store.inventory.filter((p) => p.id !== id);
+    this.persistLocal();
+    this.syncToServer('delete', { table: 'inventory', id });
+    return true;
   }
 
-  public updatePOStatus(poId: string, newStatus: 'Draft' | 'Ordered' | 'Received') {
-    const existing = this.getPurchaseOrder(poId);
-    if (!existing) return null;
-    return this.savePurchaseOrder(
-      {
-        ...existing.order,
-        status: newStatus,
-      },
-      existing.items.map((pi) => ({
-        product_id: pi.product_id,
-        product_name: pi.product_name,
-        qty: pi.qty,
-        unit: pi.unit,
-        cost_price: pi.cost_price,
-        gst_rate: pi.gst_rate,
-      }))
-    );
-  }
-
-  public receivePOWithAllocation(
-    poId: string,
-    allocations: {
-      product_id?: string;
-      product_name: string;
-      qty: number;
-      cost_price: number;
-      selling_price: number;
-      mrp?: number;
-      shop_qty: number;
-      godown_qty: number;
-    }[]
-  ) {
-    const poData = this.getPurchaseOrder(poId);
-    if (!poData) return null;
-
-    // Update PO status to Received
-    poData.order.status = 'Received';
-    const idx = this.memoryData.purchase_orders.findIndex((p) => p.id === poId);
-    if (idx >= 0) {
-      this.memoryData.purchase_orders[idx] = poData.order;
-      this.dexieDb.purchase_orders.put(poData.order).catch(console.error);
-      postRowToSQLite('upsert', 'purchase_orders', poData.order);
-    }
-
-    // Process allocations to update inventory selling price, shop stock, & godown stock
-    allocations.forEach((alloc) => {
-      let inv = alloc.product_id ? this.memoryData.inventory.find((i) => i.id === alloc.product_id) : undefined;
-
-      if (!inv && alloc.product_name) {
-        inv = this.memoryData.inventory.find(
-          (i) => i.name.toLowerCase().trim() === alloc.product_name.toLowerCase().trim()
-        );
-      }
-
-      if (inv) {
-        inv.stock_qty = Math.max(0, Number(inv.stock_qty || 0) + Number(alloc.shop_qty || 0));
-        inv.godown_qty = Math.max(0, Number(inv.godown_qty || 0) + Number(alloc.godown_qty || 0));
-        inv.cost_price = Number(alloc.cost_price) || inv.cost_price;
-        if (Number(alloc.selling_price) > 0) {
-          inv.selling_price = Number(alloc.selling_price);
+  public bulkImportInventory(items: Partial<InventoryItem>[]): { count: number; success: boolean; errors: any[] } {
+    let importedCount = 0;
+    const errors: any[] = [];
+    items.forEach((item) => {
+      try {
+        if (item.name) {
+          this.saveInventoryItem(item);
+          importedCount++;
         }
-        if (alloc.mrp !== undefined && alloc.mrp !== null) {
-          inv.mrp = Number(alloc.mrp);
-        }
-        this.dexieDb.inventory.put(inv).catch(console.error);
-        postRowToSQLite('upsert', 'inventory', inv);
-      } else {
-        const newItem: InventoryItem = {
-          id: 'prod-' + Date.now() + '-' + Math.random().toString(36).substring(2, 6),
-          barcode: 'PMA' + Math.floor(100000 + Math.random() * 900000),
-          name: alloc.product_name,
-          category: 'General',
-          unit: 'Pcs',
-          cost_price: Number(alloc.cost_price) || 0,
-          selling_price: Number(alloc.selling_price) || Number(alloc.cost_price) * 1.25,
-          mrp: alloc.mrp !== undefined && alloc.mrp !== null ? Number(alloc.mrp) : 0,
-          stock_qty: Number(alloc.shop_qty) || 0,
-          godown_qty: Number(alloc.godown_qty) || 0,
-          moq: 1,
-          min_stock_alert: 5,
-          sku_code: '',
-          gst_rate: 18,
-          image_path: '',
-          created_at: new Date().toISOString(),
-        };
-        newItem.sku_code = newItem.barcode;
-        this.memoryData.inventory.unshift(newItem);
-        this.dexieDb.inventory.add(newItem).catch(console.error);
-        postRowToSQLite('upsert', 'inventory', newItem);
+      } catch (e: any) {
+        errors.push({ item, error: e.message });
       }
     });
-
-    return poData.order;
+    this.persistLocal();
+    return { count: importedCount, success: errors.length === 0, errors };
   }
 
-  public deletePurchaseOrder(poId: string) {
-    const po = this.memoryData.purchase_orders.find((p) => p.id === poId);
-    if (!po) return;
+  // ==========================================
+  // CUSTOMER METHODS & KHATA BALANCE
+  // ==========================================
 
-    const poItems = this.memoryData.purchase_items.filter((pi) => pi.po_id === poId);
-
-    if (po.status === 'Received') {
-      poItems.forEach((pi) => {
-        if (pi.product_id) {
-          const inv = this.memoryData.inventory.find((i) => i.id === pi.product_id);
-          if (inv) {
-            inv.stock_qty = Math.max(0, inv.stock_qty - pi.qty);
-            this.dexieDb.inventory.put(inv).catch(console.error);
-          }
-        }
-      });
-    }
-
-    const vendor = this.memoryData.vendors.find((v) => v.id === po.vendor_id);
-    if (vendor) {
-      const due = po.total_amount - po.paid_amount;
-      vendor.balance_due = Math.max(0, vendor.balance_due - due);
-      this.dexieDb.vendors.put(vendor).catch(console.error);
-    }
-
-    this.memoryData.purchase_orders = this.memoryData.purchase_orders.filter((p) => p.id !== poId);
-    this.memoryData.purchase_items = this.memoryData.purchase_items.filter((pi) => pi.po_id !== poId);
-
-    this.dexieDb.purchase_orders.delete(poId).catch(console.error);
-    this.dexieDb.purchase_items.where('po_id').equals(poId).delete().catch(console.error);
-
-    postRowToSQLite('delete', 'purchase_orders', undefined, poId);
-    poItems.forEach((pi) => {
-      postRowToSQLite('delete', 'purchase_items', undefined, pi.id);
-    });
-  }
-
-  // Customers & Loyalty
   public getCustomers(): Customer[] {
-    return this.memoryData.customers;
+    return [...this.store.customers];
+  }
+
+  public getCustomer(id: string): Customer | undefined {
+    return this.store.customers.find((c) => c.id === id);
   }
 
   public getCustomerByMobile(mobile: string): Customer | undefined {
-    const clean = mobile.trim();
-    return this.memoryData.customers.find((c) => c.mobile === clean);
+    const clean = mobile.replace(/\D/g, '');
+    if (!clean) return undefined;
+    return this.store.customers.find((c) => c.mobile.replace(/\D/g, '') === clean);
   }
 
-  public saveCustomer(cust: Partial<Customer> & { name: string; mobile: string }) {
-    if (cust.id) {
-      const idx = this.memoryData.customers.findIndex((c) => c.id === cust.id);
-      if (idx >= 0) {
-        const updated = { ...this.memoryData.customers[idx], ...cust };
-        this.memoryData.customers[idx] = updated;
-        this.dexieDb.customers.put(updated).catch(console.error);
-      }
+  public saveCustomer(cust: Partial<Customer>): Customer {
+    const existingIndex = this.store.customers.findIndex((c) => c.id === cust.id);
+    const now = new Date().toISOString();
+
+    let saved: Customer;
+    if (existingIndex >= 0) {
+      saved = {
+        ...this.store.customers[existingIndex],
+        ...cust,
+        balance_due: Number(cust.balance_due ?? this.store.customers[existingIndex].balance_due ?? 0),
+        loyalty_points: Number(cust.loyalty_points ?? this.store.customers[existingIndex].loyalty_points ?? 0),
+        total_spent: Number(cust.total_spent ?? this.store.customers[existingIndex].total_spent ?? 0),
+      };
+      this.store.customers[existingIndex] = saved;
     } else {
-      const newC: Customer = {
-        id: 'cust-' + Date.now(),
-        name: cust.name,
-        mobile: cust.mobile,
+      saved = {
+        id: cust.id || `cust-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}`,
+        name: cust.name || 'Valued Customer',
+        mobile: cust.mobile || '',
         email: cust.email || '',
         address: cust.address || '',
         gst_number: cust.gst_number || '',
-        loyalty_points: Number(cust.loyalty_points) || 0,
-        total_spent: Number(cust.total_spent) || 0,
-        created_at: new Date().toISOString(),
+        balance_due: Number(cust.balance_due || 0),
+        loyalty_points: Number(cust.loyalty_points || 0),
+        total_spent: Number(cust.total_spent || 0),
+        created_at: now,
       };
-      this.memoryData.customers.unshift(newC);
-      this.dexieDb.customers.add(newC).catch(console.error);
-    }
-  }
-
-  public getLoyaltyLedger(customerId?: string): LoyaltyLedger[] {
-    const all = this.memoryData.loyalty_ledger || [];
-    if (!customerId) return all;
-    return all.filter((l) => l.customer_id === customerId);
-  }
-
-  // Invoices & POS
-  public getInvoices(): { invoice: Invoice; items: InvoiceItem[] }[] {
-    const itemsMap = new Map<string, InvoiceItem[]>();
-    const allItems = this.memoryData.invoice_items || [];
-    for (let i = 0; i < allItems.length; i++) {
-      const ii = allItems[i];
-      if (ii.invoice_id) {
-        let arr = itemsMap.get(ii.invoice_id);
-        if (!arr) {
-          arr = [];
-          itemsMap.set(ii.invoice_id, arr);
-        }
-        arr.push(ii);
-      }
+      this.store.customers.unshift(saved);
     }
 
-    const allInvoices = this.memoryData.invoices || [];
-    const list = new Array(allInvoices.length);
-    for (let i = 0; i < allInvoices.length; i++) {
-      const inv = allInvoices[i];
-      const items = itemsMap.get(inv.id) || itemsMap.get(inv.invoice_number) || [];
-      list[i] = { invoice: inv, items };
-    }
-    return list;
+    this.persistLocal();
+    this.syncToServer('upsert', { table: 'customers', data: saved });
+    return saved;
   }
 
-  public getInvoice(idOrNumber: string): { invoice: Invoice; items: InvoiceItem[] } | null {
-    const inv = this.memoryData.invoices.find(
-      (i) => i.id === idOrNumber || i.invoice_number === idOrNumber
+  public deleteCustomer(id: string): boolean {
+    this.store.customers = this.store.customers.filter((c) => c.id !== id);
+    this.persistLocal();
+    this.syncToServer('delete', { table: 'customers', id });
+    return true;
+  }
+
+  public getCustomerInvoices(customerId: string): Invoice[] {
+    return this.store.invoices.filter((inv) => inv.customer_id === customerId);
+  }
+
+  public getCustomerLedger(customerId: string): LedgerEntry[] {
+    return this.store.ledger
+      .filter((l) => l.customer_id === customerId)
+      .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+  }
+
+  // ==========================================
+  // INVOICE & BILLING METHODS
+  // ==========================================
+
+  public getInvoices(): Invoice[] {
+    return [...this.store.invoices].sort(
+      (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
     );
-    if (!inv) return null;
-    const items = this.memoryData.invoice_items.filter(
-      (ii) => ii.invoice_id === inv.id || ii.invoice_id === inv.invoice_number
-    );
-    return { invoice: inv, items };
+  }
+
+  public getInvoice(id: string): Invoice | undefined {
+    return this.store.invoices.find((inv) => inv.id === id);
   }
 
   public async createInvoice(saleData: {
     customer_id?: string;
-    customer_name: string;
-    customer_mobile: string;
-    invoice_type: 'GST' | 'NON_GST' | 'MIXED';
+    customer_name?: string;
+    customer_mobile?: string;
+    customer_address?: string;
+    customer_gstin?: string;
+    invoice_type?: 'GST' | 'NON_GST' | 'MIXED';
+    subtotal: number;
+    tax_amount: number;
     discount_amount: number;
-    exchange_amount?: number;
-    exchange_notes?: string;
-    payment_method: 'CASH' | 'UPI' | 'CARD' | 'CREDIT';
-    loyalty_points_redeemed?: number;
-    items: { product_id: string; barcode: string; product_name: string; qty: number; unit_price: number; tax_rate: number; mrp?: number }[];
+    round_off?: number;
+    grand_total: number;
+    amount_paid?: number;
+    balance_due?: number;
+    payment_method: 'CASH' | 'UPI' | 'CARD' | 'CREDIT' | 'SPLIT';
+    payment_status?: 'PAID' | 'UNPAID' | 'PARTIAL' | 'PENDING';
+    items: Array<{
+      product_id?: string;
+      barcode?: string;
+      product_name: string;
+      qty: number;
+      unit?: string;
+      unit_price: number;
+      mrp?: number;
+      gst_rate?: number;
+      tax_rate?: number;
+      tax_amount?: number;
+      total_price: number;
+    }>;
+    notes?: string;
+    created_by?: string;
   }): Promise<Invoice> {
-    const invId = 'inv-' + Date.now();
-    const currentYear = new Date().getFullYear();
-    const yearInvoices = this.memoryData.invoices.filter((i) => {
-      const invYear = new Date(i.created_at || Date.now()).getFullYear();
-      return invYear === currentYear;
-    });
-    const invSeq = yearInvoices.length + 1;
-    const invNumber = `INV-${currentYear}-${String(invSeq).padStart(invSeq > 9999 ? 5 : 4, '0')}`;
+    const now = new Date().toISOString();
+    const invId = `inv_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 6)}`;
+    const prefix = this.store.settings.invoice_prefix || 'BD-';
+    const invNumber = `${prefix}${Date.now().toString().slice(-6)}`;
 
-    let subtotal = 0;
-    let taxAmount = 0;
+    const grandTotal = Number(saleData.grand_total || 0);
+    const amountPaid = saleData.amount_paid !== undefined ? Number(saleData.amount_paid) : grandTotal;
+    const balanceDue = saleData.balance_due !== undefined ? Number(saleData.balance_due) : Math.max(0, grandTotal - amountPaid);
+    
+    let paymentStatus: 'PAID' | 'UNPAID' | 'PARTIAL' | 'PENDING' = 'PAID';
+    if (balanceDue > 0 && amountPaid === 0) {
+      paymentStatus = 'UNPAID';
+    } else if (balanceDue > 0 && amountPaid > 0) {
+      paymentStatus = 'PARTIAL';
+    } else {
+      paymentStatus = 'PAID';
+    }
+    if (saleData.payment_status) {
+      paymentStatus = saleData.payment_status;
+    }
 
-    const invItems: InvoiceItem[] = saleData.items.map((item) => {
-      const lineSubtotal = item.qty * item.unit_price;
-      const lineTax = (saleData.invoice_type === 'GST' || saleData.invoice_type === 'MIXED')
-        ? ((lineSubtotal * item.tax_rate) / 100)
-        : 0;
-      subtotal += lineSubtotal;
-      taxAmount += lineTax;
-
-      // Update Inventory Stock in memory
-      const invProd = this.memoryData.inventory.find((i) => i.id === item.product_id);
-      if (invProd) {
-        invProd.stock_qty = Math.max(0, invProd.stock_qty - item.qty);
-      }
-
-      const itemMrp = item.mrp && item.mrp > 0
-        ? Number(item.mrp)
-        : (invProd?.mrp && invProd.mrp > 0 ? Number(invProd.mrp) : Number(invProd?.selling_price || item.unit_price));
-
-      return {
-        id: 'ii-' + Math.random().toString(36).substr(2, 9),
-        invoice_id: invId,
-        product_id: item.product_id,
-        barcode: item.barcode,
-        product_name: item.product_name,
-        qty: item.qty,
-        unit_price: item.unit_price,
-        mrp: itemMrp,
-        tax_rate: item.tax_rate,
-        total_price: lineSubtotal,
-      };
-    });
-
-    const grandTotal = Math.max(0, subtotal + taxAmount - saleData.discount_amount - (saleData.exchange_amount || 0));
+    const lineItems: InvoiceItem[] = saleData.items.map((it, idx) => ({
+      id: `it_${invId}_${idx + 1}`,
+      invoice_id: invId,
+      product_id: it.product_id,
+      barcode: it.barcode,
+      product_name: it.product_name,
+      qty: Number(it.qty || 1),
+      unit: it.unit || 'Pcs',
+      unit_price: Number(it.unit_price || 0),
+      mrp: Number(it.mrp || 0),
+      tax_rate: Number(it.tax_rate ?? it.gst_rate ?? 0),
+      gst_rate: Number(it.gst_rate ?? it.tax_rate ?? 0),
+      tax_amount: Number(it.tax_amount || 0),
+      total_price: Number(it.total_price || 0),
+      total: Number(it.total_price || 0),
+    }));
 
     const newInvoice: Invoice = {
       id: invId,
@@ -1599,431 +688,364 @@ class OfflineDB {
       customer_id: saleData.customer_id,
       customer_name: saleData.customer_name || 'Walk-in Customer',
       customer_mobile: saleData.customer_mobile || '',
-      invoice_type: saleData.invoice_type,
-      subtotal,
-      tax_amount: taxAmount,
-      discount_amount: saleData.discount_amount,
-      exchange_amount: saleData.exchange_amount || 0,
-      exchange_notes: saleData.exchange_notes || '',
+      customer_address: saleData.customer_address,
+      customer_gstin: saleData.customer_gstin,
+      invoice_type: saleData.invoice_type || 'GST',
+      subtotal: Number(saleData.subtotal || 0),
+      tax_amount: Number(saleData.tax_amount || 0),
+      discount_amount: Number(saleData.discount_amount || 0),
+      round_off: Number(saleData.round_off || 0),
       grand_total: grandTotal,
+      amount_paid: amountPaid,
+      balance_due: balanceDue,
       payment_method: saleData.payment_method,
-      payment_status: 'PAID',
-      created_at: new Date().toISOString(),
-      is_synced: 0,
+      payment_status: paymentStatus,
+      items: lineItems,
+      notes: saleData.notes,
+      created_by: saleData.created_by || 'Admin',
+      created_at: now,
     };
 
-    this.memoryData.invoices.unshift(newInvoice);
-    this.memoryData.invoice_items.push(...invItems);
+    // 1. Add to local memory store
+    this.store.invoices.unshift(newInvoice);
+    this.store.invoice_items.push(...lineItems);
 
-    // Save to local IndexedDB & await server SQLite database sync
-    if (typeof window !== 'undefined' && this.dexieDb) {
-      await this.dexieDb.invoices.add(newInvoice).catch(console.error);
-      for (const item of invItems) {
-        await this.dexieDb.invoice_items.add(item).catch(console.error);
+    // 2. Deduct product quantities
+    lineItems.forEach((it) => {
+      const p = this.store.inventory.find(
+        (x) => (it.product_id && x.id === it.product_id) || (it.barcode && x.barcode === it.barcode)
+      );
+      if (p) {
+        p.stock_qty = Math.max(0, p.stock_qty - it.qty);
+        this.syncToServer('upsert', { table: 'inventory', data: p });
       }
+    });
 
-      // Single atomic post for invoice + items
-      await postInvoiceToSQLite(newInvoice, invItems);
+    // 3. Update customer balance and Ledger if customer attached
+    if (saleData.customer_id) {
+      const cust = this.store.customers.find((c) => c.id === saleData.customer_id);
+      if (cust) {
+        const prevBal = cust.balance_due || 0;
+        cust.balance_due = prevBal + balanceDue;
+        cust.total_spent = (cust.total_spent || 0) + grandTotal;
+        this.syncToServer('upsert', { table: 'customers', data: cust });
 
-      for (const item of saleData.items) {
-        const invProd = this.memoryData.inventory.find((i) => i.id === item.product_id);
-        if (invProd) {
-          await this.dexieDb.inventory.put(invProd).catch(console.error);
-          await postRowToSQLite('upsert', 'inventory', invProd);
+        // Ledger Entry 1: Invoice Debit
+        const debitEntry: LedgerEntry = {
+          id: `ledg_${Date.now().toString(36)}_d`,
+          customer_id: cust.id,
+          customer_name: cust.name,
+          customer_mobile: cust.mobile,
+          date: now,
+          type: 'DEBIT',
+          amount: grandTotal,
+          balance_after: prevBal + grandTotal,
+          reference_type: 'INVOICE',
+          reference_id: invNumber,
+          payment_mode: saleData.payment_method,
+          notes: `Invoice billed #${invNumber}`,
+          created_at: now,
+        };
+        this.store.ledger.unshift(debitEntry);
+        this.syncToServer('upsert', { table: 'ledger', data: debitEntry });
+
+        // Ledger Entry 2: Payment Credit if paid at invoice creation
+        if (amountPaid > 0) {
+          const creditEntry: LedgerEntry = {
+            id: `ledg_${Date.now().toString(36)}_c`,
+            customer_id: cust.id,
+            customer_name: cust.name,
+            customer_mobile: cust.mobile,
+            date: now,
+            type: 'CREDIT',
+            amount: amountPaid,
+            balance_after: prevBal + balanceDue,
+            reference_type: 'PAYMENT',
+            reference_id: invNumber,
+            payment_mode: saleData.payment_method,
+            notes: `Payment received for bill #${invNumber}`,
+            created_at: now,
+          };
+          this.store.ledger.unshift(creditEntry);
+          this.syncToServer('upsert', { table: 'ledger', data: creditEntry });
         }
       }
     }
 
-    // Update Customer record & loyalty ledger if customer selected
-    let customer = this.memoryData.customers.find(
-      (c) => (saleData.customer_id && c.id === saleData.customer_id) || (saleData.customer_mobile && c.mobile === saleData.customer_mobile)
-    );
-
-    if (!customer && saleData.customer_mobile && saleData.customer_name) {
-      customer = {
-        id: 'cust-' + Date.now(),
-        name: saleData.customer_name,
-        mobile: saleData.customer_mobile,
-        email: '',
-        address: '',
-        gst_number: '',
-        loyalty_points: 0,
-        total_spent: 0,
-        created_at: new Date().toISOString(),
-      };
-      this.memoryData.customers.unshift(customer);
-      if (typeof window !== 'undefined' && this.dexieDb) {
-        await this.dexieDb.customers.add(customer).catch(console.error);
-        await postRowToSQLite('upsert', 'customers', customer);
-      }
-    }
-
-    if (customer) {
-      customer.total_spent += grandTotal;
-      const pointsEarned = Math.floor(grandTotal / 100);
-      const billMaxRedeem = Math.max(0, Math.ceil(subtotal + taxAmount - saleData.discount_amount - (saleData.exchange_amount || 0)));
-      const actualRedeemed = Math.min(saleData.loyalty_points_redeemed || 0, customer.loyalty_points, billMaxRedeem);
-      const pointsNet = pointsEarned - actualRedeemed;
-
-      customer.loyalty_points = Math.max(0, customer.loyalty_points + pointsNet);
-      if (typeof window !== 'undefined' && this.dexieDb) {
-        await this.dexieDb.customers.put(customer).catch(console.error);
-        await postRowToSQLite('upsert', 'customers', customer);
-      }
-
-      let ledgerReason = `Transaction ${invNumber}`;
-      if (actualRedeemed > 0 && pointsEarned > 0) {
-        ledgerReason = `Redeemed ${actualRedeemed} Pts & Earned ${pointsEarned} Pts (Bill #${invNumber})`;
-      } else if (actualRedeemed > 0) {
-        ledgerReason = `Redeemed ${actualRedeemed} Pts (Bill #${invNumber})`;
-      } else if (pointsEarned > 0) {
-        ledgerReason = `Earned ${pointsEarned} Pts (Bill #${invNumber})`;
-      }
-
-      const newLoyalty = {
-        id: 'lgt-' + Date.now(),
-        customer_id: customer.id,
-        points_change: pointsNet,
-        reason: ledgerReason,
-        created_at: new Date().toISOString(),
-      };
-      this.memoryData.loyalty_ledger.unshift(newLoyalty);
-      if (typeof window !== 'undefined' && this.dexieDb) {
-        await this.dexieDb.loyalty_ledger.add(newLoyalty).catch(console.error);
-        await postRowToSQLite('upsert', 'loyalty_ledger', newLoyalty);
-      }
-    }
-
+    this.persistLocal();
+    this.syncToServer('upsert_invoice', { invoice: newInvoice, items: lineItems });
     return newInvoice;
   }
 
-  public async updateInvoice(invoiceId: string, saleData: {
-    customer_name: string;
-    customer_mobile: string;
-    invoice_type: 'GST' | 'NON_GST' | 'MIXED';
-    discount_amount: number;
-    exchange_amount?: number;
-    exchange_notes?: string;
-    payment_method: 'CASH' | 'UPI' | 'CARD' | 'CREDIT';
-    items: { id?: string; product_id: string; barcode: string; product_name: string; qty: number; unit_price: number; tax_rate: number; mrp?: number }[];
-  }) {
-    const invoice = this.memoryData.invoices.find((i) => i.id === invoiceId);
-    if (!invoice) throw new Error("Invoice not found in memory");
-
-    // 1. Revert original inventory stocks
-    const originalItems = this.memoryData.invoice_items.filter((ii) => ii.invoice_id === invoiceId);
-    for (const orig of originalItems) {
-      const prod = this.memoryData.inventory.find((p) => p.id === orig.product_id);
-      if (prod) {
-        prod.stock_qty += orig.qty;
-      }
+  public updateInvoice(invoiceOrId: Invoice | string, updates?: Partial<Invoice>): any {
+    const id = typeof invoiceOrId === 'string' ? invoiceOrId : invoiceOrId.id;
+    const idx = this.store.invoices.findIndex((i) => i.id === id);
+    if (idx >= 0) {
+      const existing = this.store.invoices[idx];
+      const merged = typeof invoiceOrId === 'string' ? { ...existing, ...updates } : { ...existing, ...invoiceOrId };
+      this.store.invoices[idx] = merged as Invoice;
+      this.persistLocal();
+      this.syncToServer('upsert', { table: 'invoices', data: merged });
+      return merged;
     }
-
-    // 4. Calculate new subtotal and tax
-    let subtotal = 0;
-    let taxAmount = 0;
-
-    const newInvItems: InvoiceItem[] = saleData.items.map((item) => {
-      const lineSubtotal = item.qty * item.unit_price;
-      const lineTax = (saleData.invoice_type === 'GST' || saleData.invoice_type === 'MIXED')
-        ? ((lineSubtotal * item.tax_rate) / 100)
-        : 0;
-      subtotal += lineSubtotal;
-      taxAmount += lineTax;
-
-      // Update inventory stock in memory
-      const prod = this.memoryData.inventory.find((p) => p.id === item.product_id);
-      if (prod) {
-        prod.stock_qty = Math.max(0, prod.stock_qty - item.qty);
-      }
-
-      const itemMrp = item.mrp && item.mrp > 0
-        ? Number(item.mrp)
-        : (prod?.mrp && prod.mrp > 0 ? Number(prod.mrp) : Number(prod?.selling_price || item.unit_price));
-
-      return {
-        id: item.id || ('ii-' + Math.random().toString(36).substr(2, 9)),
-        invoice_id: invoiceId,
-        product_id: item.product_id,
-        barcode: item.barcode,
-        product_name: item.product_name,
-        qty: item.qty,
-        unit_price: item.unit_price,
-        mrp: itemMrp,
-        tax_rate: item.tax_rate,
-        total_price: lineSubtotal,
-      };
-    });
-
-    const grandTotal = Math.max(0, subtotal + taxAmount - saleData.discount_amount - (saleData.exchange_amount || 0));
-
-    // Update invoice fields
-    invoice.customer_name = saleData.customer_name;
-    invoice.customer_mobile = saleData.customer_mobile;
-    invoice.invoice_type = saleData.invoice_type;
-    invoice.subtotal = subtotal;
-    invoice.tax_amount = taxAmount;
-    invoice.discount_amount = saleData.discount_amount;
-    invoice.exchange_amount = saleData.exchange_amount || 0;
-    invoice.exchange_notes = saleData.exchange_notes || '';
-    invoice.grand_total = grandTotal;
-    invoice.payment_method = saleData.payment_method;
-
-    // 5. Update local memory structures
-    this.memoryData.invoice_items = this.memoryData.invoice_items.filter((ii) => ii.invoice_id !== invoiceId);
-    this.memoryData.invoice_items.push(...newInvItems);
-
-    // 6. Persist to Dexie and SQLite
-    if (typeof window !== 'undefined' && this.dexieDb) {
-      await this.dexieDb.invoices.put(invoice).catch(console.error);
-
-      // Delete old items locally
-      for (const orig of originalItems) {
-        await this.dexieDb.invoice_items.delete(orig.id).catch(console.error);
-      }
-
-      // Save new items locally
-      for (const item of newInvItems) {
-        await this.dexieDb.invoice_items.put(item).catch(console.error);
-      }
-
-      // Single atomic post for invoice + items
-      await postInvoiceToSQLite(invoice, newInvItems);
-
-      // Update inventory levels in Dexie/SQLite for any modified products
-      const modifiedProductIds = new Set([
-        ...originalItems.map((oi) => oi.product_id),
-        ...newInvItems.map((ni) => ni.product_id),
-      ]);
-      for (const pId of modifiedProductIds) {
-        const prod = this.memoryData.inventory.find((p) => p.id === pId);
-        if (prod) {
-          await this.dexieDb.inventory.put(prod).catch(console.error);
-          await postRowToSQLite('upsert', 'inventory', prod);
-        }
-      }
-    }
-
-    return { invoice, items: newInvItems };
+    return typeof invoiceOrId === 'object' ? invoiceOrId : null;
   }
 
-  public async returnInvoiceItem(invoiceId: string, itemId: string, returnQty: number) {
-    const item = this.memoryData.invoice_items.find((ii) => ii.id === itemId && ii.invoice_id === invoiceId);
-    if (!item) return;
-
-    item.is_return = true;
-    if (typeof window !== 'undefined' && this.dexieDb) {
-      await this.dexieDb.invoice_items.put(item).catch(console.error);
-      await postRowToSQLite('upsert', 'invoice_items', item);
-    }
-
-    const invProd = this.memoryData.inventory.find((i) => i.id === item.product_id);
-    if (invProd) {
-      invProd.stock_qty += returnQty;
-      if (typeof window !== 'undefined' && this.dexieDb) {
-        await this.dexieDb.inventory.put(invProd).catch(console.error);
-        await postRowToSQLite('upsert', 'inventory', invProd);
-      }
-    }
+  public deleteInvoice(id: string): boolean {
+    this.store.invoices = this.store.invoices.filter((i) => i.id !== id);
+    this.store.invoice_items = this.store.invoice_items.filter((i) => i.invoice_id !== id);
+    this.persistLocal();
+    this.syncToServer('delete', { table: 'invoices', id });
+    return true;
   }
 
-  // Service Center
-  public getServiceTickets(): ServiceTicket[] {
-    return this.memoryData.service_tickets;
-  }
+  public updateInvoicePaymentStatus(
+    invoiceId: string,
+    status: 'PAID' | 'UNPAID' | 'PARTIAL',
+    amountPaid: number,
+    paymentMode: 'CASH' | 'UPI' | 'CARD' | 'BANK' | 'CHEQUE' = 'CASH'
+  ): boolean {
+    const invoice = this.store.invoices.find((i) => i.id === invoiceId);
+    if (!invoice) return false;
 
-  public saveServiceTicket(ticket: Partial<ServiceTicket> & { customer_name: string; device_name: string }): ServiceTicket {
-    if (ticket.id) {
-      const idx = this.memoryData.service_tickets.findIndex((s) => s.id === ticket.id);
-      if (idx >= 0) {
-        const updated: ServiceTicket = {
-          ...this.memoryData.service_tickets[idx],
-          ...ticket,
-          updated_at: new Date().toISOString(),
+    const prevBal = invoice.balance_due || 0;
+    invoice.amount_paid = amountPaid;
+    invoice.balance_due = Math.max(0, invoice.grand_total - amountPaid);
+    invoice.payment_status = status;
+    const amountCleared = prevBal - invoice.balance_due;
+
+    if (invoice.customer_id && amountCleared > 0) {
+      const cust = this.store.customers.find((c) => c.id === invoice.customer_id);
+      if (cust) {
+        cust.balance_due = Math.max(0, (cust.balance_due || 0) - amountCleared);
+        const settleEntry: LedgerEntry = {
+          id: `ledg_${Date.now().toString(36)}`,
+          customer_id: cust.id,
+          customer_name: cust.name,
+          customer_mobile: cust.mobile,
+          date: new Date().toISOString(),
+          type: 'CREDIT',
+          amount: amountCleared,
+          balance_after: cust.balance_due,
+          reference_type: 'INVOICE_SETTLEMENT',
+          reference_id: invoice.invoice_number,
+          payment_mode: paymentMode,
+          notes: `Settlement for invoice #${invoice.invoice_number}`,
+          created_at: new Date().toISOString(),
         };
-        this.memoryData.service_tickets[idx] = updated;
-        if (typeof window !== 'undefined' && this.dexieDb) {
-          this.dexieDb.service_tickets.put(updated).catch(console.error);
-        }
-        return updated;
+        this.store.ledger.unshift(settleEntry);
+        this.syncToServer('upsert', { table: 'customers', data: cust });
+        this.syncToServer('upsert', { table: 'ledger', data: settleEntry });
       }
     }
 
-    const totalCount = this.memoryData.service_tickets.length + 1;
-    const tokenSeq = String(totalCount).padStart(2, '0');
-    const queueNo = ticket.queue_number || `TOKEN-#${tokenSeq}`;
-
-    const ticketNo = ticket.ticket_number || 'PMA-S-' + new Date().getFullYear() + '-' + String(totalCount).padStart(3, '0');
-    const serialNo = ticket.serial_number?.trim() || `SN-${Date.now().toString().slice(-6)}`;
-
-    const newTicket: ServiceTicket = {
-      id: 'srv-' + Date.now(),
-      ticket_number: ticketNo,
-      queue_number: queueNo,
-      customer_id: ticket.customer_id,
-      customer_name: ticket.customer_name,
-      customer_mobile: ticket.customer_mobile || '',
-      device_name: ticket.device_name,
-      serial_number: serialNo,
-      issue_description: ticket.issue_description || '',
-      estimated_cost: Number(ticket.estimated_cost) || 0,
-      final_cost: ticket.final_cost !== undefined && ticket.final_cost !== null && !isNaN(Number(ticket.final_cost))
-        ? Number(ticket.final_cost)
-        : (Number(ticket.estimated_cost) || 0),
-      advance_paid: Number(ticket.advance_paid) || 0,
-      assigned_technician: ticket.assigned_technician || '',
-      status: ticket.status || 'Intake',
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
-    };
-    this.memoryData.service_tickets.unshift(newTicket);
-    if (typeof window !== 'undefined' && this.dexieDb) {
-      this.dexieDb.service_tickets.add(newTicket).catch(console.error);
-    }
-    return newTicket;
+    this.persistLocal();
+    this.syncToServer('upsert', { table: 'invoices', data: invoice });
+    return true;
   }
 
-  // Scrap Buying
-  public getScrapEntries(): ScrapEntry[] {
-    const explicit = this.memoryData.scrap_entries || [];
-    const explicitInvIds = new Set(explicit.map((s) => s.invoice_id).filter(Boolean));
+  // ==========================================
+  // LEDGER METHODS
+  // ==========================================
 
-    const invoiceExchanges: ScrapEntry[] = (this.memoryData.invoices || [])
-      .filter((i) => Number(i.exchange_amount || 0) > 0 && !explicitInvIds.has(i.id))
-      .map((i) => ({
-        id: `scrap-inv-${i.id}`,
-        invoice_id: i.id,
-        is_exchange: true,
-        customer_name: i.customer_name || "Walk-in Customer",
-        customer_mobile: i.customer_mobile || "",
-        item_type: i.exchange_notes ? `Exchange: ${i.exchange_notes}` : `Old Exchanged Item`,
-        weight_kg: 1,
-        price_per_kg: Number(i.exchange_amount) || 0,
-        total_payout: Number(i.exchange_amount) || 0,
-        notes: `From POS Bill #${i.invoice_number}`,
-        created_at: i.created_at || new Date().toISOString(),
-      }));
-
-    const combined = [...explicit, ...invoiceExchanges];
-    combined.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
-    return combined;
+  public getLedger(): LedgerEntry[] {
+    return [...this.store.ledger].sort(
+      (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()
+    );
   }
 
-  public saveScrapEntry(entry: Partial<ScrapEntry> & { item_type: string; weight_kg: number; price_per_kg: number }) {
-    const weight = Number(entry.weight_kg) || 0;
-    const rate = Number(entry.price_per_kg) || 0;
-    const payout = weight * rate;
-
-    const newScrap: ScrapEntry = {
-      id: 'scp-' + Date.now(),
-      customer_name: entry.customer_name || 'Walk-in Seller',
-      customer_mobile: entry.customer_mobile || '',
-      item_type: entry.item_type,
-      weight_kg: weight,
-      price_per_kg: rate,
-      total_payout: payout,
-      notes: entry.notes || '',
-      created_at: new Date().toISOString(),
-    };
-    this.memoryData.scrap_entries.unshift(newScrap);
-    this.dexieDb.scrap_entries.add(newScrap).catch(console.error);
-  }
-
-  // Godown Stock Transfers
-  public getGodownTransfers(): GodownTransfer[] {
-    return this.memoryData.godown_transfers;
-  }
-
-  public createGodownTransfer(transfer: {
-    product_id: string;
-    transfer_type: 'SHOP_TO_GODOWN' | 'GODOWN_TO_SHOP';
-    qty: number;
+  public recordLedgerPayment(data: {
+    customer_id: string;
+    customer_name?: string;
+    customer_mobile?: string;
+    amount: number;
+    payment_mode: 'CASH' | 'UPI' | 'BANK' | 'CHEQUE';
+    reference_id?: string;
+    invoice_id?: string;
     notes?: string;
-  }): { success: boolean; message: string } {
-    const product = this.memoryData.inventory.find((p) => p.id === transfer.product_id);
+    date?: string;
+  }): LedgerEntry {
+    const now = data.date || new Date().toISOString();
+    const payAmount = Number(data.amount || 0);
+    const cust = this.store.customers.find((c) => c.id === data.customer_id);
 
-    if (!product) return { success: false, message: 'Product not found' };
-    const transferQty = Number(transfer.qty);
+    const prevBal = cust ? cust.balance_due || 0 : 0;
+    const newBal = Math.max(0, prevBal - payAmount);
 
-    if (transfer.transfer_type === 'SHOP_TO_GODOWN') {
-      if (product.stock_qty < transferQty) {
-        return { success: false, message: `Insufficient shop stock. Available: ${product.stock_qty}` };
-      }
-      product.stock_qty -= transferQty;
-      product.godown_qty += transferQty;
-    } else {
-      if (product.godown_qty < transferQty) {
-        return { success: false, message: `Insufficient godown stock. Available: ${product.godown_qty}` };
-      }
-      product.godown_qty -= transferQty;
-      product.stock_qty += transferQty;
+    if (cust) {
+      cust.balance_due = newBal;
+      this.syncToServer('upsert', { table: 'customers', data: cust });
     }
 
-    const newLog: GodownTransfer = {
-      id: 'gdn-' + Date.now(),
-      product_id: product.id,
-      product_name: product.name,
-      transfer_type: transfer.transfer_type,
-      qty: transferQty,
-      notes: transfer.notes || '',
-      created_at: new Date().toISOString(),
+    if (data.invoice_id) {
+      const inv = this.store.invoices.find((i) => i.id === data.invoice_id);
+      if (inv) {
+        inv.amount_paid = (inv.amount_paid || 0) + payAmount;
+        inv.balance_due = Math.max(0, inv.grand_total - inv.amount_paid);
+        inv.payment_status = inv.balance_due === 0 ? 'PAID' : 'PARTIAL';
+        this.syncToServer('upsert', { table: 'invoices', data: inv });
+      }
+    }
+
+    const entry: LedgerEntry = {
+      id: `ledg_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 6)}`,
+      customer_id: data.customer_id,
+      customer_name: data.customer_name || cust?.name || 'Customer',
+      customer_mobile: data.customer_mobile || cust?.mobile || '',
+      date: now,
+      type: 'CREDIT',
+      amount: payAmount,
+      balance_after: newBal,
+      reference_type: 'PAYMENT',
+      reference_id: data.reference_id || `PAY-${Date.now().toString().slice(-6)}`,
+      payment_mode: data.payment_mode,
+      notes: data.notes || 'Khata payment received',
+      created_at: now,
     };
 
-    this.memoryData.godown_transfers.unshift(newLog);
-    this.dexieDb.inventory.put(product).catch(console.error);
-    this.dexieDb.godown_transfers.add(newLog).catch(console.error);
-    return { success: true, message: 'Stock transferred successfully' };
+    this.store.ledger.unshift(entry);
+    this.persistLocal();
+    this.syncToServer('upsert', { table: 'ledger', data: entry });
+    return entry;
   }
 
-  // Settings & Backups Log
-  public getSettings() {
-    return this.memoryData.settings;
+  // ==========================================
+  // SETTINGS & USERS
+  // ==========================================
+
+  public getSettings(): Settings {
+    return { ...this.store.settings };
   }
 
-  public updateSettings(newSettings: Record<string, any>) {
-    this.memoryData.settings = { ...this.memoryData.settings, ...newSettings };
-    const settingsEntries = Object.entries(newSettings).map(([key, value]) => ({ key, value }));
-    settingsEntries.forEach((s) => {
-      this.dexieDb.settings.put(s).catch(console.error);
+  public updateSettings(newSettings: Partial<Settings>): Settings {
+    this.store.settings = { ...this.store.settings, ...newSettings };
+    this.persistLocal();
+
+    // Persist all updated settings keys into SQLite
+    Object.entries(newSettings).forEach(([key, value]) => {
+      this.syncToServer('upsert', {
+        table: 'settings',
+        data: { key, value },
+      });
     });
+
+    return { ...this.store.settings };
   }
 
-  public getBackupsLog(): BackupLog[] {
-    return this.memoryData.backups_log;
+  public getUsers(): User[] {
+    return [...this.store.users];
   }
 
+  public authenticate(username: string, pin: string): User | null {
+    const cleanUser = username.trim().toLowerCase();
+    const cleanPin = pin.trim();
+    const match = this.store.users.find(
+      (u) => u.username.toLowerCase() === cleanUser && u.pin === cleanPin
+    );
+    return match || null;
+  }
+
+  public saveUser(user: Partial<User>): User {
+    const existingIndex = this.store.users.findIndex((u) => u.id === user.id);
+    let saved: User;
+    if (existingIndex >= 0) {
+      saved = { ...this.store.users[existingIndex], ...user } as User;
+      this.store.users[existingIndex] = saved;
+    } else {
+      saved = {
+        id: user.id || `usr-${Date.now().toString(36)}`,
+        username: user.username || 'staff',
+        pin: user.pin || '1234',
+        role: user.role || 'Cashier',
+        created_at: new Date().toISOString(),
+      };
+      this.store.users.push(saved);
+    }
+    this.persistLocal();
+    this.syncToServer('upsert', { table: 'users', data: saved });
+    return saved;
+  }
+
+  public deleteUser(id: string): boolean {
+    this.store.users = this.store.users.filter((u) => u.id !== id && u.username !== id);
+    this.persistLocal();
+    this.syncToServer('delete', { table: 'users', id });
+    return true;
+  }
+
+  public getStore(): DBStore {
+    return { ...this.store };
+  }
+
+  // Backward compatibility placeholders
+  public getVendors() { return []; }
+  public getPurchaseOrders() { return []; }
+  public getPurchaseOrder(_id: string) { return null; }
+  public saveVendor(_v: any) { return null; }
+  public deleteVendor(_id: string) { return true; }
+  public savePurchaseOrder(_po: any) { return null; }
+  public updatePOStatus(_id: string, _s: string) { return true; }
+  public deletePurchaseOrder(_id: string) { return true; }
+  public getServiceTickets() { return []; }
+  public saveServiceTicket(_t: any) { return null; }
+  public getScrapEntries() { return []; }
+  public saveScrapEntry(_s: any) { return null; }
+  public getBackupsLog(): BackupLog[] { return [...this.store.backups_log]; }
   public logBackup(filename: string, type: 'MANUAL' | 'SCHEDULED', sizeKb: number, status: 'SUCCESS' | 'FAILED') {
-    const newBackup = {
-      id: 'bkp-' + Date.now(),
+    const log: BackupLog = {
+      id: `bkp-${Date.now()}`,
       filename,
       type,
-      timestamp: new Date().toISOString(),
       size_kb: sizeKb,
+      timestamp: new Date().toISOString(),
       status,
     };
-    this.memoryData.backups_log.unshift(newBackup);
-    this.dexieDb.backups_log.add(newBackup).catch(console.error);
-
-    // Retain last N backups
-    const retain = this.memoryData.settings.retain_backups_count || 30;
-    if (this.memoryData.backups_log.length > retain) {
-      const removed = this.memoryData.backups_log.slice(retain);
-      this.memoryData.backups_log = this.memoryData.backups_log.slice(0, retain);
-      removed.forEach((r) => {
-        this.dexieDb.backups_log.delete(r.id).catch(console.error);
-      });
-    }
+    this.store.backups_log.unshift(log);
+    this.persistLocal();
+    this.syncToServer('upsert', { table: 'backups_log', data: log });
   }
 
-  public markInvoicesSynced(ids: string[]) {
-    ids.forEach((id) => {
-      const idx = this.memoryData.invoices.findIndex((inv) => inv.id === id);
-      if (idx >= 0) {
-        this.memoryData.invoices[idx].is_synced = 1;
-        this.dexieDb.invoices.update(id, { is_synced: 1 }).catch(console.error);
+  public async restoreFullBackup(data: any): Promise<boolean> {
+    if (!data) return false;
+    this.store = { ...DEFAULT_STORE, ...data };
+    this.persistLocal();
+    await this.syncToServer('bulk_seed', { store: data });
+    return true;
+  }
+
+  public returnInvoiceItem(invoiceId: string, itemId: string, qty: number): boolean {
+    const item = this.store.invoice_items.find((it) => it.id === itemId || it.invoice_id === invoiceId);
+    if (item && item.qty >= qty) {
+      item.qty -= qty;
+      if (item.product_id) {
+        const p = this.store.inventory.find((x) => x.id === item.product_id);
+        if (p) {
+          p.stock_qty += qty;
+          this.syncToServer('upsert', { table: 'inventory', data: p });
+        }
       }
-    });
+      this.persistLocal();
+      return true;
+    }
+    return false;
+  }
+
+  public getGoogleSheetsUrl(): string { return ''; }
+  public pullServerUpdates(): Promise<boolean> { return this.fetchFromServer(); }
+
+  public async clearTransactionsOnly() {
+    this.store.invoices = [];
+    this.store.invoice_items = [];
+    this.store.ledger = [];
+    this.persistLocal();
+    await this.syncToServer('clear_transactions');
+  }
+
+  public async factoryResetStore(options?: any) {
+    this.store = { ...DEFAULT_STORE };
+    this.persistLocal();
+    await this.syncToServer('factory_reset', { options });
   }
 }
 
-export const db = new OfflineDB();
+export const db = new BillDeskDB();

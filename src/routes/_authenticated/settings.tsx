@@ -5,7 +5,7 @@ import { ExcelEngine } from "@/lib/excel/excel-engine";
 import { useState, useEffect } from "react";
 import { toast } from "sonner";
 import { PageHeader } from "./dashboard";
-import { Settings as SettingsIcon, Printer, Database, Key, ScanBarcode, ShieldCheck, Download, Upload, RefreshCw, CheckCircle, AlertTriangle, Trash2, Languages, UserPlus, Edit3, X, User as UserIcon, Lock, Store, RotateCcw, AlertOctagon, CheckSquare, Square } from "lucide-react";
+import { Settings as SettingsIcon, Printer, Database, Key, ScanBarcode, ShieldCheck, Download, Upload, RefreshCw, CheckCircle, AlertTriangle, Trash2, Languages, UserPlus, Edit3, X, User as UserIcon, Lock, Store, RotateCcw, AlertOctagon, CheckSquare, Square, Server, Wifi, Globe, Copy, ExternalLink, Smartphone } from "lucide-react";
 import { useLang, useT } from "@/lib/lang/lang-context";
 
 export const Route = createFileRoute("/_authenticated/settings")({ component: SettingsPage });
@@ -29,7 +29,16 @@ function SettingsPage() {
     queryFn: async () => db.getUsers(),
   });
 
+  const serverInfo = useQuery({
+    queryKey: ["server-info"],
+    queryFn: async () => db.getServerInfo(),
+    refetchInterval: 10000,
+  });
+
   const [settingsForm, setSettingsForm] = useState(settingsQuery.data || db.getSettings());
+  const [apiKey, setApiKey] = useState(settingsQuery.data?.api_key || "bd_secret_key_88");
+  const [tunnelUrl, setTunnelUrl] = useState(settingsQuery.data?.custom_tunnel_url || "");
+  const [copiedUrl, setCopiedUrl] = useState<string | null>(null);
   const [scannerTestInput, setScannerTestInput] = useState("");
   const [showRestoreConfirm, setShowRestoreConfirm] = useState(false);
   const [restoreFile, setRestoreFile] = useState<File | null>(null);
@@ -38,8 +47,28 @@ function SettingsPage() {
   useEffect(() => {
     if (settingsQuery.data) {
       setSettingsForm(settingsQuery.data);
+      if (settingsQuery.data.api_key) setApiKey(settingsQuery.data.api_key);
+      if (settingsQuery.data.custom_tunnel_url) setTunnelUrl(settingsQuery.data.custom_tunnel_url);
     }
   }, [settingsQuery.data]);
+
+  function copyToClipboard(text: string) {
+    if (typeof navigator !== "undefined" && navigator.clipboard) {
+      navigator.clipboard.writeText(text);
+      setCopiedUrl(text);
+      toast.success("Copied to clipboard!");
+      setTimeout(() => setCopiedUrl(null), 3000);
+    }
+  }
+
+  function handleSaveServerConfig() {
+    db.updateSettings({
+      api_key: apiKey.trim(),
+      custom_tunnel_url: tunnelUrl.trim(),
+    });
+    toast.success("Server configuration saved!");
+    qc.invalidateQueries({ queryKey: ["local-settings"] });
+  }
 
   // Store Provisioning & Factory Reset State
   const [showClearTxModal, setShowClearTxModal] = useState(false);
@@ -275,6 +304,135 @@ function SettingsPage() {
             >
               🇮🇳 {t("settings.language.tamil")}
             </button>
+          </div>
+        </div>
+
+        {/* Local SQLite Database & Mobile Server Host Card */}
+        <div className="card-surface p-5 border-l-4 border-l-emerald-500 space-y-4">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-border pb-3">
+            <div className="text-sm font-bold text-foreground flex items-center gap-2">
+              <Server className="h-4 w-4 text-emerald-400" /> Local SQLite Database & Mobile Host Server
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="text-[11px] px-2.5 py-0.5 rounded-full font-bold bg-emerald-500/15 text-emerald-300 border border-emerald-500/30 flex items-center gap-1.5">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                Server Online (Port 3000)
+              </span>
+              <span className="text-[11px] px-2.5 py-0.5 rounded-full font-bold bg-blue-500/15 text-blue-300 border border-blue-500/30">
+                100% Offline DB
+              </span>
+            </div>
+          </div>
+
+          <div className="space-y-4">
+            <p className="text-xs text-muted-foreground leading-relaxed">
+              This desktop application acts as your master server. All data is saved on this PC in high-speed SQLite, and mobile apps can connect to it over store Wi-Fi or VPN to view live sales, stock, and customer khata.
+            </p>
+
+            {/* Connection URLs list */}
+            <div className="space-y-2">
+              <label className="text-xs font-semibold text-foreground flex items-center gap-1.5">
+                <Wifi className="h-3.5 w-3.5 text-primary" /> Store Local Wi-Fi Connection URLs
+              </label>
+              <div className="space-y-1.5">
+                {serverInfo.data?.connection_urls && serverInfo.data.connection_urls.length > 0 ? (
+                  serverInfo.data.connection_urls.map((u: string) => (
+                    <div key={u} className="flex items-center justify-between p-2.5 rounded-xl bg-secondary/60 border border-border text-xs font-mono">
+                      <span className="text-foreground font-semibold">{u}</span>
+                      <button
+                        type="button"
+                        onClick={() => copyToClipboard(u)}
+                        className="px-2.5 py-1 rounded-lg bg-primary/20 hover:bg-primary/30 text-primary text-[11px] font-sans font-bold flex items-center gap-1 transition cursor-pointer"
+                      >
+                        <Copy className="h-3 w-3" />
+                        <span>{copiedUrl === u ? "Copied!" : "Copy"}</span>
+                      </button>
+                    </div>
+                  ))
+                ) : (
+                  <div className="flex items-center justify-between p-2.5 rounded-xl bg-secondary/60 border border-border text-xs font-mono">
+                    <span className="text-foreground font-semibold">http://localhost:3000</span>
+                    <button
+                      type="button"
+                      onClick={() => copyToClipboard("http://localhost:3000")}
+                      className="px-2.5 py-1 rounded-lg bg-primary/20 hover:bg-primary/30 text-primary text-[11px] font-sans font-bold flex items-center gap-1 transition cursor-pointer"
+                    >
+                      <Copy className="h-3 w-3" />
+                      <span>{copiedUrl === "http://localhost:3000" ? "Copied!" : "Copy"}</span>
+                    </button>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* API Key / Mobile Pairing Token */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
+              <L label="Mobile App Access API Key">
+                <div className="flex gap-2">
+                  <input
+                    value={apiKey}
+                    onChange={(e) => setApiKey(e.target.value)}
+                    placeholder="e.g. bd_secret_token"
+                    className={`${ic} font-mono text-xs`}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => copyToClipboard(apiKey)}
+                    className="px-3 rounded-xl bg-secondary hover:bg-muted border border-border text-foreground text-xs flex items-center gap-1 transition cursor-pointer"
+                  >
+                    <Copy className="h-3.5 w-3.5" />
+                  </button>
+                </div>
+              </L>
+
+              <L label="Custom VPN / Tunnel Domain (Optional)">
+                <input
+                  value={tunnelUrl}
+                  onChange={(e) => setTunnelUrl(e.target.value)}
+                  placeholder="https://pos.yourstore.com"
+                  className={`${ic} font-mono text-xs`}
+                />
+              </L>
+            </div>
+
+            <div className="flex items-center gap-2 pt-1">
+              <button
+                type="button"
+                onClick={handleSaveServerConfig}
+                className="h-9 px-4 rounded-xl bg-primary text-primary-foreground font-bold text-xs flex items-center gap-1.5 hover:opacity-90 transition shadow-xs cursor-pointer"
+              >
+                <CheckCircle className="h-3.5 w-3.5" />
+                <span>Save Server Configuration</span>
+              </button>
+
+              <a
+                href="/api/dashboard/stats"
+                target="_blank"
+                rel="noreferrer"
+                className="h-9 px-3 rounded-xl bg-secondary hover:bg-muted border border-border text-foreground font-semibold text-xs flex items-center gap-1.5 transition cursor-pointer"
+              >
+                <ExternalLink className="h-3.5 w-3.5 text-muted-foreground" />
+                <span>Test API in Browser</span>
+              </a>
+            </div>
+
+            {/* VPN & Remote Access Setup Guide */}
+            <div className="p-3.5 rounded-xl bg-secondary/50 border border-border/80 text-[11px] text-muted-foreground space-y-2 mt-2">
+              <div className="font-bold text-foreground flex items-center gap-1.5">
+                <Globe className="h-3.5 w-3.5 text-primary" />
+                <span>How to connect your phone from outside the shop (100% Free):</span>
+              </div>
+              <ul className="space-y-1.5 text-[11px]">
+                <li className="flex items-start gap-1.5">
+                  <span className="text-emerald-400 font-bold">•</span>
+                  <span><strong>Method 1 (Tailscale VPN):</strong> Install the free Tailscale app on this PC and on your phone. Connect with your PC&apos;s Tailscale IP (e.g. <code className="text-primary font-mono font-semibold">http://100.x.x.x:3000</code>) anywhere on 4G/5G.</span>
+                </li>
+                <li className="flex items-start gap-1.5">
+                  <span className="text-emerald-400 font-bold">•</span>
+                  <span><strong>Method 2 (Cloudflare Tunnel):</strong> Run <code className="text-primary font-mono font-semibold">cloudflared tunnel --url http://localhost:3000</code> in command prompt. Cloudflare provides a free encrypted HTTPS domain for remote access with zero router configuration.</span>
+                </li>
+              </ul>
+            </div>
           </div>
         </div>
 

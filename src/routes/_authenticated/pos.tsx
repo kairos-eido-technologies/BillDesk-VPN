@@ -21,6 +21,8 @@ function POSPage() {
   const [printedInvoiceData, setPrintedInvoiceData] = useState<{ invoice: any; items: any[] } | null>(null);
   const [showHeldBillsModal, setShowHeldBillsModal] = useState(false);
   const [heldBills, setHeldBills] = useState<any[]>([]);
+  const [paymentStatusOption, setPaymentStatusOption] = useState<"PAID" | "UNPAID" | "PARTIAL">("PAID");
+  const [partialAmountPaid, setPartialAmountPaid] = useState<string>("");
   const scanRef = useRef<HTMLInputElement>(null);
   const qc = useQueryClient();
 
@@ -201,15 +203,32 @@ function POSPage() {
   const savePrint = useMutation({
     mutationFn: async () => {
       if (cart.lines.length === 0) throw new Error("Cart is empty");
+      const amountPaid =
+        paymentStatusOption === "PAID"
+          ? totals.total
+          : paymentStatusOption === "UNPAID"
+          ? 0
+          : Number(partialAmountPaid || 0);
+      const balanceDue = Math.max(0, totals.total - amountPaid);
+
       const saleData = {
         customer_id: cart.customerId || undefined,
         customer_name: cart.customerName || "Walk-in Customer",
         customer_mobile: cart.customerMobile || "",
         invoice_type: (cart.gstEnabled ? "GST" : "NON_GST") as any,
+        subtotal: totals.subtotal,
+        tax_amount: totals.gstAmount,
         discount_amount: cart.invoiceDiscount,
         exchange_amount: cart.exchangeAmount,
         exchange_notes: cart.exchangeNotes,
-        payment_method: (cart.payments[0]?.method?.toUpperCase() || "CASH") as any,
+        grand_total: totals.total,
+        amount_paid: amountPaid,
+        balance_due: balanceDue,
+        payment_method:
+          paymentStatusOption === "UNPAID"
+            ? ("CREDIT" as const)
+            : ((cart.payments[0]?.method?.toUpperCase() || "CASH") as any),
+        payment_status: paymentStatusOption,
         loyalty_points_redeemed: cart.loyaltyRedeem,
         items: cart.lines.map((l) => ({
           product_id: l.product_id,
@@ -219,6 +238,7 @@ function POSPage() {
           unit_price: l.price,
           mrp: l.mrp ?? l.price,
           tax_rate: l.gst_rate,
+          total_price: l.qty * l.price - (l.discount || 0),
         })),
       };
       return await db.createInvoice(saleData);
@@ -384,38 +404,31 @@ function POSPage() {
         {/* Quick Add Catalog Grid */}
         <div className="card-surface p-3">
           <div className="text-[10px] uppercase font-semibold text-muted-foreground mb-2 tracking-wider flex justify-between">
-            <span>{t("pos.quickAdd")}</span>
-            <span className="text-amber-400 font-mono">{t("pos.godownNote")}</span>
+            <span>Quick Add Products</span>
+            <span className="text-primary font-mono">{products.data?.length ?? 0} items</span>
           </div>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
             {products.data?.map((p) => {
               const shopQty = Number(p.stock_qty || 0);
-              const godownQty = Number(p.godown_qty || 0);
-              const isShopOutOfStock = shopQty <= 0;
+              const isOutOfStock = shopQty <= 0;
 
               return (
                 <button
                   key={p.id}
                   onClick={() => handleProductClick(p)}
                   className={`text-left p-2.5 rounded-md border transition group relative ${
-                    isShopOutOfStock
-                      ? "bg-secondary/20 border-amber-500/40 opacity-75 cursor-not-allowed"
-                      : "border-border hover:border-primary/50 hover:bg-secondary/60"
+                    isOutOfStock
+                      ? "bg-secondary/20 border-rose-500/40 opacity-75 cursor-not-allowed"
+                      : "border-border hover:border-primary/50 hover:bg-secondary/60 cursor-pointer"
                   }`}
                 >
                   <div className="text-xs font-semibold truncate group-hover:text-primary flex justify-between items-center">
                     <span className="truncate">{p.name}</span>
-                    {isShopOutOfStock && godownQty > 0 ? (
-                      <span className="text-[9px] px-1 bg-amber-500/20 text-amber-400 font-bold rounded border border-amber-500/40">
-                        {t("pos.transferReq")}
-                      </span>
-                    ) : null}
                   </div>
                   <div className="text-[10px] font-mono text-muted-foreground flex justify-between items-center mt-1">
-                    <span className={isShopOutOfStock ? "text-amber-400 font-bold" : "text-foreground"}>
-                      {t("pos.shop")}: {qty(shopQty)}
+                    <span className={isOutOfStock ? "text-rose-400 font-bold" : "text-foreground"}>
+                      Stock: {qty(shopQty)}
                     </span>
-                    <span className="text-muted-foreground">{t("pos.godown")}: {qty(godownQty)}</span>
                     <div className="flex items-center gap-1.5">
                       {p.mrp && p.mrp > p.selling_price ? (
                         <span className="text-[10px] text-muted-foreground line-through">₹{Number(p.mrp).toFixed(0)}</span>
@@ -577,6 +590,86 @@ function POSPage() {
             <div className="pt-3 border-t border-border flex justify-between items-center">
               <span className="text-sm font-bold text-foreground">{t("pos.grandTotal")}</span>
               <span className="text-2xl font-black font-mono text-primary">{inr(totals.total)}</span>
+            </div>
+
+            {/* Payment Status & Customer Credit / Balance Option */}
+            <div className="pt-3 border-t border-border space-y-2">
+              <div className="flex justify-between items-center text-xs font-semibold">
+                <span className="text-muted-foreground">Payment Status:</span>
+                <span className="text-[11px] font-mono text-primary font-bold">
+                  {paymentStatusOption === "PAID"
+                    ? "Paid in Full"
+                    : paymentStatusOption === "PARTIAL"
+                    ? "Partial Paid"
+                    : "Credit (Pay Later)"}
+                </span>
+              </div>
+
+              <div className="grid grid-cols-3 gap-1.5">
+                <button
+                  type="button"
+                  onClick={() => setPaymentStatusOption("PAID")}
+                  className={`h-8 rounded-lg text-[11px] font-bold transition cursor-pointer ${
+                    paymentStatusOption === "PAID"
+                      ? "bg-emerald-600 text-white shadow-xs"
+                      : "bg-secondary text-muted-foreground hover:text-foreground"
+                  }`}
+                >
+                  Paid
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setPaymentStatusOption("PARTIAL");
+                    if (!partialAmountPaid) setPartialAmountPaid(String(Math.round(totals.total / 2)));
+                  }}
+                  className={`h-8 rounded-lg text-[11px] font-bold transition cursor-pointer ${
+                    paymentStatusOption === "PARTIAL"
+                      ? "bg-amber-600 text-white shadow-xs"
+                      : "bg-secondary text-muted-foreground hover:text-foreground"
+                  }`}
+                >
+                  Partial
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setPaymentStatusOption("UNPAID")}
+                  className={`h-8 rounded-lg text-[11px] font-bold transition cursor-pointer ${
+                    paymentStatusOption === "UNPAID"
+                      ? "bg-rose-600 text-white shadow-xs"
+                      : "bg-secondary text-muted-foreground hover:text-foreground"
+                  }`}
+                >
+                  Pay Later
+                </button>
+              </div>
+
+              {paymentStatusOption === "PARTIAL" && (
+                <div className="p-2.5 rounded-lg bg-secondary/60 border border-border space-y-1.5">
+                  <div className="flex justify-between items-center text-xs">
+                    <span className="text-muted-foreground">Paid Now (₹):</span>
+                    <input
+                      type="number"
+                      value={partialAmountPaid}
+                      onChange={(e) => setPartialAmountPaid(e.target.value)}
+                      placeholder="0.00"
+                      className="w-24 h-7 rounded bg-input border border-border text-right px-2 font-mono font-bold text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+                    />
+                  </div>
+                  <div className="flex justify-between items-center text-[11px] text-amber-400 font-mono font-semibold pt-1 border-t border-border/60">
+                    <span>Added to Balance:</span>
+                    <span>
+                      {inr(Math.max(0, totals.total - Number(partialAmountPaid || 0)))}
+                    </span>
+                  </div>
+                </div>
+              )}
+
+              {paymentStatusOption === "UNPAID" && (
+                <div className="p-2 rounded-lg bg-rose-500/10 border border-rose-500/30 text-rose-300 text-[11px]">
+                  Full {inr(totals.total)} will be added to customer's account balance to pay later.
+                </div>
+              )}
             </div>
           </div>
 

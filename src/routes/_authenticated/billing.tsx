@@ -70,19 +70,21 @@ function BillingHubPage() {
       await db.loadPromise;
       let all = db.getInvoices();
       if (filterType !== "ALL") {
-        all = all.filter((i) => i.invoice.invoice_type === filterType);
+        all = all.filter((i: any) => (i.invoice?.invoice_type || i.invoice_type) === filterType);
       }
       if (dateFilter !== "ALL") {
-        all = all.filter((i) => matchesDateFilter(i.invoice.created_at, dateFilter));
+        all = all.filter((i: any) => matchesDateFilter(i.invoice?.created_at || i.created_at, dateFilter));
       }
       if (search.trim()) {
         const clean = search.toLowerCase();
-        all = all.filter(
-          (i) =>
-            i.invoice.invoice_number.toLowerCase().includes(clean) ||
-            i.invoice.customer_name.toLowerCase().includes(clean) ||
-            i.invoice.customer_mobile.includes(clean)
-        );
+        all = all.filter((i: any) => {
+          const inv = i.invoice || i;
+          return (
+            inv.invoice_number?.toLowerCase().includes(clean) ||
+            inv.customer_name?.toLowerCase().includes(clean) ||
+            inv.customer_mobile?.includes(clean)
+          );
+        });
       }
       return all;
     },
@@ -167,42 +169,48 @@ function BillingHubPage() {
             </tr>
           </thead>
           <tbody className="divide-y divide-border">
-            {displayedInvoices.map(({ invoice: i, items }) => (
-              <tr key={i.id} className="hover:bg-secondary/40 transition">
-                <td className="px-4 py-2.5 font-mono font-bold text-primary">{i.invoice_number}</td>
-                <td className="px-4 py-2.5 text-xs font-medium">
-                  {i.customer_name} <span className="text-muted-foreground font-mono">({i.customer_mobile || t("common.walkin")})</span>
-                </td>
-                <td className="px-4 py-2.5 text-xs">
-                  <span className="text-[10px] px-2 py-0.5 rounded font-mono font-bold bg-secondary border border-border">
-                    {i.invoice_type}
-                  </span>
-                </td>
-                <td className="px-4 py-2.5 text-right font-mono text-xs text-muted-foreground">{inr(i.subtotal)}</td>
-                <td className="px-4 py-2.5 text-right font-mono text-xs text-muted-foreground">{inr(i.tax_amount)}</td>
-                <td className="px-4 py-2.5 text-right font-mono font-bold text-primary">{inr(i.grand_total)}</td>
-                <td className="px-4 py-2.5 text-right whitespace-nowrap space-x-1.5">
-                  <button
-                    onClick={() => setSelectedInvoice({ invoice: i, items })}
-                    className="h-8 px-2.5 rounded bg-secondary hover:bg-muted text-xs font-semibold border border-border inline-flex items-center gap-1 transition"
-                  >
-                    <RotateCcw className="h-3.5 w-3.5 text-amber-400" /> {t("billing.return")}
-                  </button>
-                  <button
-                    onClick={() => setEditingBill({ invoice: i, items })}
-                    className="h-8 px-2.5 rounded bg-secondary hover:bg-muted text-xs font-semibold border border-border inline-flex items-center gap-1 transition"
-                  >
-                    <Pencil className="h-3.5 w-3.5 text-indigo-400" /> {t("billing.editBill")}
-                  </button>
-                  <button
-                    onClick={() => setViewingBill({ invoice: i, items })}
-                    className="h-8 px-2.5 rounded bg-primary/15 text-primary hover:bg-primary/25 text-xs font-semibold border border-primary/30 inline-flex items-center gap-1 transition"
-                  >
-                    <Printer className="h-3.5 w-3.5" /> {t("billing.printBill")}
-                  </button>
-                </td>
-              </tr>
-            ))}
+            {displayedInvoices.map((entry: any) => {
+              const i = entry.invoice || entry;
+              const items = entry.items || i.items || [];
+              const isPaid = i.payment_status === "PAID" || (i.balance_due || 0) === 0;
+
+              return (
+                <tr key={i.id} className="hover:bg-secondary/40 transition">
+                  <td className="px-4 py-2.5 font-mono font-bold text-primary">{i.invoice_number}</td>
+                  <td className="px-4 py-2.5 text-xs font-medium">
+                    {i.customer_name} <span className="text-muted-foreground font-mono">({i.customer_mobile || t("common.walkin")})</span>
+                  </td>
+                  <td className="px-4 py-2.5 text-xs">
+                    <span className="text-[10px] px-2 py-0.5 rounded font-mono font-bold bg-secondary border border-border">
+                      {i.invoice_type}
+                    </span>
+                  </td>
+                  <td className="px-4 py-2.5 text-right font-mono text-xs text-muted-foreground">{inr(i.subtotal)}</td>
+                  <td className="px-4 py-2.5 text-right font-mono text-xs text-muted-foreground">{inr(i.tax_amount)}</td>
+                  <td className="px-4 py-2.5 text-right font-mono font-bold text-primary">{inr(i.grand_total)}</td>
+                  <td className="px-4 py-2.5 text-right whitespace-nowrap space-x-1.5">
+                    <button
+                      onClick={() => setSelectedInvoice({ invoice: i, items })}
+                      className="h-8 px-2.5 rounded bg-secondary hover:bg-muted text-xs font-semibold border border-border inline-flex items-center gap-1 transition"
+                    >
+                      <RotateCcw className="h-3.5 w-3.5 text-amber-400" /> {t("billing.return")}
+                    </button>
+                    <button
+                      onClick={() => setEditingBill({ invoice: i, items })}
+                      className="h-8 px-2.5 rounded bg-secondary hover:bg-muted text-xs font-semibold border border-border inline-flex items-center gap-1 transition"
+                    >
+                      <Pencil className="h-3.5 w-3.5 text-indigo-400" /> {t("billing.editBill")}
+                    </button>
+                    <button
+                      onClick={() => setViewingBill({ invoice: i, items })}
+                      className="h-8 px-2.5 rounded bg-primary/15 text-primary hover:bg-primary/25 text-xs font-semibold border border-primary/30 inline-flex items-center gap-1 transition"
+                    >
+                      <Printer className="h-3.5 w-3.5" /> {t("billing.printBill")}
+                    </button>
+                  </td>
+                </tr>
+              );
+            })}
             {allInvs.length === 0 && (
               <tr>
                 <td colSpan={7} className="text-center py-12 text-sm text-muted-foreground">

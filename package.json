@@ -1,8 +1,8 @@
 {
-  "name": "ponmani-agencies-console",
+  "name": "kairos-bills",
   "version": "1.0.0",
-  "description": "Ponmani Agencies Console ERP Offline Desktop Application",
-  "author": "Ponmani Agencies",
+  "description": "Kairos Bills - Smart Cloud Retail & Customer Ledger",
+  "author": "Kairos Bills",
   "private": true,
   "sideEffects": false,
   "type": "module",
@@ -13,13 +13,13 @@
     "build:dev": "vite build --mode development",
     "preview": "vite preview",
     "build:electron": "tsc electron/main.ts electron/preload.ts --outDir electron/dist --module NodeNext --target ES2022 --skipLibCheck",
-    "dist": "npm run build && npm run build:electron && electron-packager . \"Ponmani Agencies Console ERP\" --platform=win32 --arch=x64 --icon=public/ponmani-logo-icon.ico --out=release-desktop --overwrite",
+    "dist": "npm run build && npm run build:electron && electron-packager . \"Kairos Bills\" --platform=win32 --arch=x64 --icon=public/kairos-bills-logo.png --out=release-desktop --overwrite",
     "lint": "eslint .",
     "format": "prettier --write ."
   },
   "build": {
-    "appId": "com.ponmani.console",
-    "productName": "Ponmani Agencies Console ERP",
+    "appId": "com.kairos.bills",
+    "productName": "Kairos Bills",
     "npmRebuild": false,
     "directories": {
       "output": "build-installer"

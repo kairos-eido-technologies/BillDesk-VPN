@@ -90,16 +90,19 @@ function AuthPage() {
     <div className="min-h-screen flex items-center justify-center bg-background p-4">
       <div className="w-full max-w-sm card-surface p-6 space-y-4 shadow-2xl">
         <div className="flex flex-col items-center text-center pb-3 border-b border-border">
-          <div className="bg-white p-3 rounded-2xl shadow-lg border border-border mb-3">
-            <PonmaniLogo variant="color" className="h-16 w-auto" />
+          <div className="p-2 mb-2 flex justify-center">
+            <img src="/kairos-bills-logo.png" alt="Kairos Bills" className="h-16 w-auto object-contain rounded-xl shadow-md" />
           </div>
-          <div className="text-xs text-muted-foreground flex items-center justify-center gap-1 font-medium">
-            <ShieldCheck className="h-3.5 w-3.5 text-emerald-400" /> SINCE 1998 • Retail &amp; Service Console
+          <div className="text-base font-black text-foreground tracking-tight">
+            <span className="text-primary">Kairos</span> Bills
+          </div>
+          <div className="text-xs text-muted-foreground flex items-center justify-center gap-1 font-medium mt-0.5">
+            <ShieldCheck className="h-3.5 w-3.5 text-primary" /> Smart Cloud Billing &amp; Ledger
           </div>
           {/* Language toggle on auth page */}
           <button
             onClick={() => setLang(lang === "en" ? "ta" : "en")}
-            className="mt-2.5 h-7 px-3 rounded-full border border-border bg-secondary hover:bg-muted text-xs font-bold transition text-foreground"
+            className="mt-2.5 h-7 px-3 rounded-full border border-border bg-secondary hover:bg-muted text-xs font-bold transition text-foreground cursor-pointer"
           >
             {lang === "en" ? "தமிழில் காட்டு" : "Show in English"}
           </button>

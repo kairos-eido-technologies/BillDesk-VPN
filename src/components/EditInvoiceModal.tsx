@@ -20,7 +20,7 @@ export function EditInvoiceModal({
   const [customerName, setCustomerName] = useState(invoice.customer_name);
   const [customerMobile, setCustomerMobile] = useState(invoice.customer_mobile);
   const [invoiceType, setInvoiceType] = useState<"GST" | "NON_GST" | "MIXED">(invoice.invoice_type);
-  const [paymentMethod, setPaymentMethod] = useState<"CASH" | "UPI" | "CARD" | "CREDIT">(invoice.payment_method);
+  const [paymentMethod, setPaymentMethod] = useState<"CASH" | "UPI" | "CARD" | "CREDIT" | "SPLIT">(invoice.payment_method);
   const [discountAmount, setDiscountAmount] = useState(invoice.discount_amount);
   const [exchangeAmount, setExchangeAmount] = useState(invoice.exchange_amount || 0);
   const [exchangeNotes, setExchangeNotes] = useState(invoice.exchange_notes || "");
@@ -144,6 +144,7 @@ export function EditInvoiceModal({
         payment_method: paymentMethod,
         items: editLines.map((l) => ({
           id: l.id,
+          invoice_id: invoice.id,
           product_id: l.product_id,
           barcode: l.barcode,
           product_name: l.product_name,
@@ -151,6 +152,7 @@ export function EditInvoiceModal({
           unit_price: Number(l.unit_price),
           mrp: l.mrp !== undefined && l.mrp !== null ? Number(l.mrp) : undefined,
           tax_rate: Number(l.tax_rate),
+          total_price: Number(l.qty) * Number(l.unit_price),
         })),
       });
       toast.success(`Invoice ${invoice.invoice_number} successfully updated!`);

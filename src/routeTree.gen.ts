@@ -16,17 +16,13 @@ import { Route as AuthenticatedAppsRouteImport } from './routes/_authenticated/a
 import { Route as AuthenticatedBillingRouteImport } from './routes/_authenticated/billing'
 import { Route as AuthenticatedCustomersRouteImport } from './routes/_authenticated/customers'
 import { Route as AuthenticatedDashboardRouteImport } from './routes/_authenticated/dashboard'
-import { Route as AuthenticatedGodownRouteImport } from './routes/_authenticated/godown'
 import { Route as AuthenticatedGstRouteImport } from './routes/_authenticated/gst'
 import { Route as AuthenticatedInventoryRouteImport } from './routes/_authenticated/inventory'
 import { Route as AuthenticatedInvoicesRouteImport } from './routes/_authenticated/invoices'
+import { Route as AuthenticatedLedgerRouteImport } from './routes/_authenticated/ledger'
 import { Route as AuthenticatedPosRouteImport } from './routes/_authenticated/pos'
-import { Route as AuthenticatedPurchaseRouteImport } from './routes/_authenticated/purchase'
 import { Route as AuthenticatedReportsRouteImport } from './routes/_authenticated/reports'
-import { Route as AuthenticatedScrapRouteImport } from './routes/_authenticated/scrap'
-import { Route as AuthenticatedServiceRouteImport } from './routes/_authenticated/service'
 import { Route as AuthenticatedSettingsRouteImport } from './routes/_authenticated/settings'
-import { Route as AuthenticatedShoppingListRouteImport } from './routes/_authenticated/shopping-list'
 import { Route as AuthenticatedInvoicesIndexRouteImport } from './routes/_authenticated/invoices.index'
 import { Route as AuthenticatedInvoicesIdRouteImport } from './routes/_authenticated/invoices.$id'
 
@@ -64,11 +60,6 @@ const AuthenticatedDashboardRoute = AuthenticatedDashboardRouteImport.update({
   path: '/dashboard',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
-const AuthenticatedGodownRoute = AuthenticatedGodownRouteImport.update({
-  id: '/godown',
-  path: '/godown',
-  getParentRoute: () => AuthenticatedRouteRoute,
-} as any)
 const AuthenticatedGstRoute = AuthenticatedGstRouteImport.update({
   id: '/gst',
   path: '/gst',
@@ -84,14 +75,14 @@ const AuthenticatedInvoicesRoute = AuthenticatedInvoicesRouteImport.update({
   path: '/invoices',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const AuthenticatedLedgerRoute = AuthenticatedLedgerRouteImport.update({
+  id: '/ledger',
+  path: '/ledger',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
 const AuthenticatedPosRoute = AuthenticatedPosRouteImport.update({
   id: '/pos',
   path: '/pos',
-  getParentRoute: () => AuthenticatedRouteRoute,
-} as any)
-const AuthenticatedPurchaseRoute = AuthenticatedPurchaseRouteImport.update({
-  id: '/purchase',
-  path: '/purchase',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
 const AuthenticatedReportsRoute = AuthenticatedReportsRouteImport.update({
@@ -99,27 +90,11 @@ const AuthenticatedReportsRoute = AuthenticatedReportsRouteImport.update({
   path: '/reports',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
-const AuthenticatedScrapRoute = AuthenticatedScrapRouteImport.update({
-  id: '/scrap',
-  path: '/scrap',
-  getParentRoute: () => AuthenticatedRouteRoute,
-} as any)
-const AuthenticatedServiceRoute = AuthenticatedServiceRouteImport.update({
-  id: '/service',
-  path: '/service',
-  getParentRoute: () => AuthenticatedRouteRoute,
-} as any)
 const AuthenticatedSettingsRoute = AuthenticatedSettingsRouteImport.update({
   id: '/settings',
   path: '/settings',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
-const AuthenticatedShoppingListRoute =
-  AuthenticatedShoppingListRouteImport.update({
-    id: '/shopping-list',
-    path: '/shopping-list',
-    getParentRoute: () => AuthenticatedRouteRoute,
-  } as any)
 const AuthenticatedInvoicesIndexRoute =
   AuthenticatedInvoicesIndexRouteImport.update({
     id: '/',
@@ -139,17 +114,13 @@ export interface FileRoutesByFullPath {
   '/billing': typeof AuthenticatedBillingRoute
   '/customers': typeof AuthenticatedCustomersRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
-  '/godown': typeof AuthenticatedGodownRoute
   '/gst': typeof AuthenticatedGstRoute
   '/inventory': typeof AuthenticatedInventoryRoute
   '/invoices': typeof AuthenticatedInvoicesRouteWithChildren
+  '/ledger': typeof AuthenticatedLedgerRoute
   '/pos': typeof AuthenticatedPosRoute
-  '/purchase': typeof AuthenticatedPurchaseRoute
   '/reports': typeof AuthenticatedReportsRoute
-  '/scrap': typeof AuthenticatedScrapRoute
-  '/service': typeof AuthenticatedServiceRoute
   '/settings': typeof AuthenticatedSettingsRoute
-  '/shopping-list': typeof AuthenticatedShoppingListRoute
   '/invoices/$id': typeof AuthenticatedInvoicesIdRoute
   '/invoices/': typeof AuthenticatedInvoicesIndexRoute
 }
@@ -160,16 +131,12 @@ export interface FileRoutesByTo {
   '/billing': typeof AuthenticatedBillingRoute
   '/customers': typeof AuthenticatedCustomersRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
-  '/godown': typeof AuthenticatedGodownRoute
   '/gst': typeof AuthenticatedGstRoute
   '/inventory': typeof AuthenticatedInventoryRoute
+  '/ledger': typeof AuthenticatedLedgerRoute
   '/pos': typeof AuthenticatedPosRoute
-  '/purchase': typeof AuthenticatedPurchaseRoute
   '/reports': typeof AuthenticatedReportsRoute
-  '/scrap': typeof AuthenticatedScrapRoute
-  '/service': typeof AuthenticatedServiceRoute
   '/settings': typeof AuthenticatedSettingsRoute
-  '/shopping-list': typeof AuthenticatedShoppingListRoute
   '/invoices/$id': typeof AuthenticatedInvoicesIdRoute
   '/invoices': typeof AuthenticatedInvoicesIndexRoute
 }
@@ -182,17 +149,13 @@ export interface FileRoutesById {
   '/_authenticated/billing': typeof AuthenticatedBillingRoute
   '/_authenticated/customers': typeof AuthenticatedCustomersRoute
   '/_authenticated/dashboard': typeof AuthenticatedDashboardRoute
-  '/_authenticated/godown': typeof AuthenticatedGodownRoute
   '/_authenticated/gst': typeof AuthenticatedGstRoute
   '/_authenticated/inventory': typeof AuthenticatedInventoryRoute
   '/_authenticated/invoices': typeof AuthenticatedInvoicesRouteWithChildren
+  '/_authenticated/ledger': typeof AuthenticatedLedgerRoute
   '/_authenticated/pos': typeof AuthenticatedPosRoute
-  '/_authenticated/purchase': typeof AuthenticatedPurchaseRoute
   '/_authenticated/reports': typeof AuthenticatedReportsRoute
-  '/_authenticated/scrap': typeof AuthenticatedScrapRoute
-  '/_authenticated/service': typeof AuthenticatedServiceRoute
   '/_authenticated/settings': typeof AuthenticatedSettingsRoute
-  '/_authenticated/shopping-list': typeof AuthenticatedShoppingListRoute
   '/_authenticated/invoices/$id': typeof AuthenticatedInvoicesIdRoute
   '/_authenticated/invoices/': typeof AuthenticatedInvoicesIndexRoute
 }
@@ -205,17 +168,13 @@ export interface FileRouteTypes {
     | '/billing'
     | '/customers'
     | '/dashboard'
-    | '/godown'
     | '/gst'
     | '/inventory'
     | '/invoices'
+    | '/ledger'
     | '/pos'
-    | '/purchase'
     | '/reports'
-    | '/scrap'
-    | '/service'
     | '/settings'
-    | '/shopping-list'
     | '/invoices/$id'
     | '/invoices/'
   fileRoutesByTo: FileRoutesByTo
@@ -226,16 +185,12 @@ export interface FileRouteTypes {
     | '/billing'
     | '/customers'
     | '/dashboard'
-    | '/godown'
     | '/gst'
     | '/inventory'
+    | '/ledger'
     | '/pos'
-    | '/purchase'
     | '/reports'
-    | '/scrap'
-    | '/service'
     | '/settings'
-    | '/shopping-list'
     | '/invoices/$id'
     | '/invoices'
   id:
@@ -247,17 +202,13 @@ export interface FileRouteTypes {
     | '/_authenticated/billing'
     | '/_authenticated/customers'
     | '/_authenticated/dashboard'
-    | '/_authenticated/godown'
     | '/_authenticated/gst'
     | '/_authenticated/inventory'
     | '/_authenticated/invoices'
+    | '/_authenticated/ledger'
     | '/_authenticated/pos'
-    | '/_authenticated/purchase'
     | '/_authenticated/reports'
-    | '/_authenticated/scrap'
-    | '/_authenticated/service'
     | '/_authenticated/settings'
-    | '/_authenticated/shopping-list'
     | '/_authenticated/invoices/$id'
     | '/_authenticated/invoices/'
   fileRoutesById: FileRoutesById
@@ -319,13 +270,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedDashboardRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
-    '/_authenticated/godown': {
-      id: '/_authenticated/godown'
-      path: '/godown'
-      fullPath: '/godown'
-      preLoaderRoute: typeof AuthenticatedGodownRouteImport
-      parentRoute: typeof AuthenticatedRouteRoute
-    }
     '/_authenticated/gst': {
       id: '/_authenticated/gst'
       path: '/gst'
@@ -347,18 +291,18 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedInvoicesRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/ledger': {
+      id: '/_authenticated/ledger'
+      path: '/ledger'
+      fullPath: '/ledger'
+      preLoaderRoute: typeof AuthenticatedLedgerRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/pos': {
       id: '/_authenticated/pos'
       path: '/pos'
       fullPath: '/pos'
       preLoaderRoute: typeof AuthenticatedPosRouteImport
-      parentRoute: typeof AuthenticatedRouteRoute
-    }
-    '/_authenticated/purchase': {
-      id: '/_authenticated/purchase'
-      path: '/purchase'
-      fullPath: '/purchase'
-      preLoaderRoute: typeof AuthenticatedPurchaseRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/reports': {
@@ -368,32 +312,11 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedReportsRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
-    '/_authenticated/scrap': {
-      id: '/_authenticated/scrap'
-      path: '/scrap'
-      fullPath: '/scrap'
-      preLoaderRoute: typeof AuthenticatedScrapRouteImport
-      parentRoute: typeof AuthenticatedRouteRoute
-    }
-    '/_authenticated/service': {
-      id: '/_authenticated/service'
-      path: '/service'
-      fullPath: '/service'
-      preLoaderRoute: typeof AuthenticatedServiceRouteImport
-      parentRoute: typeof AuthenticatedRouteRoute
-    }
     '/_authenticated/settings': {
       id: '/_authenticated/settings'
       path: '/settings'
       fullPath: '/settings'
       preLoaderRoute: typeof AuthenticatedSettingsRouteImport
-      parentRoute: typeof AuthenticatedRouteRoute
-    }
-    '/_authenticated/shopping-list': {
-      id: '/_authenticated/shopping-list'
-      path: '/shopping-list'
-      fullPath: '/shopping-list'
-      preLoaderRoute: typeof AuthenticatedShoppingListRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/invoices/': {
@@ -433,17 +356,13 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedBillingRoute: typeof AuthenticatedBillingRoute
   AuthenticatedCustomersRoute: typeof AuthenticatedCustomersRoute
   AuthenticatedDashboardRoute: typeof AuthenticatedDashboardRoute
-  AuthenticatedGodownRoute: typeof AuthenticatedGodownRoute
   AuthenticatedGstRoute: typeof AuthenticatedGstRoute
   AuthenticatedInventoryRoute: typeof AuthenticatedInventoryRoute
   AuthenticatedInvoicesRoute: typeof AuthenticatedInvoicesRouteWithChildren
+  AuthenticatedLedgerRoute: typeof AuthenticatedLedgerRoute
   AuthenticatedPosRoute: typeof AuthenticatedPosRoute
-  AuthenticatedPurchaseRoute: typeof AuthenticatedPurchaseRoute
   AuthenticatedReportsRoute: typeof AuthenticatedReportsRoute
-  AuthenticatedScrapRoute: typeof AuthenticatedScrapRoute
-  AuthenticatedServiceRoute: typeof AuthenticatedServiceRoute
   AuthenticatedSettingsRoute: typeof AuthenticatedSettingsRoute
-  AuthenticatedShoppingListRoute: typeof AuthenticatedShoppingListRoute
 }
 
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
@@ -451,17 +370,13 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedBillingRoute: AuthenticatedBillingRoute,
   AuthenticatedCustomersRoute: AuthenticatedCustomersRoute,
   AuthenticatedDashboardRoute: AuthenticatedDashboardRoute,
-  AuthenticatedGodownRoute: AuthenticatedGodownRoute,
   AuthenticatedGstRoute: AuthenticatedGstRoute,
   AuthenticatedInventoryRoute: AuthenticatedInventoryRoute,
   AuthenticatedInvoicesRoute: AuthenticatedInvoicesRouteWithChildren,
+  AuthenticatedLedgerRoute: AuthenticatedLedgerRoute,
   AuthenticatedPosRoute: AuthenticatedPosRoute,
-  AuthenticatedPurchaseRoute: AuthenticatedPurchaseRoute,
   AuthenticatedReportsRoute: AuthenticatedReportsRoute,
-  AuthenticatedScrapRoute: AuthenticatedScrapRoute,
-  AuthenticatedServiceRoute: AuthenticatedServiceRoute,
   AuthenticatedSettingsRoute: AuthenticatedSettingsRoute,
-  AuthenticatedShoppingListRoute: AuthenticatedShoppingListRoute,
 }
 
 const AuthenticatedRouteRouteWithChildren =

@@ -64,13 +64,13 @@ function startServerProcess(): Promise<string> {
     if (targetPath) {
       console.log('Loading Nitro production server:', targetPath);
       process.env.PORT = '3000';
-      process.env.HOST = '127.0.0.1';
+      process.env.HOST = '0.0.0.0';
       try {
         await import(pathToFileURL(targetPath).href);
       } catch (err) {
         console.error('Direct import failed, falling back to process fork:', err);
         serverProcess = fork(targetPath, [], {
-          env: { ...process.env, PORT: '3000', HOST: '127.0.0.1', ELECTRON_RUN_AS_NODE: '1' },
+          env: { ...process.env, PORT: '3000', HOST: '0.0.0.0', ELECTRON_RUN_AS_NODE: '1' },
         });
       }
     } else {

@@ -164,7 +164,7 @@ function GSTPage() {
     }> = {};
 
     items.forEach((ii) => {
-      const prod = inventoryMap.get(ii.product_id);
+      const prod = ii.product_id ? inventoryMap.get(ii.product_id) : undefined;
       const hsn = prod?.sku_code || prod?.barcode || "GENERAL";
       const desc = prod?.category || "Hardware & Electricals";
       const rate = Number(ii.tax_rate) || 18;
@@ -210,7 +210,7 @@ function GSTPage() {
   // ─── Build Report Data ────────────────────────────────────────────────────
 
   function buildReportData() {
-    const settings = store?.settings || {};
+    const settings: any = store?.settings || {};
     return {
       periodLabel,
       periodType: filterMode,

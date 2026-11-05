@@ -39,8 +39,10 @@ function Dashboard() {
       });
       const chart = Object.entries(byDay).map(([d, v]) => ({ d: d.slice(5), v: Math.round(v) }));
 
-      const pendingServices = store.service_tickets.filter((s) => s.status !== "Delivered").length;
-      const totalScrapPayout = store.scrap_entries.reduce((s, e) => s + Number(e.total_payout), 0);
+      const totalCustomerDue = store.customers.reduce((s, c) => s + (Number(c.balance_due) || 0), 0);
+      const totalPaymentsCollected = store.ledger
+        .filter((l) => l.type === "CREDIT")
+        .reduce((s, l) => s + (Number(l.amount) || 0), 0);
 
       return {
         productCount: store.inventory.length,
@@ -49,8 +51,8 @@ function Dashboard() {
         totalSales,
         chart,
         lowStock,
-        pendingServices,
-        totalScrapPayout,
+        totalCustomerDue,
+        totalPaymentsCollected,
         recentInvoices: invoices.slice(0, 5),
       };
     },
@@ -65,7 +67,7 @@ function Dashboard() {
         action={
           <Link
             to="/pos"
-            className="h-9 px-4 rounded-md bg-primary text-primary-foreground font-semibold text-xs flex items-center gap-1 hover:accent-glow transition"
+            className="h-9 px-4 rounded-xl bg-primary text-primary-foreground font-bold text-xs flex items-center gap-1 hover:opacity-90 transition shadow-xs"
           >
             {t("dashboard.openPOS")} <ArrowUpRight className="h-4 w-4" />
           </Link>
@@ -81,16 +83,16 @@ function Dashboard() {
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <div className="card-surface p-4 border-l-4 border-l-amber-500">
-          <div className="text-xs text-muted-foreground mb-1">{t("dashboard.lowStock")}</div>
-          <div className="text-xl font-bold font-mono text-amber-400">{data?.lowStock.length ?? 0} {t("dashboard.lowStock.products")}</div>
-        </div>
-        <div className="card-surface p-4 border-l-4 border-l-blue-500">
-          <div className="text-xs text-muted-foreground mb-1">{t("dashboard.serviceTickets")}</div>
-          <div className="text-xl font-bold font-mono text-blue-400">{data?.pendingServices ?? 0} {t("dashboard.serviceTickets.count")}</div>
+          <div className="text-xs text-muted-foreground mb-1">Customer Dues (Khata Receivables)</div>
+          <div className="text-xl font-bold font-mono text-amber-400">{inr(data?.totalCustomerDue)}</div>
         </div>
         <div className="card-surface p-4 border-l-4 border-l-emerald-500">
-          <div className="text-xs text-muted-foreground mb-1">{t("dashboard.scrapPayout")}</div>
-          <div className="text-xl font-bold font-mono text-emerald-400">{inr(data?.totalScrapPayout)}</div>
+          <div className="text-xs text-muted-foreground mb-1">Payments Collected (Ledger)</div>
+          <div className="text-xl font-bold font-mono text-emerald-400">{inr(data?.totalPaymentsCollected)}</div>
+        </div>
+        <div className="card-surface p-4 border-l-4 border-l-rose-500">
+          <div className="text-xs text-muted-foreground mb-1">{t("dashboard.lowStock")}</div>
+          <div className="text-xl font-bold font-mono text-rose-400">{data?.lowStock.length ?? 0} {t("dashboard.lowStock.products")}</div>
         </div>
       </div>
 
@@ -115,7 +117,7 @@ function Dashboard() {
                   }}
                   formatter={(val: any) => [`₹${val}`, 'Revenue']}
                 />
-                <Bar dataKey="v" fill="oklch(0.72 0.16 160)" radius={[4, 4, 0, 0]} isAnimationActive={false} />
+                <Bar dataKey="v" fill="oklch(0.58 0.23 255)" radius={[4, 4, 0, 0]} isAnimationActive={false} />
               </BarChart>
             </ResponsiveContainer>
           </div>

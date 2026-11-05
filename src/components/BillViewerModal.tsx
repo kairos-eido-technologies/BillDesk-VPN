@@ -11,6 +11,8 @@ import { printIsolatedReceipt } from "@/lib/print-isolated-receipt";
 interface BillViewerModalProps {
   invoiceId?: string;
   invoiceData?: { invoice: Invoice; items: InvoiceItem[] } | null;
+  invoice?: Invoice;
+  items?: InvoiceItem[];
   initialMode?: "thermal" | "a4";
   onClose: () => void;
   autoPrintOnMount?: boolean;
@@ -70,6 +72,8 @@ function generateWhatsAppText(i: Invoice, items: InvoiceItem[], storeSettings: a
 export function BillViewerModal({
   invoiceId,
   invoiceData: initialData,
+  invoice: propInvoice,
+  items: propItems,
   initialMode = "thermal",
   onClose,
   autoPrintOnMount = false,
@@ -92,11 +96,11 @@ export function BillViewerModal({
       await db.loadPromise;
       return db.getInvoice(invoiceId);
     },
-    enabled: Boolean(invoiceId && !initialData),
+    enabled: Boolean(invoiceId && !initialData && !propInvoice),
   });
 
-  const invoiceObj = initialData?.invoice || query.data?.invoice;
-  const items = initialData?.items || query.data?.items || [];
+  const invoiceObj = propInvoice || initialData?.invoice || (query.data as any)?.invoice || query.data;
+  const items = propItems || initialData?.items || query.data?.items || [];
   const storeSettings = db.getSettings();
 
   useEffect(() => {

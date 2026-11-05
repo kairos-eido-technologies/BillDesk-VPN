@@ -275,6 +275,21 @@ export class SQLiteDatabaseManager {
         key TEXT PRIMARY KEY,
         value TEXT
       );
+      CREATE TABLE IF NOT EXISTS ledger (
+        id TEXT PRIMARY KEY,
+        customer_id TEXT,
+        customer_name TEXT,
+        customer_mobile TEXT,
+        date TEXT,
+        type TEXT,
+        amount REAL,
+        balance_after REAL,
+        reference_type TEXT,
+        reference_id TEXT,
+        payment_mode TEXT,
+        notes TEXT,
+        created_at TEXT
+      );
 
       PRAGMA journal_mode = WAL;
       PRAGMA synchronous = NORMAL;
@@ -323,6 +338,17 @@ export class SQLiteDatabaseManager {
       `ALTER TABLE scrap_entries ADD COLUMN invoice_id TEXT;`,
       `ALTER TABLE godown_transfers ADD COLUMN transfer_type TEXT;`,
       `ALTER TABLE godown_transfers ADD COLUMN notes TEXT;`,
+      `ALTER TABLE customers ADD COLUMN balance_due REAL DEFAULT 0;`,
+      `ALTER TABLE invoices ADD COLUMN amount_paid REAL DEFAULT 0;`,
+      `ALTER TABLE invoices ADD COLUMN balance_due REAL DEFAULT 0;`,
+      `ALTER TABLE invoices ADD COLUMN round_off REAL DEFAULT 0;`,
+      `ALTER TABLE invoices ADD COLUMN customer_address TEXT;`,
+      `ALTER TABLE invoices ADD COLUMN customer_gstin TEXT;`,
+      `ALTER TABLE invoices ADD COLUMN notes TEXT;`,
+      `ALTER TABLE invoices ADD COLUMN created_by TEXT;`,
+      `ALTER TABLE invoice_items ADD COLUMN gst_rate REAL DEFAULT 0;`,
+      `ALTER TABLE invoice_items ADD COLUMN unit TEXT;`,
+      `ALTER TABLE invoice_items ADD COLUMN barcode TEXT;`,
     ];
 
     for (const sql of migrations) {
@@ -331,6 +357,45 @@ export class SQLiteDatabaseManager {
       } catch {
         // Column already exists, safe to ignore
       }
+    }
+
+    // Ensure default users and settings exist if empty
+    try {
+      const userCount = await db.get(`SELECT COUNT(*) as count FROM users`);
+      if (userCount && (userCount.count === 0 || userCount.count === '0')) {
+        await db.run(
+          `INSERT INTO users (id, username, pin, role, created_at) VALUES (?, ?, ?, ?, ?)`,
+          ['usr-1', 'admin', '1234', 'Admin', new Date().toISOString()]
+        );
+        await db.run(
+          `INSERT INTO users (id, username, pin, role, created_at) VALUES (?, ?, ?, ?, ?)`,
+          ['usr-2', 'cashier', '0000', 'Cashier', new Date().toISOString()]
+        );
+      }
+
+      const settingsCount = await db.get(`SELECT COUNT(*) as count FROM settings`);
+      if (settingsCount && (settingsCount.count === 0 || settingsCount.count === '0')) {
+        const defaultSettings: Record<string, string> = {
+          shop_name: 'BillDesk Store',
+          legal_name: 'BillDesk POS',
+          phone: '9876543210',
+          email: 'admin@billdesk.local',
+          gstin: '33AAAAA0000A1Z5',
+          upi_id: 'billdesk@upi',
+          address_line1: '123 Commercial Hub, Main Road',
+          city_pincode: 'Chennai, TN - 600001',
+          invoice_prefix: 'BD-',
+          receipt_footer_message: 'Thank you for shopping with BillDesk!',
+          api_key: 'bd_' + Math.random().toString(36).substring(2, 12),
+          server_port: '3000',
+          currency_symbol: '₹',
+        };
+        for (const [key, value] of Object.entries(defaultSettings)) {
+          await db.run(`INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)`, [key, JSON.stringify(value)]);
+        }
+      }
+    } catch (e) {
+      console.warn('[SQLite Server] Default seed check skipped:', e);
     }
 
     // Reset column cache after schema init/migrations
@@ -363,7 +428,7 @@ export class SQLiteDatabaseManager {
 
     const tables = [
       'users', 'inventory', 'vendors', 'purchase_orders', 'purchase_items',
-      'customers', 'loyalty_ledger', 'invoices', 'invoice_items',
+      'customers', 'loyalty_ledger', 'invoices', 'invoice_items', 'ledger',
       'service_tickets', 'scrap_entries', 'godown_transfers', 'backups_log'
     ];
 
@@ -377,6 +442,19 @@ export class SQLiteDatabaseManager {
         });
       }
       store[table] = rows;
+    }
+
+    // Attach items array to each invoice
+    if (store.invoices && store.invoice_items) {
+      const itemsMap: Record<string, any[]> = {};
+      store.invoice_items.forEach((item: any) => {
+        if (!itemsMap[item.invoice_id]) itemsMap[item.invoice_id] = [];
+        itemsMap[item.invoice_id].push(item);
+      });
+      store.invoices = store.invoices.map((inv: any) => ({
+        ...inv,
+        items: itemsMap[inv.id] || itemsMap[inv.invoice_number] || [],
+      }));
     }
 
     // Process settings
@@ -450,7 +528,7 @@ export class SQLiteDatabaseManager {
     await this.initializeSchema();
     const tables = [
       'users', 'inventory', 'vendors', 'purchase_orders', 'purchase_items',
-      'customers', 'loyalty_ledger', 'invoices', 'invoice_items',
+      'customers', 'loyalty_ledger', 'invoices', 'invoice_items', 'ledger',
       'service_tickets', 'scrap_entries', 'godown_transfers', 'backups_log', 'settings'
     ];
     for (const table of tables) {
@@ -469,7 +547,7 @@ export class SQLiteDatabaseManager {
     try {
       const tables = [
         'users', 'inventory', 'vendors', 'purchase_orders', 'purchase_items',
-        'customers', 'loyalty_ledger', 'invoices', 'invoice_items',
+        'customers', 'loyalty_ledger', 'invoices', 'invoice_items', 'ledger',
         'service_tickets', 'scrap_entries', 'godown_transfers', 'backups_log', 'settings'
       ];
 
@@ -528,7 +606,7 @@ export class SQLiteDatabaseManager {
     await db.exec('BEGIN TRANSACTION;');
     try {
       const txTables = [
-        'invoices', 'invoice_items', 'service_tickets', 'scrap_entries',
+        'invoices', 'invoice_items', 'ledger', 'service_tickets', 'scrap_entries',
         'godown_transfers', 'purchase_orders', 'purchase_items', 'loyalty_ledger'
       ];
       for (const table of txTables) {
@@ -564,6 +642,7 @@ export class SQLiteDatabaseManager {
         'inventory',
         'invoices',
         'invoice_items',
+        'ledger',
         'service_tickets',
         'scrap_entries',
         'godown_transfers',
