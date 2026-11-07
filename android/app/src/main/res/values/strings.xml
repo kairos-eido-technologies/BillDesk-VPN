@@ -1,0 +1,8 @@
+<resources>
+    <string name="app_name">MSS Ponkumar Store</string>
+    <string name="connecting">Connecting to Desktop Host Server...</string>
+    <string name="server_url_hint">http://192.168.1.5:3000</string>
+    <string name="connect_btn">Connect to Server</string>
+    <string name="server_settings">Server Settings</string>
+</resources>
+

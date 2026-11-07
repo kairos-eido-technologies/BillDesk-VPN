@@ -12,6 +12,7 @@ import {
   CheckCircle,
   RefreshCw,
   Smartphone,
+  Download,
 } from "lucide-react";
 import { PageHeader } from "./dashboard";
 
@@ -70,6 +71,33 @@ function ServerManagementPage() {
         </div>
         <div className="ml-auto px-3 py-1 rounded-full text-xs font-bold bg-emerald-100 text-emerald-700">
           ● LIVE
+        </div>
+      </div>
+
+      {/* Android Mobile APK Download Card */}
+      <div className="rounded-xl p-6 bg-white border border-[#E2E8F0] shadow-xs flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+        <div className="flex items-center gap-4">
+          <div className="h-14 w-14 rounded-2xl bg-[#1B2D6B]/5 border border-[#1B2D6B]/20 p-1.5 grid place-items-center overflow-hidden shrink-0">
+            <img src="/mss-logo.png" alt="MSS Ponkumar Store" className="h-full w-full object-contain" />
+          </div>
+          <div>
+            <div className="flex items-center gap-2">
+              <span className="text-base font-bold text-[#1B2D6B]">MSS Ponkumar Store — Mobile App (Android APK)</span>
+              <span className="text-[10px] font-black px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800">READY</span>
+            </div>
+            <div className="text-xs text-[#64748B] mt-0.5">
+              Install on any Android smartphone. Connects directly to this desktop over Wi-Fi/VPN with live stock sync &amp; WhatsApp bill dispatch.
+            </div>
+          </div>
+        </div>
+        <div className="flex items-center gap-2.5 shrink-0 w-full sm:w-auto">
+          <a
+            href="/mss-ponkumar-store.apk"
+            download="MSS_Ponkumar_Store.apk"
+            className="h-10 px-4 rounded-xl bg-[#E8151B] hover:bg-[#c90f14] text-white text-xs font-bold flex items-center justify-center gap-2 transition shadow-xs cursor-pointer w-full sm:w-auto"
+          >
+            <Download className="h-4 w-4" /> Download APK (6.1 MB)
+          </a>
         </div>
       </div>
 

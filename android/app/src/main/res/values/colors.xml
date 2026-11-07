@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="brand_navy">#1B2D6B</color>
+    <color name="brand_navy_dark">#121F4B</color>
+    <color name="brand_red">#E8151B</color>
+    <color name="brand_red_dark">#B90E13</color>
+    <color name="bg_light">#F8FAFC</color>
+    <color name="text_dark">#0F172A</color>
+    <color name="text_muted">#64748B</color>
+    <color name="border_light">#E2E8F0</color>
+    <color name="white">#FFFFFF</color>
+</resources>
+
