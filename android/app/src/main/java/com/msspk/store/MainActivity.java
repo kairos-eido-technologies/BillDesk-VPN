@@ -45,7 +45,7 @@ public class MainActivity extends AppCompatActivity {
 
     private static final String PREFS_NAME = "mssp_store_prefs";
     private static final String KEY_SERVER_URL = "server_url";
-    private static final String DEFAULT_SERVER_URL = "http://192.168.1.100:3000";
+    private static final String DEFAULT_SERVER_URL = "http://100.96.24.23:3000";
 
     private WebView webView;
     private SwipeRefreshLayout swipeRefresh;
@@ -78,10 +78,10 @@ public class MainActivity extends AppCompatActivity {
         setupListeners();
 
         if (TextUtils.isEmpty(currentServerUrl)) {
-            showServerSetup(true);
-        } else {
-            loadStoreUrl(currentServerUrl);
+            currentServerUrl = DEFAULT_SERVER_URL;
+            prefs.edit().putString(KEY_SERVER_URL, DEFAULT_SERVER_URL).apply();
         }
+        loadStoreUrl(currentServerUrl);
     }
 
     private void initViews() {
@@ -310,6 +310,8 @@ public class MainActivity extends AppCompatActivity {
         btnCancelConnect.setVisibility((!initial && !TextUtils.isEmpty(currentServerUrl)) ? View.VISIBLE : View.GONE);
         if (!TextUtils.isEmpty(currentServerUrl)) {
             etServerUrl.setText(currentServerUrl);
+        } else {
+            etServerUrl.setText(DEFAULT_SERVER_URL);
         }
     }
 
