@@ -253,17 +253,17 @@ export function BillViewerModal({
     <>
       {/* ─── SCREEN MODAL BACKDROP ─── */}
       <div
-        className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm grid place-items-center p-4 print:hidden"
+        className="fixed inset-0 z-[100] bg-black/75 backdrop-blur-sm flex justify-center items-center overflow-y-auto p-4 sm:p-6 print:hidden"
         onClick={onClose}
       >
         <div
           onClick={(e) => e.stopPropagation()}
-          className={`bg-card text-card-foreground border border-border rounded-xl shadow-2xl w-full flex flex-col max-h-[90vh] overflow-hidden animate-in fade-in zoom-in-95 duration-150 transition-all ${
+          className={`bg-card text-card-foreground border border-border rounded-xl shadow-2xl w-full flex flex-col max-h-[88vh] my-auto overflow-hidden animate-in fade-in zoom-in-95 duration-150 transition-all ${
             mode === "a4" ? "max-w-5xl" : "max-w-3xl"
           }`}
         >
           {/* Header */}
-          <div className="px-5 py-3 border-b border-border flex items-center justify-between bg-muted/30">
+          <div className="px-5 py-3 border-b border-border flex items-center justify-between bg-muted/30 shrink-0">
             <div className="flex items-center gap-3">
               <div className="h-9 w-9 rounded-lg bg-primary/10 border border-primary/20 text-primary flex items-center justify-center font-bold">
                 <Receipt className="h-5 w-5" />
@@ -338,7 +338,7 @@ export function BillViewerModal({
           </div>
 
           {/* Action Toolbar */}
-          <div className="px-5 py-3 border-t border-border bg-card flex items-center justify-between">
+          <div className="px-5 py-3 border-t border-border bg-card flex items-center justify-between shrink-0">
             <div className="text-xs text-muted-foreground font-mono">
               Press <kbd className="px-1.5 py-0.5 rounded bg-muted border border-border text-[10px]">ESC</kbd> to close modal
             </div>
@@ -370,12 +370,12 @@ export function BillViewerModal({
       {/* ─── WHATSAPP SHARE DIALOG OVERLAY ─── */}
       {showWhatsAppDialog && invoiceObj && (
         <div
-          className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm grid place-items-center p-4 print:hidden"
+          className="fixed inset-0 z-[110] bg-black/80 backdrop-blur-sm flex justify-center items-center overflow-y-auto p-4 print:hidden"
           onClick={() => setShowWhatsAppDialog(false)}
         >
           <div
             onClick={(e) => e.stopPropagation()}
-            className="bg-card border border-border rounded-xl shadow-2xl w-full max-w-md p-5 space-y-4"
+            className="bg-card border border-border rounded-xl shadow-2xl w-full max-w-md p-5 space-y-4 my-auto"
           >
             <div className="flex justify-between items-center border-b border-border pb-2">
               <h3 className="font-bold text-sm text-foreground flex items-center gap-2">

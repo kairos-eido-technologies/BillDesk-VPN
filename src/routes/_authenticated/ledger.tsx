@@ -409,8 +409,8 @@ function LedgerPage() {
 
       {/* MODAL 1: Settle / Record Payment */}
       {showPaymentModal && paymentCustomer && (
-        <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm grid place-items-center p-4">
-          <div className="bg-card border border-border w-full max-w-md rounded-2xl shadow-2xl p-6 space-y-5">
+        <div className="fixed inset-0 z-[100] bg-black/75 backdrop-blur-sm flex justify-center items-center overflow-y-auto p-4 sm:p-6">
+          <div className="bg-card border border-border w-full max-w-md rounded-2xl shadow-2xl p-6 space-y-5 my-auto">
             <div className="flex items-center justify-between border-b border-border pb-3">
               <div className="flex items-center gap-2">
                 <Wallet className="h-5 w-5 text-emerald-400" />
@@ -522,8 +522,8 @@ function LedgerPage() {
 
       {/* MODAL 2: Customer Account Statement */}
       {selectedCustomer && (
-        <div className="fixed inset-0 z-50 bg-black/75 backdrop-blur-sm grid place-items-center p-3 sm:p-6 overflow-y-auto">
-          <div className="bg-card border border-border w-full max-w-3xl rounded-2xl shadow-2xl p-6 space-y-6 max-h-[90vh] overflow-y-auto">
+        <div className="fixed inset-0 z-[100] bg-black/75 backdrop-blur-sm flex justify-center items-center overflow-y-auto p-3 sm:p-6">
+          <div className="bg-card border border-border w-full max-w-3xl rounded-2xl shadow-2xl p-6 space-y-6 max-h-[88vh] my-auto overflow-y-auto">
             {/* Modal Header */}
             <div className="flex items-center justify-between border-b border-border pb-4">
               <div className="flex items-center gap-3">

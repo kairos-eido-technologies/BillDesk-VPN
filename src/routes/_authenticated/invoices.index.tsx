@@ -361,8 +361,8 @@ function InvoicesPage() {
 
       {/* Settle Due Modal */}
       {settlingInvoice && (
-        <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm grid place-items-center p-4">
-          <div className="bg-card border border-border w-full max-w-md rounded-2xl shadow-2xl p-6 space-y-4">
+        <div className="fixed inset-0 z-[100] bg-black/75 backdrop-blur-sm flex justify-center items-center overflow-y-auto p-4 sm:p-6">
+          <div className="bg-card border border-border w-full max-w-md rounded-2xl shadow-2xl p-6 space-y-4 my-auto">
             <div className="flex items-center justify-between border-b border-border pb-3">
               <div className="font-bold text-base text-foreground flex items-center gap-2">
                 <Wallet className="h-5 w-5 text-emerald-400" />

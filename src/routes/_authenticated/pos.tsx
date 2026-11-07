@@ -858,12 +858,12 @@ function POSPage() {
       {/* Held Bills modal overlay */}
       {showHeldBillsModal && (
         <div
-          className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm grid place-items-center p-4 print:hidden"
+          className="fixed inset-0 z-[100] bg-black/75 backdrop-blur-sm flex justify-center items-center overflow-y-auto p-4 sm:p-6 print:hidden"
           onClick={() => setShowHeldBillsModal(false)}
         >
           <div
             onClick={(e) => e.stopPropagation()}
-            className="bg-card border border-border rounded-xl shadow-2xl w-full max-w-md p-5 space-y-4"
+            className="bg-card border border-border rounded-xl shadow-2xl w-full max-w-md p-5 space-y-4 my-auto"
           >
             <div className="flex justify-between items-center border-b border-border pb-2">
               <h3 className="font-bold text-sm text-foreground flex items-center gap-2">

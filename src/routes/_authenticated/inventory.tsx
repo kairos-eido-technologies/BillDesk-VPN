@@ -539,8 +539,8 @@ function ProductPnlModal({ product, invoices, onClose }: { product: InventoryIte
   const remainingToBreakEven = Math.max(0, breakEvenQty - unitsSold);
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm grid place-items-center p-4" onClick={onClose}>
-      <div onClick={(e) => e.stopPropagation()} className="w-full max-w-lg card-surface p-5 border-l-4 border-l-emerald-500 space-y-5 max-h-[90vh] overflow-auto">
+    <div className="fixed inset-0 z-[100] bg-black/75 backdrop-blur-sm flex justify-center items-center overflow-y-auto p-4 sm:p-6" onClick={onClose}>
+      <div onClick={(e) => e.stopPropagation()} className="w-full max-w-lg card-surface p-5 border-l-4 border-l-emerald-500 space-y-5 max-h-[88vh] my-auto overflow-auto">
         <div className="flex justify-between items-center pb-2 border-b border-border">
           <div className="text-base font-bold text-foreground flex items-center gap-2">
             <DollarSign className="h-5 w-5 text-emerald-400" /> Product P&L & Sales Analysis
@@ -843,8 +843,8 @@ function ProductModal({ product, onClose, onSaved }: { product: InventoryItem | 
   const ic = "w-full h-9 rounded bg-input border border-border px-3 text-xs font-mono focus:outline-none focus:border-primary text-foreground";
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm grid place-items-center p-4" onClick={onClose}>
-      <div onClick={(e) => e.stopPropagation()} className="w-full max-w-xl card-surface p-6 border-l-4 border-l-primary space-y-4 max-h-[90vh] overflow-auto">
+    <div className="fixed inset-0 z-[100] bg-black/75 backdrop-blur-sm flex justify-center items-center overflow-y-auto p-4 sm:p-6" onClick={onClose}>
+      <div onClick={(e) => e.stopPropagation()} className="w-full max-w-xl card-surface p-6 border-l-4 border-l-primary space-y-4 max-h-[88vh] my-auto overflow-auto">
         <div className="flex justify-between items-center pb-2 border-b border-border">
           <div className="text-base font-bold text-foreground">{product ? "Edit Inventory Product" : "New Inventory Product Entry"}</div>
           <button onClick={onClose}><X className="h-4 w-4 text-muted-foreground hover:text-foreground" /></button>
@@ -1213,8 +1213,8 @@ function BarcodePrintModal({ product, onClose }: { product: InventoryItem; onClo
   }
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm grid place-items-center p-3 sm:p-4" onClick={onClose}>
-      <div onClick={(e) => e.stopPropagation()} className="w-full max-w-lg card-surface p-5 border-l-4 border-l-primary space-y-4 shadow-2xl rounded-xl">
+    <div className="fixed inset-0 z-[100] bg-black/75 backdrop-blur-sm flex justify-center items-center overflow-y-auto p-3 sm:p-6" onClick={onClose}>
+      <div onClick={(e) => e.stopPropagation()} className="w-full max-w-lg card-surface p-5 border-l-4 border-l-primary space-y-4 shadow-2xl rounded-xl my-auto">
         {/* Header */}
         <div className="flex justify-between items-center pb-2 border-b border-border">
           <div className="text-base font-bold text-foreground flex items-center gap-2">
@@ -1503,8 +1503,8 @@ function ExcelImportModal({ onClose, onImported }: { onClose: () => void; onImpo
   }
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm grid place-items-center p-4" onClick={onClose}>
-      <div onClick={(e) => e.stopPropagation()} className="w-full max-w-2xl card-surface p-5 border-l-4 border-l-emerald-500">
+    <div className="fixed inset-0 z-[100] bg-black/75 backdrop-blur-sm flex justify-center items-center overflow-y-auto p-4 sm:p-6" onClick={onClose}>
+      <div onClick={(e) => e.stopPropagation()} className="w-full max-w-2xl card-surface p-5 border-l-4 border-l-emerald-500 my-auto">
         <div className="flex justify-between items-center mb-4 pb-2 border-b border-border">
           <div className="text-base font-bold text-foreground flex items-center gap-2">
             <Upload className="h-5 w-5 text-emerald-400" /> Bulk Excel Product Importer

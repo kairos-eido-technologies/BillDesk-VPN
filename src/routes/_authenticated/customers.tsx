@@ -437,8 +437,8 @@ function CustomersPage() {
 
       {/* MODAL: Record Customer Payment */}
       {showPaymentModal && selected && (
-        <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm grid place-items-center p-4">
-          <div className="bg-card border border-border w-full max-w-md rounded-2xl shadow-2xl p-6 space-y-4">
+        <div className="fixed inset-0 z-[100] bg-black/75 backdrop-blur-sm flex justify-center items-center overflow-y-auto p-4 sm:p-6">
+          <div className="bg-card border border-border w-full max-w-md rounded-2xl shadow-2xl p-6 space-y-4 my-auto">
             <div className="flex justify-between items-center border-b border-border pb-3">
               <div className="font-bold text-base text-foreground flex items-center gap-2">
                 <Wallet className="h-5 w-5 text-emerald-400" />
@@ -595,12 +595,12 @@ function NewCustomerModal({
 
   return (
     <div
-      className="fixed inset-0 z-50 bg-black/65 backdrop-blur-sm grid place-items-center p-4"
+      className="fixed inset-0 z-[100] bg-black/75 backdrop-blur-sm flex justify-center items-center overflow-y-auto p-4 sm:p-6"
       onClick={onClose}
     >
       <div
         onClick={(e) => e.stopPropagation()}
-        className="w-full max-w-sm rounded-2xl bg-card border border-border p-5 shadow-2xl space-y-4"
+        className="w-full max-w-sm rounded-2xl bg-card border border-border p-5 shadow-2xl space-y-4 my-auto"
       >
         <div className="flex justify-between items-center pb-2 border-b border-border">
           <div className="text-base font-bold text-foreground">Add New Customer</div>

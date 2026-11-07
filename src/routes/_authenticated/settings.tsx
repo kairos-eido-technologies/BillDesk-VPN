@@ -884,8 +884,8 @@ function SettingsPage() {
 
       {/* Restore Confirmation Dialog */}
       {showRestoreConfirm && (
-        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm grid place-items-center p-4" onClick={() => setShowRestoreConfirm(false)}>
-          <div onClick={(e) => e.stopPropagation()} className="w-full max-w-md card-surface p-5 border-l-4 border-l-destructive space-y-4">
+        <div className="fixed inset-0 z-[100] bg-black/75 backdrop-blur-sm flex justify-center items-center overflow-y-auto p-4 sm:p-6" onClick={() => setShowRestoreConfirm(false)}>
+          <div onClick={(e) => e.stopPropagation()} className="w-full max-w-md card-surface p-5 border-l-4 border-l-destructive space-y-4 my-auto">
             <div className="flex items-center gap-2 text-destructive font-bold text-base">
               <AlertTriangle className="h-5 w-5" /> Confirm Database State Restore
             </div>
@@ -1057,8 +1057,8 @@ function SettingsPage() {
 
       {/* Clear Past Transactions Confirmation Modal */}
       {showClearTxModal && (
-        <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm grid place-items-center p-4" onClick={() => !isProcessingReset && setShowClearTxModal(false)}>
-          <div onClick={(e) => e.stopPropagation()} className="w-full max-w-md card-surface p-6 border-l-4 border-l-amber-500 space-y-4 shadow-2xl">
+        <div className="fixed inset-0 z-[100] bg-black/75 backdrop-blur-sm flex justify-center items-center overflow-y-auto p-4 sm:p-6" onClick={() => !isProcessingReset && setShowClearTxModal(false)}>
+          <div onClick={(e) => e.stopPropagation()} className="w-full max-w-md card-surface p-6 border-l-4 border-l-amber-500 space-y-4 shadow-2xl my-auto">
             <div className="flex items-center gap-3 pb-2 border-b border-border">
               <div className="h-10 w-10 rounded-full bg-amber-500/15 text-amber-400 grid place-items-center shrink-0">
                 <RotateCcw className="h-5 w-5" />
@@ -1118,8 +1118,8 @@ function SettingsPage() {
 
       {/* Complete Factory Reset & New Store Onboarding Modal */}
       {showFactoryResetModal && (
-        <div className="fixed inset-0 z-50 bg-black/75 backdrop-blur-sm grid place-items-center p-4 overflow-y-auto" onClick={() => !isProcessingReset && setShowFactoryResetModal(false)}>
-          <div onClick={(e) => e.stopPropagation()} className="w-full max-w-lg card-surface p-6 border-l-4 border-l-rose-500 space-y-4 shadow-2xl my-8">
+        <div className="fixed inset-0 z-[100] bg-black/75 backdrop-blur-sm flex justify-center items-center overflow-y-auto p-4 sm:p-6" onClick={() => !isProcessingReset && setShowFactoryResetModal(false)}>
+          <div onClick={(e) => e.stopPropagation()} className="w-full max-w-lg card-surface p-6 border-l-4 border-l-rose-500 space-y-4 shadow-2xl my-auto">
             <div className="flex justify-between items-center pb-2 border-b border-border">
               <div className="font-bold text-base flex items-center gap-2 text-foreground">
                 <Store className="h-5 w-5 text-rose-400" />

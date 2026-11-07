@@ -79,7 +79,7 @@ function Shell() {
       </div>
 
       {/* TOP HEADER — Clean White Theme with Navy & Red Palette */}
-      <header className="h-16 border-b border-[#E2E8F0] bg-white/95 backdrop-blur-md flex items-center justify-between gap-3 px-4 shrink-0 sticky top-0 z-30 shadow-xs print:hidden">
+      <header className="h-16 border-b border-[#E2E8F0] bg-white/95 backdrop-blur-md flex items-center justify-between gap-3 px-4 shrink-0 sticky top-0 z-20 shadow-xs print:hidden">
         {/* Left: Brand with Official Logo (Clean, no second line) */}
         <Link to="/apps" className="flex items-center gap-3 group">
           <div className="h-11 w-11 rounded-xl bg-white border border-[#CBD5E1] p-1 grid place-items-center group-hover:scale-105 transition shadow-xs overflow-hidden shrink-0">
@@ -127,7 +127,7 @@ function Shell() {
       </header>
 
       {/* MAIN CONTENT AREA */}
-      <main className="flex-1 overflow-auto relative z-10 print:overflow-visible print:h-auto">
+      <main className="flex-1 overflow-auto relative print:overflow-visible print:h-auto">
         <Outlet />
       </main>
     </div>

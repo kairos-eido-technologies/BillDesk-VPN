@@ -166,15 +166,15 @@ export function EditInvoiceModal({
 
   return (
     <div
-      className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm grid place-items-center p-4"
+      className="fixed inset-0 z-[100] bg-black/75 backdrop-blur-sm flex justify-center items-center overflow-y-auto p-4 sm:p-6"
       onClick={onClose}
     >
       <div
         onClick={(e) => e.stopPropagation()}
-        className="bg-card text-card-foreground border border-border rounded-xl shadow-2xl w-full max-w-4xl flex flex-col max-h-[90vh] overflow-hidden animate-in fade-in zoom-in-95 duration-150"
+        className="bg-card text-card-foreground border border-border rounded-xl shadow-2xl w-full max-w-4xl flex flex-col max-h-[88vh] my-auto overflow-hidden animate-in fade-in zoom-in-95 duration-150"
       >
         {/* Header */}
-        <div className="px-5 py-3 border-b border-border flex items-center justify-between bg-muted/30">
+        <div className="px-5 py-3 border-b border-border flex items-center justify-between bg-muted/30 shrink-0">
           <div className="flex items-center gap-3">
             <div className="h-9 w-9 rounded-lg bg-amber-500/10 border border-amber-500/20 text-amber-500 flex items-center justify-center font-bold">
               <RefreshCw className="h-5 w-5" />
@@ -439,7 +439,7 @@ export function EditInvoiceModal({
         </div>
 
         {/* Footer actions */}
-        <div className="px-5 py-3 border-t border-border bg-card flex justify-end gap-2">
+        <div className="px-5 py-3 border-t border-border bg-card flex justify-end gap-2 shrink-0">
           <button
             onClick={onClose}
             className="h-9 px-4 rounded-lg bg-secondary hover:bg-muted border border-border text-foreground text-xs font-bold transition"

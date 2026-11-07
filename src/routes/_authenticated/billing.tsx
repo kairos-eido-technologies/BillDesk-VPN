@@ -339,8 +339,8 @@ function ReturnWizardModal({
   }
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm grid place-items-center p-4" onClick={onClose}>
-      <div onClick={(e) => e.stopPropagation()} className="w-full max-w-md card-surface p-5 border-l-4 border-l-amber-500">
+    <div className="fixed inset-0 z-[100] bg-black/75 backdrop-blur-sm flex justify-center items-center overflow-y-auto p-4 sm:p-6" onClick={onClose}>
+      <div onClick={(e) => e.stopPropagation()} className="w-full max-w-md card-surface p-5 border-l-4 border-l-amber-500 my-auto">
         <div className="flex justify-between items-center mb-4 pb-2 border-b border-border">
           <div className="text-base font-bold text-foreground flex items-center gap-2">
             <RotateCcw className="h-4 w-4 text-amber-400" /> {t("billing.return.title")} ({invoice.invoice_number})
