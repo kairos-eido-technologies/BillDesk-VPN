@@ -148,7 +148,7 @@ function AppsPage() {
   );
 
   return (
-    <div className="relative min-h-[calc(100vh-3.5rem)] bg-background">
+    <div className="relative min-h-[calc(100vh-3.5rem)] bg-transparent">
       {/* ── Foreground content ── */}
       <div className="relative z-10 flex flex-col items-center p-6 md:p-10">
         {/* Brand Header */}

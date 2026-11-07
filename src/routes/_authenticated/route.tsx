@@ -56,22 +56,22 @@ function Shell() {
         className="pointer-events-none select-none fixed inset-0 flex flex-col items-center justify-center z-0 overflow-hidden"
         aria-hidden="true"
       >
-        <div className="text-center flex flex-col items-center gap-3 opacity-[0.028] -rotate-6">
+        <div className="text-center flex flex-col items-center gap-2 opacity-[0.08] -rotate-6">
           <div
             className="font-black uppercase text-[#1B2D6B]"
-            style={{ fontSize: "clamp(36px, 8vw, 100px)", letterSpacing: "0.2em", lineHeight: 1 }}
+            style={{ fontSize: "clamp(42px, 8vw, 110px)", letterSpacing: "0.18em", lineHeight: 1.05 }}
           >
             MSS PONKUMAR STORE
           </div>
           <div
             className="font-black uppercase text-[#E8151B]"
-            style={{ fontSize: "clamp(20px, 4.2vw, 52px)", letterSpacing: "0.45em" }}
+            style={{ fontSize: "clamp(22px, 4.2vw, 56px)", letterSpacing: "0.4em" }}
           >
             WHOLESALE SHOP
           </div>
           <div
-            className="font-bold uppercase text-[#1B2D6B] mt-2"
-            style={{ fontSize: "clamp(11px, 2vw, 20px)", letterSpacing: "0.3em" }}
+            className="font-bold uppercase text-[#1B2D6B] mt-1"
+            style={{ fontSize: "clamp(12px, 2vw, 22px)", letterSpacing: "0.25em" }}
           >
             OFFLINE BILLDESK POS
           </div>
