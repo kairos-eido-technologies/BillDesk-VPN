@@ -84,11 +84,12 @@ function startServerProcess(): Promise<string> {
 
 async function createWindow() {
   const iconCandidates = [
+    path.join(app.getAppPath(), 'public', 'mss-logo.png'),
+    path.join(app.getAppPath(), 'dist', 'mss-logo.png'),
+    path.join(__dirname, '..', 'public', 'mss-logo.png'),
+    path.join(__dirname, '..', 'dist', 'mss-logo.png'),
+    path.join(process.resourcesPath || '', 'public', 'mss-logo.png'),
     path.join(app.getAppPath(), 'public', 'ponmani-logo-icon.ico'),
-    path.join(app.getAppPath(), 'dist', 'ponmani-logo-icon.ico'),
-    path.join(__dirname, '..', 'public', 'ponmani-logo-icon.ico'),
-    path.join(__dirname, '..', 'dist', 'ponmani-logo-icon.ico'),
-    path.join(process.resourcesPath || '', 'public', 'ponmani-logo-icon.ico'),
   ];
   const iconPath = iconCandidates.find((p) => fs.existsSync(p));
 
@@ -100,7 +101,7 @@ async function createWindow() {
     show: false,
     fullscreen: true,
     autoHideMenuBar: true,
-    title: 'Ponmani Agencies Console ERP',
+    title: 'MSS Ponkumar Store — Wholesale Billing & POS Console',
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
       nodeIntegration: false,
@@ -108,7 +109,7 @@ async function createWindow() {
       sandbox: false,
     },
     icon: iconPath,
-    backgroundColor: '#16181D',
+    backgroundColor: '#F8FAFC',
   });
 
   mainWindow.setMenu(null);

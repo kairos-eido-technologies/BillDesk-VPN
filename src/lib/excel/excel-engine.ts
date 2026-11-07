@@ -17,10 +17,10 @@ export class ExcelEngine {
     let filename = '';
 
     if (type === 'products') {
-      filename = 'Ponmani_Products_Import_Template.xlsx';
+      filename = 'MSSP_Products_Import_Template.xlsx';
       headers = ['Barcode', 'Name', 'Category', 'Unit', 'Cost Price', 'MRP', 'Selling Price', 'Stock Qty', 'Godown Qty', 'MOQ', 'Min Stock Alert', 'SKU Code', 'GST Rate (%)'];
       sampleRow = {
-        'Barcode': 'PMA100001',
+        'Barcode': 'MSSP100001',
         'Name': 'Havells 2.5 sqmm Wire (100m Blue)',
         'Category': 'Electricals',
         'Unit': 'Roll',
@@ -31,11 +31,11 @@ export class ExcelEngine {
         'Godown Qty': 100,
         'MOQ': 5,
         'Min Stock Alert': 10,
-        'SKU Code': 'SKU-PMA1001',
+        'SKU Code': 'SKU-MSSP1001',
         'GST Rate (%)': 18,
       };
     } else if (type === 'customers') {
-      filename = 'Ponmani_Customers_Import_Template.xlsx';
+      filename = 'MSSP_Customers_Import_Template.xlsx';
       headers = ['Name', 'Mobile', 'Email', 'Address', 'GST Number', 'Loyalty Points'];
       sampleRow = {
         'Name': 'Srinivasan K',
@@ -46,7 +46,7 @@ export class ExcelEngine {
         'Loyalty Points': 50,
       };
     } else if (type === 'vendors') {
-      filename = 'Ponmani_Suppliers_Import_Template.xlsx';
+      filename = 'MSSP_Suppliers_Import_Template.xlsx';
       headers = ['Supplier Name', 'Company Name', 'Phone', 'Email', 'GST Number', 'Address', 'Balance Due'];
       sampleRow = {
         'Supplier Name': 'Selvam Electricals',
@@ -193,7 +193,7 @@ export class ExcelEngine {
     XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(gstr3bSummary), 'GSTR-3B Summary');
 
     const timestamp = new Date().toISOString().split('T')[0];
-    XLSX.writeFile(wb, `Ponmani_GSTR_Filing_${timestamp}.xlsx`);
+    XLSX.writeFile(wb, `MSSP_GSTR_Filing_${timestamp}.xlsx`);
   }
 
   /**
@@ -215,7 +215,7 @@ export class ExcelEngine {
     XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet([store.settings]), 'Settings');
 
     const timestamp = new Date().toISOString().replace(/[-:T.]/g, '').slice(0, 14);
-    const filename = `Ponmani_Full_Backup_${timestamp}.xlsx`;
+    const filename = `MSSP_Full_Backup_${timestamp}.xlsx`;
     XLSX.writeFile(wb, filename);
 
     const sizeKb = Math.round(JSON.stringify(store).length / 1024);

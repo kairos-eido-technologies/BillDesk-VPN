@@ -50,21 +50,21 @@ function Shell() {
 
   return (
     <div className="min-h-screen flex flex-col bg-[#F8FAFC] text-[#0F172A] relative">
-      {/* ── Background Watermark of Shop Name across App Interface ── */}
+      {/* ── Subtle Background Watermark of Shop Name ── */}
       <div
-        className="pointer-events-none select-none fixed inset-0 flex flex-col items-center justify-center z-0 overflow-hidden"
+        className="pointer-events-none select-none fixed bottom-6 right-8 z-0 overflow-hidden"
         aria-hidden="true"
       >
-        <div className="text-center flex flex-col items-center gap-3 opacity-[0.035] -rotate-6">
+        <div className="text-right flex flex-col items-end opacity-[0.045]">
           <div
             className="font-black uppercase text-[#1B2D6B]"
-            style={{ fontSize: "clamp(36px, 9vw, 96px)", letterSpacing: "0.2em", lineHeight: 1 }}
+            style={{ fontSize: "clamp(20px, 3.5vw, 38px)", letterSpacing: "0.15em", lineHeight: 1.1 }}
           >
             MSS PONKUMAR STORE
           </div>
           <div
             className="font-black uppercase text-[#E8151B]"
-            style={{ fontSize: "clamp(20px, 4.5vw, 50px)", letterSpacing: "0.45em" }}
+            style={{ fontSize: "clamp(11px, 1.8vw, 18px)", letterSpacing: "0.35em" }}
           >
             WHOLESALE SHOP
           </div>

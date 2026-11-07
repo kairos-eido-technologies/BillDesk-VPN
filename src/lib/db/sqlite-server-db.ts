@@ -8,15 +8,18 @@ function getDbPath(): string {
   const isElectron = typeof process !== 'undefined' && (!!process.versions?.electron || !!process.env.ELECTRON_RUN_AS_NODE);
   if (isElectron) {
     const userData = process.env.APPDATA || path.join(os.homedir(), 'AppData', 'Roaming');
-    const dbDir = path.join(userData, 'Ponmani Stores');
+    const dbDir = path.join(userData, 'MSS Ponkumar Store');
     if (!fs.existsSync(dbDir)) {
       fs.mkdirSync(dbDir, { recursive: true });
     }
-    const targetDb = path.join(dbDir, 'ponmani_console.db');
-    // On first run in Electron, if target doesn't exist, initialize from bundled db
+    const targetDb = path.join(dbDir, 'mssp_store.db');
+    // On first run in Electron, if target doesn't exist, initialize from bundled db or legacy db
     if (!fs.existsSync(targetDb)) {
       const candidates = [
+        path.join(process.cwd(), 'mssp_store.db'),
         path.join(process.cwd(), 'ponmani_console.db'),
+        path.join(userData, 'Ponmani Stores', 'ponmani_console.db'),
+        path.join(process.cwd(), 'resources', 'app', 'mssp_store.db'),
         path.join(process.cwd(), 'resources', 'app', 'ponmani_console.db'),
       ];
       for (const candidate of candidates) {
@@ -34,7 +37,19 @@ function getDbPath(): string {
     return targetDb;
   }
   // Default workspace root for development
-  return path.join(process.cwd(), 'ponmani_console.db');
+  const devDb = path.join(process.cwd(), 'mssp_store.db');
+  if (!fs.existsSync(devDb)) {
+    const legacyDb = path.join(process.cwd(), 'ponmani_console.db');
+    if (fs.existsSync(legacyDb)) {
+      try {
+        fs.copyFileSync(legacyDb, devDb);
+        console.log(`[SQLite Server] Copied legacy ponmani_console.db to mssp_store.db`);
+      } catch (e) {
+        console.warn(`[SQLite Server] Could not copy legacy database:`, e);
+      }
+    }
+  }
+  return devDb;
 }
 
 class ServerSQLite {

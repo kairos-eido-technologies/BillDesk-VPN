@@ -1,7 +1,7 @@
 import React, { useRef, useState, useEffect } from "react";
 import { db, Invoice, InvoiceItem } from "@/lib/db/db";
 import { qty } from "@/lib/format";
-import { PonmaniLogo } from "./PonmaniLogo";
+import { MSSLogo } from "./KairosLogo";
 
 interface A4ReceiptProps {
   invoice: Invoice;

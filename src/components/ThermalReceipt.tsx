@@ -1,7 +1,7 @@
 import React from "react";
 import { inr, qty } from "@/lib/format";
 import { db, Invoice, InvoiceItem } from "@/lib/db/db";
-import { PonmaniLogo } from "./PonmaniLogo";
+import { MSSLogo } from "./KairosLogo";
 
 interface ThermalReceiptProps {
   invoice: Invoice;

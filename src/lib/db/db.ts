@@ -167,7 +167,8 @@ export interface DBStore {
   loyalty_ledger: any[];
 }
 
-const LOCAL_STORAGE_KEY = 'billdesk_vpn_store_v1';
+const LOCAL_STORAGE_KEY = 'mssp_store_v1';
+const LEGACY_STORAGE_KEY = 'billdesk_vpn_store_v1';
 
 const DEFAULT_SETTINGS: Settings = {
   shop_name: 'MSS Ponkumar Store',
@@ -340,7 +341,10 @@ class BillDeskDB {
     // 1. Instantly load from localStorage for zero initial load delay
     if (typeof window !== 'undefined') {
       try {
-        const cached = localStorage.getItem(LOCAL_STORAGE_KEY);
+        let cached = localStorage.getItem(LOCAL_STORAGE_KEY);
+        if (!cached) {
+          cached = localStorage.getItem(LEGACY_STORAGE_KEY);
+        }
         if (cached) {
           const parsed = JSON.parse(cached);
           this.store = {

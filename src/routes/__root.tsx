@@ -103,9 +103,25 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
 
 function RootShell({ children }: { children: ReactNode }) {
   return (
-    <html lang="en" className="dark">
+    <html lang="en">
       <head>
         <HeadContent />
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `
+              try {
+                var savedZoom = localStorage.getItem('mssp_display_zoom');
+                if (savedZoom) {
+                  document.documentElement.style.zoom = savedZoom + '%';
+                }
+                var savedFontSize = localStorage.getItem('mssp_display_font_size');
+                if (savedFontSize) {
+                  document.documentElement.style.fontSize = savedFontSize + 'px';
+                }
+              } catch(e) {}
+            `,
+          }}
+        />
       </head>
       <body className="bg-background text-foreground">
         {children}
@@ -122,6 +138,20 @@ function RootComponent() {
   const [loaded, setLoaded] = useState(false);
 
   useEffect(() => {
+    // Apply display zoom and font-size from storage
+    try {
+      const savedZoom = localStorage.getItem('mssp_display_zoom');
+      if (savedZoom) {
+        document.documentElement.style.zoom = `${savedZoom}%`;
+      }
+      const savedFontSize = localStorage.getItem('mssp_display_font_size');
+      if (savedFontSize) {
+        document.documentElement.style.fontSize = `${savedFontSize}px`;
+      }
+    } catch (e) {
+      console.warn("Could not load display preferences:", e);
+    }
+
     if (db.isLoaded) {
       setLoaded(true);
     } else {
@@ -131,10 +161,10 @@ function RootComponent() {
 
   if (!loaded) {
     return (
-      <div className="min-h-screen bg-[#16181D] flex flex-col items-center justify-center text-foreground font-sans">
+      <div className="min-h-screen bg-background flex flex-col items-center justify-center text-foreground font-sans">
         <div className="space-y-4 text-center">
-          <div className="h-10 w-10 border-4 border-emerald-500 border-t-transparent rounded-full animate-spin mx-auto"></div>
-          <p className="text-sm font-semibold text-muted-foreground">Initializing Offline Database Engine...</p>
+          <div className="h-10 w-10 border-4 border-primary border-t-transparent rounded-full animate-spin mx-auto"></div>
+          <p className="text-sm font-semibold text-muted-foreground">Initializing MSS Ponkumar Store Database...</p>
         </div>
       </div>
     );
@@ -145,7 +175,7 @@ function RootComponent() {
       <QueryClientProvider client={queryClient}>
         {/* Required: nested routes render here. Removing <Outlet /> breaks all child routes. */}
         <Outlet />
-        <Toaster theme="dark" position="top-right" richColors />
+        <Toaster theme="light" position="top-right" richColors />
       </QueryClientProvider>
     </LanguageProvider>
   );

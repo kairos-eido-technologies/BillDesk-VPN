@@ -40,9 +40,9 @@ export const INDIVIDUAL_APPS: SingleApp[] = [
     desc: "Overview & Metrics",
     to: "/dashboard",
     icon: LayoutDashboard,
-    color: "text-sky-400",
-    bgColor: "from-sky-500/25 to-blue-600/15",
-    borderColor: "border-sky-500/40",
+    color: "text-sky-600",
+    bgColor: "from-sky-100 to-blue-50",
+    borderColor: "border-sky-300",
   },
   {
     id: "pos",
@@ -51,9 +51,9 @@ export const INDIVIDUAL_APPS: SingleApp[] = [
     desc: "Rapid Checkout",
     to: "/pos",
     icon: ScanBarcode,
-    color: "text-blue-400",
-    bgColor: "from-blue-500/30 to-indigo-600/15",
-    borderColor: "border-blue-500/40",
+    color: "text-red-600",
+    bgColor: "from-red-100 to-rose-50",
+    borderColor: "border-red-300",
   },
   {
     id: "invoices",
@@ -62,9 +62,9 @@ export const INDIVIDUAL_APPS: SingleApp[] = [
     desc: "Bill History & Status",
     to: "/invoices",
     icon: Receipt,
-    color: "text-cyan-400",
-    bgColor: "from-cyan-500/25 to-blue-600/15",
-    borderColor: "border-cyan-500/40",
+    color: "text-cyan-600",
+    bgColor: "from-cyan-100 to-sky-50",
+    borderColor: "border-cyan-300",
   },
   {
     id: "billing",
@@ -73,9 +73,9 @@ export const INDIVIDUAL_APPS: SingleApp[] = [
     desc: "Standard Invoicing",
     to: "/billing",
     icon: FileText,
-    color: "text-indigo-400",
-    bgColor: "from-indigo-500/25 to-blue-600/15",
-    borderColor: "border-indigo-500/40",
+    color: "text-indigo-600",
+    bgColor: "from-indigo-100 to-blue-50",
+    borderColor: "border-indigo-300",
   },
   {
     id: "inventory",
@@ -84,9 +84,9 @@ export const INDIVIDUAL_APPS: SingleApp[] = [
     desc: "Products & Stock",
     to: "/inventory",
     icon: Package,
-    color: "text-sky-400",
-    bgColor: "from-sky-500/30 to-teal-600/15",
-    borderColor: "border-sky-500/40",
+    color: "text-teal-600",
+    bgColor: "from-teal-100 to-emerald-50",
+    borderColor: "border-teal-300",
   },
   {
     id: "customers",
@@ -95,9 +95,9 @@ export const INDIVIDUAL_APPS: SingleApp[] = [
     desc: "Clients & Balances",
     to: "/customers",
     icon: Users,
-    color: "text-purple-400",
-    bgColor: "from-purple-500/25 to-indigo-600/15",
-    borderColor: "border-purple-500/40",
+    color: "text-purple-600",
+    bgColor: "from-purple-100 to-violet-50",
+    borderColor: "border-purple-300",
   },
   {
     id: "ledger",
@@ -106,9 +106,9 @@ export const INDIVIDUAL_APPS: SingleApp[] = [
     desc: "Khata & Statements",
     to: "/ledger",
     icon: Landmark,
-    color: "text-amber-400",
-    bgColor: "from-amber-500/25 to-yellow-600/15",
-    borderColor: "border-amber-500/40",
+    color: "text-amber-600",
+    bgColor: "from-amber-100 to-yellow-50",
+    borderColor: "border-amber-300",
   },
   {
     id: "server",
@@ -117,9 +117,9 @@ export const INDIVIDUAL_APPS: SingleApp[] = [
     desc: "Mobile Wi-Fi & Tunnel Access",
     to: "/server",
     icon: Server,
-    color: "text-emerald-400",
-    bgColor: "from-emerald-500/25 to-teal-600/15",
-    borderColor: "border-emerald-500/40",
+    color: "text-emerald-600",
+    bgColor: "from-emerald-100 to-teal-50",
+    borderColor: "border-emerald-300",
   },
   {
     id: "settings",
@@ -128,9 +128,9 @@ export const INDIVIDUAL_APPS: SingleApp[] = [
     desc: "Offline Store Details & Prefs",
     to: "/settings",
     icon: Settings,
-    color: "text-slate-300",
-    bgColor: "from-slate-500/25 to-zinc-600/15",
-    borderColor: "border-slate-500/40",
+    color: "text-slate-700",
+    bgColor: "from-slate-100 to-zinc-50",
+    borderColor: "border-slate-300",
   },
 ];
 
@@ -144,39 +144,11 @@ function AppsPage() {
   }));
 
   const filteredApps = apps.filter((app) =>
-    app.name.toLowerCase().includes(search.toLowerCase()) ||
-    app.desc.toLowerCase().includes(search.toLowerCase())
+    app.name.toLowerCase().includes(search.toLowerCase())
   );
 
   return (
-    <div className="relative min-h-[calc(100vh-3.5rem)] bg-background overflow-hidden">
-      {/* ── Background Watermark ── */}
-      <div
-        className="pointer-events-none select-none fixed inset-0 flex flex-col items-center justify-center z-0"
-        aria-hidden="true"
-      >
-        <div className="text-center flex flex-col items-center gap-2 opacity-[0.06]">
-          <div
-            className="font-black uppercase text-[#1B2D6B]"
-            style={{ fontSize: "clamp(32px, 7vw, 76px)", letterSpacing: "0.15em", lineHeight: 1.1 }}
-          >
-            MSS PONKUMAR STORE
-          </div>
-          <div
-            className="font-black uppercase text-[#E8151B]"
-            style={{ fontSize: "clamp(18px, 3.5vw, 40px)", letterSpacing: "0.35em" }}
-          >
-            WHOLESALE SHOP
-          </div>
-          <div
-            className="font-bold uppercase text-[#1B2D6B] mt-1"
-            style={{ fontSize: "clamp(10px, 1.5vw, 16px)", letterSpacing: "0.25em" }}
-          >
-            OFFLINE BILLDESK POS
-          </div>
-        </div>
-      </div>
-
+    <div className="relative min-h-[calc(100vh-3.5rem)] bg-background">
       {/* ── Foreground content ── */}
       <div className="relative z-10 flex flex-col items-center p-6 md:p-10">
         {/* Brand Header */}
@@ -193,7 +165,7 @@ function AppsPage() {
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder="Search apps or tools..."
-              className="w-full h-11 pl-10 pr-4 rounded-2xl bg-card/80 backdrop-blur-sm border border-border text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring transition shadow-xs"
+              className="w-full h-11 pl-10 pr-4 rounded-2xl bg-card border border-border text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary shadow-xs"
             />
           </div>
         </div>
@@ -215,13 +187,10 @@ function AppsPage() {
                   <Icon className={`h-9 w-9 sm:h-10 sm:w-10 ${app.color} drop-shadow-xs`} />
                 </div>
 
-                {/* App Name & Desc */}
-                <div className="text-center">
-                  <span className="text-xs sm:text-sm font-semibold text-center text-foreground group-hover:text-primary transition-colors block line-clamp-1">
+                {/* App Name Only (No second line) */}
+                <div className="text-center px-1">
+                  <span className="text-sm font-bold text-center text-foreground group-hover:text-primary transition-colors block line-clamp-1 leading-snug">
                     {app.name}
-                  </span>
-                  <span className="text-[10px] text-muted-foreground block line-clamp-1 mt-0.5">
-                    {app.desc}
                   </span>
                 </div>
               </Link>

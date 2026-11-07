@@ -34,7 +34,7 @@ const en: TranslationDict = {
   "auth.switchLang": "தமிழில் காட்டு",
 
   // ── Header / Shell ─────────────────────────────────────────────────────────
-  "header.brand": "PONMANI AGENCIES",
+  "header.brand": "MSS PONKUMAR STORE",
   "header.since": "SINCE 1998",
   "header.apps": "Apps",
   "header.newSale": "New Sale",
@@ -64,7 +64,7 @@ const en: TranslationDict = {
 
   // ── Dashboard ─────────────────────────────────────────────────────────────
   "dashboard.title": "Store Terminal Dashboard",
-  "dashboard.subtitle": "Ponmani Agencies Hardware & Electronics — Real-time On-Premise Metrics",
+  "dashboard.subtitle": "MSS Ponkumar Store — Wholesale & Retail Real-time Metrics",
   "dashboard.openPOS": "Open POS Terminal",
   "dashboard.kpi.totalSales": "Total Sales Revenue",
   "dashboard.kpi.invoices": "Invoices Issued",

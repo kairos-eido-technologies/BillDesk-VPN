@@ -5,7 +5,7 @@ import { ExcelEngine } from "@/lib/excel/excel-engine";
 import { useState, useEffect } from "react";
 import { toast } from "sonner";
 import { PageHeader } from "./dashboard";
-import { Settings as SettingsIcon, Printer, Database, Key, ScanBarcode, ShieldCheck, Download, Upload, RefreshCw, CheckCircle, AlertTriangle, Trash2, Languages, UserPlus, Edit3, X, User as UserIcon, Lock, Store, RotateCcw, AlertOctagon, CheckSquare, Square, Server, Wifi, Globe, Copy, ExternalLink, Smartphone } from "lucide-react";
+import { Settings as SettingsIcon, Printer, Database, Key, ScanBarcode, ShieldCheck, Download, Upload, RefreshCw, CheckCircle, AlertTriangle, Trash2, Languages, UserPlus, Edit3, X, User as UserIcon, Lock, Store, RotateCcw, AlertOctagon, CheckSquare, Square, Server, Wifi, Globe, Copy, ExternalLink, Smartphone, Monitor, Type, ZoomIn, ZoomOut, Minus, Plus } from "lucide-react";
 import { useLang, useT } from "@/lib/lang/lang-context";
 
 export const Route = createFileRoute("/_authenticated/settings")({ component: SettingsPage });
@@ -42,6 +42,47 @@ function SettingsPage() {
   const [scannerTestInput, setScannerTestInput] = useState("");
   const [showRestoreConfirm, setShowRestoreConfirm] = useState(false);
   const [restoreFile, setRestoreFile] = useState<File | null>(null);
+
+  // Screen Zoom & Font Scaling State
+  const [zoomLevel, setZoomLevel] = useState<number>(() => {
+    if (typeof window !== "undefined") {
+      const saved = localStorage.getItem("mssp_display_zoom");
+      return saved ? parseInt(saved, 10) : 100;
+    }
+    return 100;
+  });
+
+  const [fontSize, setFontSize] = useState<number>(() => {
+    if (typeof window !== "undefined") {
+      const saved = localStorage.getItem("mssp_display_font_size");
+      return saved ? parseInt(saved, 10) : 16;
+    }
+    return 16;
+  });
+
+  function applyZoom(newZoom: number) {
+    const clamped = Math.max(75, Math.min(140, newZoom));
+    setZoomLevel(clamped);
+    if (typeof document !== "undefined") {
+      document.documentElement.style.zoom = `${clamped}%`;
+      localStorage.setItem("mssp_display_zoom", String(clamped));
+    }
+  }
+
+  function applyFontSize(newSize: number) {
+    const clamped = Math.max(13, Math.min(22, newSize));
+    setFontSize(clamped);
+    if (typeof document !== "undefined") {
+      document.documentElement.style.fontSize = `${clamped}px`;
+      localStorage.setItem("mssp_display_font_size", String(clamped));
+    }
+  }
+
+  function resetDisplaySettings() {
+    applyZoom(100);
+    applyFontSize(16);
+    toast.success("Display zoom (100%) and font size (16px) reset to default!");
+  }
 
   // Sync form when query loads
   useEffect(() => {
@@ -275,6 +316,150 @@ function SettingsPage() {
         title={t("settings.title")}
         subtitle={t("settings.subtitle")}
       />
+
+      {/* ── Display Scaling & Font Size Controls Card ── */}
+      <div className="card-surface p-6 border-l-4 border-l-primary space-y-6 shadow-sm">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-border pb-3">
+          <div>
+            <h3 className="text-base font-bold text-foreground flex items-center gap-2">
+              <Monitor className="h-5 w-5 text-primary" />
+              <span>Screen Size & Font Size Controls</span>
+            </h3>
+            <p className="text-xs text-muted-foreground mt-0.5">
+              Adjust display zoom and text size to your preference. Changes apply instantly and keep all tables, bills, and cards perfectly aligned.
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={resetDisplaySettings}
+            className="self-start sm:self-auto h-9 px-3 rounded-lg border border-border bg-secondary hover:bg-muted text-xs font-semibold text-foreground flex items-center gap-1.5 transition active:scale-95"
+            title="Reset to 100% Zoom and 16px Font"
+          >
+            <RotateCcw className="h-3.5 w-3.5" />
+            <span>Reset Default (100% / 16px)</span>
+          </button>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          {/* Screen Zoom Control */}
+          <div className="bg-muted/40 p-4 rounded-xl border border-border space-y-3">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-bold text-foreground flex items-center gap-1.5 uppercase tracking-wider">
+                <ZoomIn className="h-4 w-4 text-primary" /> Screen Zoom
+              </span>
+              <span className="text-sm font-black text-primary px-2.5 py-0.5 rounded-md bg-primary/10 border border-primary/20">
+                {zoomLevel}%
+              </span>
+            </div>
+            <p className="text-[11px] text-muted-foreground">
+              Zoom the entire application window in or out.
+            </p>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => applyZoom(zoomLevel - 5)}
+                disabled={zoomLevel <= 75}
+                className="flex-1 h-10 rounded-lg bg-card border border-border hover:bg-secondary font-bold text-sm flex items-center justify-center gap-1.5 disabled:opacity-40 transition shadow-xs"
+              >
+                <Minus className="h-4 w-4" /> Zoom Out (-5%)
+              </button>
+              <button
+                type="button"
+                onClick={() => applyZoom(zoomLevel + 5)}
+                disabled={zoomLevel >= 140}
+                className="flex-1 h-10 rounded-lg bg-card border border-border hover:bg-secondary font-bold text-sm flex items-center justify-center gap-1.5 disabled:opacity-40 transition shadow-xs"
+              >
+                <Plus className="h-4 w-4" /> Zoom In (+5%)
+              </button>
+            </div>
+            {/* Quick Presets */}
+            <div className="flex flex-wrap gap-1.5 pt-1">
+              {[85, 90, 100, 110, 120, 125].map((preset) => (
+                <button
+                  key={preset}
+                  type="button"
+                  onClick={() => applyZoom(preset)}
+                  className={`text-[11px] px-2.5 py-1 rounded-md font-semibold border transition ${
+                    zoomLevel === preset
+                      ? "bg-primary text-primary-foreground border-primary"
+                      : "bg-card text-muted-foreground border-border hover:bg-secondary"
+                  }`}
+                >
+                  {preset}% {preset === 100 && "(Default)"}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Font Size Scaling Control */}
+          <div className="bg-muted/40 p-4 rounded-xl border border-border space-y-3">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-bold text-foreground flex items-center gap-1.5 uppercase tracking-wider">
+                <Type className="h-4 w-4 text-primary" /> Font Size Scaling
+              </span>
+              <span className="text-sm font-black text-primary px-2.5 py-0.5 rounded-md bg-primary/10 border border-primary/20">
+                {fontSize}px
+              </span>
+            </div>
+            <p className="text-[11px] text-muted-foreground">
+              Increase or decrease base text size cleanly without shifting elements.
+            </p>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => applyFontSize(fontSize - 1)}
+                disabled={fontSize <= 13}
+                className="flex-1 h-10 rounded-lg bg-card border border-border hover:bg-secondary font-bold text-sm flex items-center justify-center gap-1.5 disabled:opacity-40 transition shadow-xs"
+              >
+                <Minus className="h-4 w-4" /> Smaller Font (-1px)
+              </button>
+              <button
+                type="button"
+                onClick={() => applyFontSize(fontSize + 1)}
+                disabled={fontSize >= 22}
+                className="flex-1 h-10 rounded-lg bg-card border border-border hover:bg-secondary font-bold text-sm flex items-center justify-center gap-1.5 disabled:opacity-40 transition shadow-xs"
+              >
+                <Plus className="h-4 w-4" /> Larger Font (+1px)
+              </button>
+            </div>
+            {/* Quick Presets */}
+            <div className="flex flex-wrap gap-1.5 pt-1">
+              {[
+                { size: 14, label: "14px (Compact)" },
+                { size: 16, label: "16px (Normal)" },
+                { size: 18, label: "18px (Large)" },
+                { size: 20, label: "20px (XL)" },
+              ].map((preset) => (
+                <button
+                  key={preset.size}
+                  type="button"
+                  onClick={() => applyFontSize(preset.size)}
+                  className={`text-[11px] px-2.5 py-1 rounded-md font-semibold border transition ${
+                    fontSize === preset.size
+                      ? "bg-primary text-primary-foreground border-primary"
+                      : "bg-card text-muted-foreground border-border hover:bg-secondary"
+                  }`}
+                >
+                  {preset.label}
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        {/* Live Preview Box */}
+        <div className="p-3.5 rounded-xl border border-border bg-card flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
+          <div className="flex items-center gap-2 min-w-0">
+            <span className="font-bold text-primary shrink-0 uppercase tracking-wide">Live Preview:</span>
+            <span className="text-foreground truncate font-medium">
+              MSS Ponkumar Store Wholesale POS — Havells Wire 2.5 sqmm • ₹2,650 • Qty: 2 • Total: ₹5,300
+            </span>
+          </div>
+          <span className="shrink-0 font-bold px-2.5 py-0.5 rounded-full bg-emerald-500/10 text-emerald-600 border border-emerald-500/30 text-[11px] self-start sm:self-auto">
+            PAID IN CASH
+          </span>
+        </div>
+      </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         {/* Language Switcher Card */}
