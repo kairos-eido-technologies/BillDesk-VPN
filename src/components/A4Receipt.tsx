@@ -72,11 +72,12 @@ export function A4Receipt({ invoice: i, items = [], storeSettings }: A4ReceiptPr
     return () => ro.disconnect();
   }, []);
 
-  const shopName = storeSettings?.shop_name || "PONMANI AGENCIES";
-  const shopHeaderNote = storeSettings?.receipt_header_note || "Hardware • Electricals • Electronics";
-  const shopAddress = storeSettings?.shop_address || "142 Main Road, Tenkasi, Tamil Nadu - 627811";
-  const shopPhone = storeSettings?.shop_phone || "+91 94422 12345";
-  const shopGstin = storeSettings?.shop_gstin || "33AAPFP1234H1Z9";
+  const shopName = storeSettings?.shop_name || "MSS PONKUMAR STORE";
+  const shopHeaderNote = storeSettings?.receipt_header_note || "WHOLESALE SHOP";
+  const shopAddress = storeSettings?.address_line1 || storeSettings?.shop_address || "MSS Ponkumar Store";
+  const shopPhone = storeSettings?.phone || storeSettings?.shop_phone || "";
+  const shopGstin = storeSettings?.gstin || storeSettings?.shop_gstin || "";
+  const isWholesale = i.bill_mode === "WHOLESALE";
 
   const isGst = i.invoice_type === "GST";
   const taxAmount = Number(i.tax_amount || 0);
@@ -128,31 +129,35 @@ export function A4Receipt({ invoice: i, items = [], storeSettings }: A4ReceiptPr
       >
         {/* ─── BRANDING HEADER ─── */}
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", borderBottom: "3px solid #000", paddingBottom: "12px", marginBottom: "16px" }}>
-          <div style={{ display: "flex", alignItems: "flex-start", gap: "16px" }}>
-            <PonmaniLogo variant="color" style={{ height: "76px", width: "auto" }} />
-            <div>
-              <div style={{ fontSize: "11px", fontWeight: "bold", textTransform: "uppercase", color: "#374151", marginTop: "2px" }}>
-                {shopHeaderNote}
-              </div>
+          <div>
+            <div style={{ fontSize: "20px", fontWeight: "900", letterSpacing: "1px", textTransform: "uppercase", color: "#1B2D6B" }}>
+              {shopName}
+            </div>
+            <div style={{ fontSize: "11px", fontWeight: "bold", textTransform: "uppercase", color: "#E8151B", marginTop: "2px", letterSpacing: "0.5px" }}>
+              {shopHeaderNote}
+            </div>
+            {shopAddress && (
               <div style={{ fontSize: "11px", color: "#4b5563", marginTop: "2px" }}>
                 {shopAddress}
               </div>
+            )}
+            {shopPhone && (
               <div style={{ fontSize: "11px", fontWeight: "600", color: "#111827", marginTop: "2px" }}>
                 Ph: {shopPhone}
               </div>
-              {isGst && (
-                <div style={{ fontSize: "11px", fontWeight: "bold", color: "#111827", marginTop: "2px" }}>
-                  GSTIN: {shopGstin}
-                </div>
-              )}
-            </div>
+            )}
+            {isGst && shopGstin && (
+              <div style={{ fontSize: "11px", fontWeight: "bold", color: "#111827", marginTop: "2px" }}>
+                GSTIN: {shopGstin}
+              </div>
+            )}
           </div>
 
           <div style={{ textAlign: "right" }}>
-            <div style={{ fontSize: "18px", fontWeight: "900", textTransform: "uppercase", letterSpacing: "1px", color: "#000" }}>
-              {isGst ? "TAX INVOICE" : "SALE BILL"}
+            <div style={{ fontSize: "16px", fontWeight: "900", textTransform: "uppercase", letterSpacing: "1px", color: isWholesale ? "#E8151B" : "#1B2D6B", border: `2px solid ${isWholesale ? "#E8151B" : "#1B2D6B"}`, padding: "2px 8px", borderRadius: "4px", display: "inline-block" }}>
+              {isWholesale ? "WHOLESALE INVOICE" : "RETAIL INVOICE"}
             </div>
-            <div style={{ fontSize: "14px", fontWeight: "bold", fontFamily: "monospace", color: "#1d4ed8", marginTop: "2px" }}>
+            <div style={{ fontSize: "14px", fontWeight: "bold", fontFamily: "monospace", color: "#000", marginTop: "4px" }}>
               {i.invoice_number}
             </div>
             <div style={{ fontSize: "11px", color: "#374151", marginTop: "4px" }}>

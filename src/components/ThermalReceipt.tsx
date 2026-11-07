@@ -51,10 +51,11 @@ function SimpleBarcodeSVG({ value }: { value: string }) {
 }
 
 export function ThermalReceipt({ invoice: i, items = [], storeSettings }: ThermalReceiptProps) {
-  const shopName = storeSettings?.shop_name || "PONMANI AGENCIES";
-  const shopAddress = storeSettings?.shop_address || "142 Main Road, Tenkasi, Tamil Nadu - 627811";
-  const shopPhone = storeSettings?.shop_phone || "+91 94422 12345";
-  const shopGstin = storeSettings?.shop_gstin || "33AAPFP1234H1Z9";
+  const shopName = storeSettings?.shop_name || "MSS PONKUMAR STORE";
+  const shopAddress = storeSettings?.address_line1 || storeSettings?.shop_address || "MSS Ponkumar Store";
+  const shopPhone = storeSettings?.phone || storeSettings?.shop_phone || "";
+  const shopGstin = storeSettings?.gstin || storeSettings?.shop_gstin || "";
+  const isWholesale = i.bill_mode === "WHOLESALE";
 
   const isGst = i.invoice_type === "GST";
   const taxAmount = Number(i.tax_amount || 0);
@@ -105,13 +106,15 @@ export function ThermalReceipt({ invoice: i, items = [], storeSettings }: Therma
     >
       {/* ─── BRANDING HEADER ─── */}
       <div className="text-center pb-2 mb-2 border-b-2 border-dashed border-black flex flex-col items-center font-bold text-black">
-        <PonmaniLogo variant="bw" className="h-20 w-auto mx-auto mb-1" />
-        <div className="text-[10px] font-black tracking-tight uppercase text-black">
-          {storeSettings?.receipt_header_note || "Hardware • Electricals • Electronics"}
+        <div className="text-base font-black tracking-wider uppercase text-black">
+          {shopName}
         </div>
-        <div className="text-[9.5px] font-bold mt-0.5 text-black">{shopAddress}</div>
-        <div className="text-[9.5px] font-bold text-black">Ph: {shopPhone}</div>
-        {isGst && (
+        <div className="text-[10px] font-black tracking-widest uppercase border border-black px-2 py-0.5 mt-0.5">
+          WHOLESALE SHOP
+        </div>
+        {shopAddress && <div className="text-[9.5px] font-bold mt-1 text-black">{shopAddress}</div>}
+        {shopPhone && <div className="text-[9.5px] font-bold text-black">Ph: {shopPhone}</div>}
+        {isGst && shopGstin && (
           <div className="text-[9.5px] font-black mt-0.5 border border-black px-1.5 py-0.5 rounded-xs inline-block text-black">
             GSTIN: {shopGstin}
           </div>
@@ -120,6 +123,11 @@ export function ThermalReceipt({ invoice: i, items = [], storeSettings }: Therma
 
       {/* ─── INVOICE META ─── */}
       <div className="text-[10.5px] font-bold text-black space-y-0.5 pb-2 mb-2 border-b-2 border-black">
+        <div className="text-center pb-1 mb-1 border-b border-dashed border-black">
+          <span className="text-[11px] font-black tracking-widest uppercase">
+            {isWholesale ? "★ WHOLESALE INVOICE ★" : "— RETAIL INVOICE —"}
+          </span>
+        </div>
         <div className="flex justify-between font-black">
           <span>{isGst ? "TAX INVOICE" : "CASH BILL"}</span>
           <span className="font-mono text-[11px] font-black underline">{i.invoice_number}</span>
@@ -285,7 +293,7 @@ export function ThermalReceipt({ invoice: i, items = [], storeSettings }: Therma
             <div className="font-black text-[10px] text-black">*** Thank You For Your Business! ***</div>
             <div className="font-bold text-black">Goods once sold can be exchanged within 7 days.</div>
             <div className="font-bold text-black">Please retain this bill for warranty & service reference.</div>
-            <div className="font-black mt-1 text-[8.5px] pb-0 mb-0 text-black">PONMANI AGENCIES • RETAIL & SERVICE CONSOLE</div>
+            <div className="font-black mt-1 text-[8.5px] pb-0 mb-0 text-black">MSS PONKUMAR STORE • WHOLESALE SHOP</div>
           </>
         )}
       </div>

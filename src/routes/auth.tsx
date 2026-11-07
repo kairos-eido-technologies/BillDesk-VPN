@@ -87,17 +87,25 @@ function AuthPage() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-background p-4">
-      <div className="w-full max-w-sm card-surface p-6 space-y-4 shadow-2xl">
-        <div className="flex flex-col items-center text-center pb-3 border-b border-border">
+    <div className="min-h-screen flex items-center justify-center p-4" style={{ background: "#0F1A3E" }}>
+      <div className="w-full max-w-sm card-surface p-6 space-y-4 shadow-2xl" style={{ background: "#162044", borderColor: "#243068" }}>
+        <div className="flex flex-col items-center text-center pb-3 border-b" style={{ borderColor: "#243068" }}>
           <div className="p-2 mb-2 flex justify-center">
-            <img src="/kairos-bills-logo.png" alt="Kairos Bills" className="h-16 w-auto object-contain rounded-xl shadow-md" />
+            <div
+              className="h-16 w-16 rounded-2xl p-2 grid place-items-center shadow-lg border"
+              style={{ background: "#FFFFFF", borderColor: "#243068" }}
+            >
+              <div className="text-center font-black leading-none">
+                <div style={{ fontSize: "16px", fontWeight: 900, color: "#1B2D6B" }}>MSS</div>
+                <div style={{ fontSize: "8px", fontWeight: 900, color: "#E8151B", marginTop: "2px" }}>STORE</div>
+              </div>
+            </div>
           </div>
-          <div className="text-base font-black text-foreground tracking-tight">
-            <span className="text-primary">Kairos</span> Bills
+          <div className="text-base font-black text-white tracking-tight">
+            MSS Ponkumar Store
           </div>
-          <div className="text-xs text-muted-foreground flex items-center justify-center gap-1 font-medium mt-0.5">
-            <ShieldCheck className="h-3.5 w-3.5 text-primary" /> Smart Cloud Billing &amp; Ledger
+          <div className="text-xs font-bold mt-0.5 uppercase tracking-wider" style={{ color: "#E8151B" }}>
+            Wholesale Shop · POS Desk
           </div>
           {/* Language toggle on auth page */}
           <button

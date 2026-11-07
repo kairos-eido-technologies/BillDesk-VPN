@@ -22,6 +22,7 @@ import { Route as AuthenticatedInvoicesRouteImport } from './routes/_authenticat
 import { Route as AuthenticatedLedgerRouteImport } from './routes/_authenticated/ledger'
 import { Route as AuthenticatedPosRouteImport } from './routes/_authenticated/pos'
 import { Route as AuthenticatedReportsRouteImport } from './routes/_authenticated/reports'
+import { Route as AuthenticatedServerRouteImport } from './routes/_authenticated/server'
 import { Route as AuthenticatedSettingsRouteImport } from './routes/_authenticated/settings'
 import { Route as AuthenticatedInvoicesIndexRouteImport } from './routes/_authenticated/invoices.index'
 import { Route as AuthenticatedInvoicesIdRouteImport } from './routes/_authenticated/invoices.$id'
@@ -90,6 +91,11 @@ const AuthenticatedReportsRoute = AuthenticatedReportsRouteImport.update({
   path: '/reports',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const AuthenticatedServerRoute = AuthenticatedServerRouteImport.update({
+  id: '/server',
+  path: '/server',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
 const AuthenticatedSettingsRoute = AuthenticatedSettingsRouteImport.update({
   id: '/settings',
   path: '/settings',
@@ -120,6 +126,7 @@ export interface FileRoutesByFullPath {
   '/ledger': typeof AuthenticatedLedgerRoute
   '/pos': typeof AuthenticatedPosRoute
   '/reports': typeof AuthenticatedReportsRoute
+  '/server': typeof AuthenticatedServerRoute
   '/settings': typeof AuthenticatedSettingsRoute
   '/invoices/$id': typeof AuthenticatedInvoicesIdRoute
   '/invoices/': typeof AuthenticatedInvoicesIndexRoute
@@ -136,6 +143,7 @@ export interface FileRoutesByTo {
   '/ledger': typeof AuthenticatedLedgerRoute
   '/pos': typeof AuthenticatedPosRoute
   '/reports': typeof AuthenticatedReportsRoute
+  '/server': typeof AuthenticatedServerRoute
   '/settings': typeof AuthenticatedSettingsRoute
   '/invoices/$id': typeof AuthenticatedInvoicesIdRoute
   '/invoices': typeof AuthenticatedInvoicesIndexRoute
@@ -155,6 +163,7 @@ export interface FileRoutesById {
   '/_authenticated/ledger': typeof AuthenticatedLedgerRoute
   '/_authenticated/pos': typeof AuthenticatedPosRoute
   '/_authenticated/reports': typeof AuthenticatedReportsRoute
+  '/_authenticated/server': typeof AuthenticatedServerRoute
   '/_authenticated/settings': typeof AuthenticatedSettingsRoute
   '/_authenticated/invoices/$id': typeof AuthenticatedInvoicesIdRoute
   '/_authenticated/invoices/': typeof AuthenticatedInvoicesIndexRoute
@@ -174,6 +183,7 @@ export interface FileRouteTypes {
     | '/ledger'
     | '/pos'
     | '/reports'
+    | '/server'
     | '/settings'
     | '/invoices/$id'
     | '/invoices/'
@@ -190,6 +200,7 @@ export interface FileRouteTypes {
     | '/ledger'
     | '/pos'
     | '/reports'
+    | '/server'
     | '/settings'
     | '/invoices/$id'
     | '/invoices'
@@ -208,6 +219,7 @@ export interface FileRouteTypes {
     | '/_authenticated/ledger'
     | '/_authenticated/pos'
     | '/_authenticated/reports'
+    | '/_authenticated/server'
     | '/_authenticated/settings'
     | '/_authenticated/invoices/$id'
     | '/_authenticated/invoices/'
@@ -312,6 +324,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedReportsRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/server': {
+      id: '/_authenticated/server'
+      path: '/server'
+      fullPath: '/server'
+      preLoaderRoute: typeof AuthenticatedServerRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/settings': {
       id: '/_authenticated/settings'
       path: '/settings'
@@ -362,6 +381,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedLedgerRoute: typeof AuthenticatedLedgerRoute
   AuthenticatedPosRoute: typeof AuthenticatedPosRoute
   AuthenticatedReportsRoute: typeof AuthenticatedReportsRoute
+  AuthenticatedServerRoute: typeof AuthenticatedServerRoute
   AuthenticatedSettingsRoute: typeof AuthenticatedSettingsRoute
 }
 
@@ -376,6 +396,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedLedgerRoute: AuthenticatedLedgerRoute,
   AuthenticatedPosRoute: AuthenticatedPosRoute,
   AuthenticatedReportsRoute: AuthenticatedReportsRoute,
+  AuthenticatedServerRoute: AuthenticatedServerRoute,
   AuthenticatedSettingsRoute: AuthenticatedSettingsRoute,
 }
 

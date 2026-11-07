@@ -24,7 +24,7 @@ export function EditInvoiceModal({
   const [discountAmount, setDiscountAmount] = useState(invoice.discount_amount);
   const [exchangeAmount, setExchangeAmount] = useState(invoice.exchange_amount || 0);
   const [exchangeNotes, setExchangeNotes] = useState(invoice.exchange_notes || "");
-  
+
   // Custom items list in edit state
   const [editLines, setEditLines] = useState<any[]>(
     initialItems.map((it) => ({

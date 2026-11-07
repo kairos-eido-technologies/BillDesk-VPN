@@ -23,8 +23,37 @@ function POSPage() {
   const [heldBills, setHeldBills] = useState<any[]>([]);
   const [paymentStatusOption, setPaymentStatusOption] = useState<"PAID" | "UNPAID" | "PARTIAL">("PAID");
   const [partialAmountPaid, setPartialAmountPaid] = useState<string>("");
+  const [billMode, setBillMode] = useState<'RETAIL' | 'WHOLESALE'>('RETAIL');
+  const [globalGstRate, setGlobalGstRate] = useState<string>('');
   const scanRef = useRef<HTMLInputElement>(null);
   const qc = useQueryClient();
+
+  function handleModeChange(mode: 'RETAIL' | 'WHOLESALE') {
+    setBillMode(mode);
+    cart.lines.forEach((l) => {
+      const prod = db.getProductById(l.product_id);
+      if (prod) {
+        const targetPrice = mode === 'WHOLESALE' && prod.wholesale_price && prod.wholesale_price > 0
+          ? Number(prod.wholesale_price)
+          : Number(prod.selling_price);
+        l.price = targetPrice;
+      }
+    });
+    if (cart.lines.length > 0) {
+      cart.setQty(cart.lines[0].product_id, cart.lines[0].qty);
+    }
+    toast.success(`Switched to ${mode} Billing`);
+  }
+
+  function handleApplyGlobalGst(val: string) {
+    setGlobalGstRate(val);
+    const parsed = parseFloat(val);
+    if (!isNaN(parsed) && parsed >= 0) {
+      cart.lines.forEach((l) => {
+        cart.setLineGstRate(l.product_id, parsed);
+      });
+    }
+  }
 
   useEffect(() => {
     try {
@@ -143,29 +172,32 @@ function POSPage() {
       return;
     }
 
+    const itemPrice = billMode === 'WHOLESALE' && (item as any).wholesale_price && (item as any).wholesale_price > 0
+      ? Number((item as any).wholesale_price)
+      : Number(item.selling_price);
+
+    const itemGst = cart.gstEnabled
+      ? (globalGstRate !== '' ? (parseFloat(globalGstRate) || 0) : Number(item.gst_rate || 0))
+      : 0;
+
     cart.addOrIncrement({
       product_id: item.id,
       name: item.name,
       barcode: item.barcode,
-      price: Number(item.selling_price),
-      mrp: Number(item.mrp ?? item.selling_price),
-      gst_rate: Number(item.gst_rate),
+      price: itemPrice,
+      mrp: Number(item.mrp ?? itemPrice),
+      gst_rate: itemGst,
       stock_qty: shopQty,
     });
-    toast.success(`Scanned: ${item.name} (${item.gst_rate}% GST)`);
+    toast.success(`Scanned: ${item.name} (${billMode} ₹${itemPrice})`);
     setScan("");
   }
 
   function handleProductClick(p: InventoryItem) {
     const shopQty = Number(p.stock_qty || 0);
-    const godownQty = Number(p.godown_qty || 0);
 
     if (shopQty <= 0) {
-      if (godownQty > 0) {
-        toast.error(`Cannot bill ${p.name}! Stock is currently in Godown (${godownQty} ${p.unit || 'pcs'}). Transfer to Shop Stock first!`);
-      } else {
-        toast.error(`${p.name} is currently out of stock!`);
-      }
+      toast.error(`${p.name} is currently out of stock!`);
       return;
     }
 
@@ -173,17 +205,25 @@ function POSPage() {
     const currentQtyInCart = existingLine ? existingLine.qty : 0;
 
     if (currentQtyInCart + 1 > shopQty) {
-      toast.error(`Cannot add more! Only ${shopQty} ${p.unit || 'pcs'} in Shop Stock. Transfer remaining from Godown to bill more!`);
+      toast.error(`Cannot add more! Only ${shopQty} ${p.unit || 'pcs'} in Shop Stock.`);
       return;
     }
+
+    const itemPrice = billMode === 'WHOLESALE' && (p as any).wholesale_price && (p as any).wholesale_price > 0
+      ? Number((p as any).wholesale_price)
+      : Number(p.selling_price);
+
+    const itemGst = cart.gstEnabled
+      ? (globalGstRate !== '' ? (parseFloat(globalGstRate) || 0) : Number(p.gst_rate || 0))
+      : 0;
 
     cart.addOrIncrement({
       product_id: p.id,
       name: p.name,
       barcode: p.barcode,
-      price: Number(p.selling_price),
-      mrp: Number(p.mrp ?? p.selling_price),
-      gst_rate: Number(p.gst_rate),
+      price: itemPrice,
+      mrp: Number(p.mrp ?? itemPrice),
+      gst_rate: itemGst,
       stock_qty: shopQty,
     });
   }
@@ -216,6 +256,7 @@ function POSPage() {
         customer_name: cart.customerName || "Walk-in Customer",
         customer_mobile: cart.customerMobile || "",
         invoice_type: (cart.gstEnabled ? "GST" : "NON_GST") as any,
+        bill_mode: billMode,
         subtotal: totals.subtotal,
         tax_amount: totals.gstAmount,
         discount_amount: cart.invoiceDiscount,
@@ -271,6 +312,43 @@ function POSPage() {
     <div className="p-4 grid grid-cols-12 gap-4 min-h-[calc(100vh-4rem)]">
       {/* LEFT: Billing POS Station */}
       <div className="col-span-8 space-y-3 flex flex-col">
+        {/* Bill Mode Header Toggle */}
+        <div className="card-surface p-2.5 flex items-center justify-between gap-3">
+          <div className="flex items-center gap-1.5 p-1 rounded-lg bg-input border border-border">
+            <button
+              type="button"
+              onClick={() => handleModeChange('RETAIL')}
+              className={`h-8 px-4 rounded-md text-xs font-bold transition flex items-center gap-1.5 ${
+                billMode === 'RETAIL'
+                  ? 'bg-primary text-white shadow-sm'
+                  : 'text-muted-foreground hover:text-foreground'
+              }`}
+            >
+              🏪 Retail Bill
+            </button>
+            <button
+              type="button"
+              onClick={() => handleModeChange('WHOLESALE')}
+              className={`h-8 px-4 rounded-md text-xs font-bold transition flex items-center gap-1.5 ${
+                billMode === 'WHOLESALE'
+                  ? 'bg-destructive text-white shadow-sm'
+                  : 'text-muted-foreground hover:text-foreground'
+              }`}
+            >
+              📦 Wholesale Bill
+            </button>
+          </div>
+
+          <div className="text-xs font-mono text-muted-foreground flex items-center gap-2">
+            <span className="hidden sm:inline">Active Mode:</span>
+            <span className={`px-2 py-0.5 rounded text-[11px] font-bold ${
+              billMode === 'WHOLESALE' ? 'bg-destructive/15 text-destructive border border-destructive/30' : 'bg-primary/15 text-primary border border-primary/30'
+            }`}>
+              {billMode} RATES
+            </span>
+          </div>
+        </div>
+
         {/* Top Barcode & Search Controls */}
         <div className="card-surface p-3 grid grid-cols-2 gap-3">
           <div className="relative">
@@ -339,17 +417,18 @@ function POSPage() {
                       ) : null}
                     </td>
                     <td className="px-3 py-2 text-center">
-                      <select
-                        value={l.gst_rate}
-                        onChange={(e) => cart.setLineGstRate(l.product_id, parseFloat(e.target.value) || 0)}
-                        className="h-8 rounded bg-input border border-border text-center font-mono text-xs px-1 font-bold text-foreground"
-                      >
-                        <option value={0}>0%</option>
-                        <option value={5}>5%</option>
-                        <option value={12}>12%</option>
-                        <option value={18}>18%</option>
-                        <option value={28}>28%</option>
-                      </select>
+                      <div className="flex items-center justify-center gap-0.5">
+                        <input
+                          type="number"
+                          min={0}
+                          max={100}
+                          step="0.5"
+                          value={l.gst_rate}
+                          onChange={(e) => cart.setLineGstRate(l.product_id, parseFloat(e.target.value) || 0)}
+                          className="w-14 h-8 rounded bg-input border border-border text-center font-mono text-xs px-1 font-bold text-foreground focus:border-primary"
+                        />
+                        <span className="text-[10px] text-muted-foreground">%</span>
+                      </div>
                     </td>
                     <td className="px-3 py-2 text-center">
                       <input
@@ -488,22 +567,50 @@ function POSPage() {
           )}
         </div>
 
-        {/* GST Billing Toggle */}
-        <div className="card-surface p-4 flex items-center justify-between">
-          <div className="space-y-0.5">
-            <div className="text-xs font-bold text-foreground flex items-center gap-1.5">
-              <Percent className="h-4 w-4 text-emerald-400" /> {t("pos.gst.title")}
+        {/* GST Billing Toggle & Manual Rate Entry */}
+        <div className="card-surface p-4 space-y-2.5">
+          <div className="flex items-center justify-between">
+            <div className="space-y-0.5">
+              <div className="text-xs font-bold text-foreground flex items-center gap-1.5">
+                <Percent className="h-4 w-4 text-emerald-400" /> GST Billing
+              </div>
+              <div className="text-[10px] text-muted-foreground">Toggle tax calculation</div>
             </div>
-            <div className="text-[10px] text-muted-foreground">{t("pos.gst.desc")}</div>
+            <button
+              type="button"
+              onClick={() => {
+                const nextState = !cart.gstEnabled;
+                cart.toggleGst(nextState);
+                if (!nextState) {
+                  cart.lines.forEach((l) => cart.setLineGstRate(l.product_id, 0));
+                }
+              }}
+              className={`h-7 px-3 rounded-full text-xs font-bold transition border ${
+                cart.gstEnabled ? "bg-emerald-500 text-white border-emerald-400" : "bg-muted text-muted-foreground border-border"
+              }`}
+            >
+              {cart.gstEnabled ? "✓ GST ON" : "GST OFF"}
+            </button>
           </div>
-          <button
-            onClick={() => cart.toggleGst(!cart.gstEnabled)}
-            className={`h-7 px-3 rounded-full text-xs font-bold transition border ${
-              cart.gstEnabled ? "bg-emerald-500 text-white border-emerald-400" : "bg-muted text-muted-foreground border-border"
-            }`}
-          >
-            {cart.gstEnabled ? t("pos.gst.on") : t("pos.gst.off")}
-          </button>
+
+          {cart.gstEnabled && (
+            <div className="pt-2 border-t border-border flex items-center justify-between gap-2">
+              <div className="text-[10px] text-muted-foreground">Single Bill GST % (All Items):</div>
+              <div className="flex items-center gap-1">
+                <input
+                  type="number"
+                  min={0}
+                  max={100}
+                  step="0.5"
+                  value={globalGstRate}
+                  onChange={(e) => handleApplyGlobalGst(e.target.value)}
+                  placeholder="e.g. 18"
+                  className="w-16 h-7 rounded bg-input border border-border text-center font-mono text-xs px-1 font-bold text-foreground focus:border-primary"
+                />
+                <span className="text-[10px] text-muted-foreground font-mono">%</span>
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Payment Summary */}

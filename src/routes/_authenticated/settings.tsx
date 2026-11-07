@@ -1,4 +1,4 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { db, User } from "@/lib/db/db";
 import { ExcelEngine } from "@/lib/excel/excel-engine";
@@ -314,12 +314,15 @@ function SettingsPage() {
               <Server className="h-4 w-4 text-emerald-400" /> Local SQLite Database & Mobile Host Server
             </div>
             <div className="flex items-center gap-2">
+              <Link
+                to="/server"
+                className="text-[11px] px-3 py-1 rounded-lg font-bold bg-primary text-primary-foreground flex items-center gap-1 hover:opacity-90 transition"
+              >
+                Server Page <ExternalLink className="h-3 w-3" />
+              </Link>
               <span className="text-[11px] px-2.5 py-0.5 rounded-full font-bold bg-emerald-500/15 text-emerald-300 border border-emerald-500/30 flex items-center gap-1.5">
                 <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-                Server Online (Port 3000)
-              </span>
-              <span className="text-[11px] px-2.5 py-0.5 rounded-full font-bold bg-blue-500/15 text-blue-300 border border-blue-500/30">
-                100% Offline DB
+                Server Online
               </span>
             </div>
           </div>

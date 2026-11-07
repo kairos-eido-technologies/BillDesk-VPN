@@ -1,29 +1,75 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { db } from "@/lib/db/db";
-import { inr, qty } from "@/lib/format";
-import { Package, Receipt, Users, AlertTriangle, Wrench, Recycle, ShoppingBag, ArrowUpRight } from "lucide-react";
-import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from "recharts";
+import { inr } from "@/lib/format";
+import {
+  TrendingUp,
+  CheckCircle2,
+  Clock,
+  ShoppingBag,
+  ArrowUpRight,
+  IndianRupee,
+} from "lucide-react";
 import { Link } from "@tanstack/react-router";
-import { useT } from "@/lib/lang/lang-context";
+import {
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  Tooltip,
+  ResponsiveContainer,
+  CartesianGrid,
+} from "recharts";
 
 export const Route = createFileRoute("/_authenticated/dashboard")({
   component: Dashboard,
 });
 
 function Dashboard() {
-  const t = useT();
   const stats = useQuery({
-    queryKey: ["local-dashboard-stats"],
-    staleTime: 60_000,
+    queryKey: ["mss-dashboard-stats"],
+    staleTime: 30_000,
     queryFn: async () => {
       const store = db.getStore();
-      const invoices = store.invoices;
-      const totalSales = invoices.reduce((s, i) => s + Number(i.grand_total), 0);
+      const allInvoices = store.invoices;
 
-      // Low stock check against MOQ / min alert
-      const lowStock = store.inventory.filter(
-        (p) => Number(p.stock_qty) <= Number(p.min_stock_alert) || Number(p.stock_qty) <= Number(p.moq)
+      // TODAY filter
+      const todayStr = new Date().toISOString().slice(0, 10);
+      const todayInvoices = allInvoices.filter(
+        (inv) => inv.created_at.slice(0, 10) === todayStr
+      );
+
+      // TODAY stats
+      const todayTotalSales = todayInvoices.reduce(
+        (s, inv) => s + Number(inv.grand_total || 0),
+        0
+      );
+      const todayDailyIncome = todayInvoices.reduce(
+        (s, inv) => s + Number(inv.amount_paid || 0),
+        0
+      );
+
+      // Items sold today (sum of qty across all items in today's invoices)
+      const todayItemsSold = todayInvoices.reduce((s, inv) => {
+        const items = inv.items || [];
+        return s + items.reduce((si, it) => si + Number(it.qty || 0), 0);
+      }, 0);
+
+      // Paid vs Credit
+      const todayPaidBills = todayInvoices.filter(
+        (inv) => inv.payment_status === "PAID"
+      );
+      const todayCreditBills = todayInvoices.filter(
+        (inv) =>
+          inv.payment_status === "UNPAID" || inv.payment_status === "PARTIAL"
+      );
+      const todayPaidAmount = todayPaidBills.reduce(
+        (s, inv) => s + Number(inv.grand_total || 0),
+        0
+      );
+      const todayCreditOutstanding = todayCreditBills.reduce(
+        (s, inv) => s + Number(inv.balance_due || 0),
+        0
       );
 
       // Last 7 days chart
@@ -33,142 +79,287 @@ function Dashboard() {
         d.setDate(d.getDate() - i);
         byDay[d.toISOString().slice(0, 10)] = 0;
       }
-      invoices.forEach((r) => {
-        const k = r.created_at.slice(0, 10);
-        if (k in byDay) byDay[k] += Number(r.grand_total);
+      allInvoices.forEach((inv) => {
+        const k = inv.created_at.slice(0, 10);
+        if (k in byDay) byDay[k] += Number(inv.grand_total || 0);
       });
-      const chart = Object.entries(byDay).map(([d, v]) => ({ d: d.slice(5), v: Math.round(v) }));
+      const chart = Object.entries(byDay).map(([d, v]) => ({
+        d: d.slice(5),
+        v: Math.round(v),
+      }));
 
-      const totalCustomerDue = store.customers.reduce((s, c) => s + (Number(c.balance_due) || 0), 0);
-      const totalPaymentsCollected = store.ledger
-        .filter((l) => l.type === "CREDIT")
-        .reduce((s, l) => s + (Number(l.amount) || 0), 0);
+      // Wholesale vs Retail today
+      const todayWholesaleBills = todayInvoices.filter(
+        (inv) => (inv as any).bill_mode === "WHOLESALE"
+      ).length;
+      const todayRetailBills = todayInvoices.filter(
+        (inv) => (inv as any).bill_mode !== "WHOLESALE"
+      ).length;
 
       return {
-        productCount: store.inventory.length,
-        customerCount: store.customers.length,
-        invoiceCount: invoices.length,
-        totalSales,
+        todayTotalSales,
+        todayDailyIncome,
+        todayItemsSold,
+        todayPaidBills: todayPaidBills.length,
+        todayPaidAmount,
+        todayCreditBills: todayCreditBills.length,
+        todayCreditOutstanding,
         chart,
-        lowStock,
-        totalCustomerDue,
-        totalPaymentsCollected,
-        recentInvoices: invoices.slice(0, 5),
+        todayWholesaleBills,
+        todayRetailBills,
+        totalBillsToday: todayInvoices.length,
+        productCount: store.inventory.length,
       };
     },
   });
 
   const data = stats.data;
+
   return (
     <div className="p-6 space-y-6">
-      <PageHeader
-        title={t("dashboard.title")}
-        subtitle={t("dashboard.subtitle")}
-        action={
-          <Link
-            to="/pos"
-            className="h-9 px-4 rounded-xl bg-primary text-primary-foreground font-bold text-xs flex items-center gap-1 hover:opacity-90 transition shadow-xs"
-          >
-            {t("dashboard.openPOS")} <ArrowUpRight className="h-4 w-4" />
-          </Link>
-        }
-      />
-
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <KPI label={t("dashboard.kpi.totalSales")} value={inr(data?.totalSales)} icon={Receipt} accent />
-        <KPI label={t("dashboard.kpi.invoices")} value={qty(data?.invoiceCount)} icon={Receipt} />
-        <KPI label={t("dashboard.kpi.catalog")} value={qty(data?.productCount)} icon={Package} />
-        <KPI label={t("dashboard.kpi.customers")} value={qty(data?.customerCount)} icon={Users} />
+      {/* Header */}
+      <div
+        className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b pb-4"
+        style={{ borderColor: "#243068" }}
+      >
+        <div>
+          <h1 className="text-xl font-bold tracking-tight text-white">
+            Daily Dashboard
+          </h1>
+          <p className="text-xs mt-0.5" style={{ color: "#8B9CC5" }}>
+            MSS Ponkumar Store · Today's Operations Summary
+          </p>
+        </div>
+        <Link
+          to="/pos"
+          className="h-9 px-4 rounded-xl font-bold text-xs flex items-center gap-1 text-white hover:opacity-90 transition shadow"
+          style={{ background: "#E8151B" }}
+        >
+          New Sale <ArrowUpRight className="h-4 w-4" />
+        </Link>
       </div>
 
+      {/* KPI Row 1 — Today's key numbers */}
+      <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
+        <KPI
+          label="Today's Total Sales"
+          value={inr(data?.todayTotalSales)}
+          icon={IndianRupee}
+          color="#E8151B"
+          accent
+        />
+        <KPI
+          label="Daily Income (Cash In)"
+          value={inr(data?.todayDailyIncome)}
+          icon={TrendingUp}
+          color="#22c55e"
+        />
+        <KPI
+          label="Items Sold Today"
+          value={String(data?.todayItemsSold ?? 0)}
+          icon={ShoppingBag}
+          color="#1B2D6B"
+        />
+        <KPI
+          label="Fully Paid Bills"
+          value={`${data?.todayPaidBills ?? 0} bills`}
+          sub={inr(data?.todayPaidAmount)}
+          icon={CheckCircle2}
+          color="#22c55e"
+        />
+        <KPI
+          label="Credit Bills"
+          value={`${data?.todayCreditBills ?? 0} bills`}
+          sub={`${inr(data?.todayCreditOutstanding)} due`}
+          icon={Clock}
+          color="#f59e0b"
+        />
+      </div>
+
+      {/* Row 2 — Billing Type breakdown */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <div className="card-surface p-4 border-l-4 border-l-amber-500">
-          <div className="text-xs text-muted-foreground mb-1">Customer Dues (Khata Receivables)</div>
-          <div className="text-xl font-bold font-mono text-amber-400">{inr(data?.totalCustomerDue)}</div>
+        <div
+          className="rounded-xl p-4 border-l-4"
+          style={{
+            background: "#162044",
+            border: "1px solid #243068",
+            borderLeftColor: "#1B2D6B",
+            borderLeftWidth: "4px",
+          }}
+        >
+          <div className="text-xs mb-1" style={{ color: "#8B9CC5" }}>
+            Retail Bills Today
+          </div>
+          <div
+            className="text-2xl font-bold font-mono"
+            style={{ color: "#fff" }}
+          >
+            {data?.todayRetailBills ?? 0}
+          </div>
+          <div className="text-[10px] mt-1" style={{ color: "#8B9CC5" }}>
+            Retail invoices
+          </div>
         </div>
-        <div className="card-surface p-4 border-l-4 border-l-emerald-500">
-          <div className="text-xs text-muted-foreground mb-1">Payments Collected (Ledger)</div>
-          <div className="text-xl font-bold font-mono text-emerald-400">{inr(data?.totalPaymentsCollected)}</div>
+        <div
+          className="rounded-xl p-4 border-l-4"
+          style={{
+            background: "#162044",
+            border: "1px solid #243068",
+            borderLeftColor: "#E8151B",
+            borderLeftWidth: "4px",
+          }}
+        >
+          <div className="text-xs mb-1" style={{ color: "#8B9CC5" }}>
+            Wholesale Bills Today
+          </div>
+          <div
+            className="text-2xl font-bold font-mono"
+            style={{ color: "#E8151B" }}
+          >
+            {data?.todayWholesaleBills ?? 0}
+          </div>
+          <div className="text-[10px] mt-1" style={{ color: "#8B9CC5" }}>
+            Wholesale invoices
+          </div>
         </div>
-        <div className="card-surface p-4 border-l-4 border-l-rose-500">
-          <div className="text-xs text-muted-foreground mb-1">{t("dashboard.lowStock")}</div>
-          <div className="text-xl font-bold font-mono text-rose-400">{data?.lowStock.length ?? 0} {t("dashboard.lowStock.products")}</div>
+        <div
+          className="rounded-xl p-4 border-l-4"
+          style={{
+            background: "#162044",
+            border: "1px solid #243068",
+            borderLeftColor: "#22c55e",
+            borderLeftWidth: "4px",
+          }}
+        >
+          <div className="text-xs mb-1" style={{ color: "#8B9CC5" }}>
+            Catalog Size
+          </div>
+          <div
+            className="text-2xl font-bold font-mono"
+            style={{ color: "#22c55e" }}
+          >
+            {data?.productCount ?? 0}
+          </div>
+          <div className="text-[10px] mt-1" style={{ color: "#8B9CC5" }}>
+            Products in inventory
+          </div>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-        <div className="card-surface p-4 lg:col-span-2">
-          <div className="text-sm font-medium mb-3 flex items-center justify-between">
-            <span>{t("dashboard.chart.title")}</span>
-            <span className="text-xs text-muted-foreground font-mono">{t("dashboard.chart.localDB")}</span>
-          </div>
-          <div className="h-64">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={data?.chart ?? []}>
-                <CartesianGrid stroke="oklch(0.28 0.012 240)" vertical={false} />
-                <XAxis dataKey="d" stroke="oklch(0.65 0.015 240)" fontSize={11} />
-                <YAxis stroke="oklch(0.65 0.015 240)" fontSize={11} />
-                <Tooltip
-                  contentStyle={{
-                    background: "oklch(0.20 0.012 240)",
-                    border: "1px solid oklch(0.28 0.012 240)",
-                    borderRadius: 8,
-                    fontSize: 12,
-                  }}
-                  formatter={(val: any) => [`₹${val}`, 'Revenue']}
-                />
-                <Bar dataKey="v" fill="oklch(0.58 0.23 255)" radius={[4, 4, 0, 0]} isAnimationActive={false} />
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
+      {/* Chart */}
+      <div
+        className="rounded-xl p-4"
+        style={{ background: "#162044", border: "1px solid #243068" }}
+      >
+        <div className="text-sm font-medium mb-3 flex items-center justify-between">
+          <span className="text-white">Last 7 Days Revenue</span>
+          <span className="text-[10px] font-mono" style={{ color: "#8B9CC5" }}>
+            Offline SQLite · Live
+          </span>
         </div>
-
-        <div className="card-surface p-4">
-          <div className="flex items-center gap-2 text-sm font-medium mb-3 text-amber-400">
-            <AlertTriangle className="h-4 w-4" /> {t("dashboard.lowStockAlert")} ({data?.lowStock.length ?? 0})
-          </div>
-          <div className="space-y-2 max-h-64 overflow-auto pr-1">
-            {(data?.lowStock ?? []).map((p) => (
-              <div key={p.id} className="flex justify-between items-center text-xs py-1.5 border-b border-border last:border-0">
-                <div className="min-w-0 pr-2">
-                  <div className="truncate font-medium text-foreground">{p.name}</div>
-                  <div className="text-[10px] text-muted-foreground font-mono">{p.category}</div>
-                </div>
-                <span className="font-mono text-amber-400 font-semibold shrink-0">
-                  {qty(p.stock_qty)} / {qty(p.moq)}
-                </span>
-              </div>
-            ))}
-            {data && data.lowStock.length === 0 && (
-              <div className="text-xs text-muted-foreground py-10 text-center">{t("dashboard.allOptimal")}</div>
-            )}
-          </div>
+        <div className="h-56">
+          <ResponsiveContainer width="100%" height="100%">
+            <BarChart data={data?.chart ?? []}>
+              <CartesianGrid stroke="#243068" vertical={false} />
+              <XAxis dataKey="d" stroke="#8B9CC5" fontSize={11} />
+              <YAxis stroke="#8B9CC5" fontSize={11} />
+              <Tooltip
+                contentStyle={{
+                  background: "#1A2755",
+                  border: "1px solid #243068",
+                  borderRadius: 8,
+                  fontSize: 12,
+                  color: "#fff",
+                }}
+                formatter={(val: any) => [`₹${val}`, "Revenue"]}
+              />
+              <Bar
+                dataKey="v"
+                fill="#1B2D6B"
+                radius={[4, 4, 0, 0]}
+                isAnimationActive={false}
+              />
+            </BarChart>
+          </ResponsiveContainer>
         </div>
       </div>
     </div>
   );
 }
 
-export function PageHeader({ title, subtitle, action }: { title: string; subtitle?: string; action?: React.ReactNode }) {
+export function PageHeader({
+  title,
+  subtitle,
+  action,
+}: {
+  title: string;
+  subtitle?: string;
+  action?: React.ReactNode;
+}) {
   return (
-    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-border/60 pb-4">
+    <div
+      className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b pb-4"
+      style={{ borderColor: "#243068" }}
+    >
       <div>
-        <h1 className="text-xl font-bold tracking-tight text-foreground">{title}</h1>
-        {subtitle && <p className="text-xs text-muted-foreground mt-0.5">{subtitle}</p>}
+        <h1 className="text-xl font-bold tracking-tight text-white">{title}</h1>
+        {subtitle && (
+          <p className="text-xs mt-0.5" style={{ color: "#8B9CC5" }}>
+            {subtitle}
+          </p>
+        )}
       </div>
       {action}
     </div>
   );
 }
 
-function KPI({ label, value, icon: Icon, accent }: { label: string; value: string; icon: any; accent?: boolean }) {
+function KPI({
+  label,
+  value,
+  sub,
+  icon: Icon,
+  color,
+  accent,
+}: {
+  label: string;
+  value: string;
+  sub?: string;
+  icon: any;
+  color?: string;
+  accent?: boolean;
+}) {
   return (
-    <div className={`card-surface p-4 ${accent ? "accent-glow border-primary/40" : ""}`}>
+    <div
+      className="rounded-xl p-4"
+      style={{
+        background: "#162044",
+        border: `1px solid ${accent ? color || "#E8151B" : "#243068"}`,
+        boxShadow: accent
+          ? `0 0 0 1px ${color}33, 0 0 20px -4px ${color}44`
+          : undefined,
+      }}
+    >
       <div className="flex items-center justify-between">
-        <div className="text-xs font-medium text-muted-foreground">{label}</div>
-        <Icon className={`h-4 w-4 ${accent ? "text-primary" : "text-muted-foreground"}`} />
+        <div className="text-xs font-medium" style={{ color: "#8B9CC5" }}>
+          {label}
+        </div>
+        <Icon
+          className="h-4 w-4"
+          style={{ color: color || "#8B9CC5" }}
+        />
       </div>
-      <div className={`mt-2 text-2xl font-mono font-bold ${accent ? "text-primary" : "text-foreground"}`}>{value}</div>
+      <div
+        className="mt-2 text-2xl font-mono font-bold"
+        style={{ color: color || "#fff" }}
+      >
+        {value}
+      </div>
+      {sub && (
+        <div className="text-[10px] mt-0.5 font-mono" style={{ color: "#8B9CC5" }}>
+          {sub}
+        </div>
+      )}
     </div>
   );
 }

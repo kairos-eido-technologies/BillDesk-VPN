@@ -4,22 +4,14 @@ import {
   redirect,
   Link,
   useNavigate,
-  useLocation,
 } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import { useAuth } from "@/lib/auth-store";
 import { db } from "@/lib/db/db";
 import { useQueryClient } from "@tanstack/react-query";
 import {
   LogOut,
-  Search,
   Plus,
-  Grid2X2,
-  ShoppingCart,
-  Receipt,
-  Users,
-  Landmark,
-  Server,
   Settings as SettingsIcon,
 } from "lucide-react";
 
@@ -42,7 +34,6 @@ export const Route = createFileRoute("/_authenticated")({
 
 function Shell() {
   const navigate = useNavigate();
-  const location = useLocation();
   const user = useAuth((s) => s.user);
   const logout = useAuth((s) => s.logout);
   const queryClient = useQueryClient();
@@ -57,194 +48,90 @@ function Shell() {
       const oldStoreStr = JSON.stringify(db.getStore());
       const updated = await db.fetchFromServer();
       const newStoreStr = JSON.stringify(db.getStore());
-
       if (active && updated && oldStoreStr !== newStoreStr) {
         queryClient.invalidateQueries();
       }
     }, 15000);
-
     return () => {
       active = false;
       clearInterval(interval);
     };
   }, [queryClient]);
 
-  useEffect(() => {
-    function onKey(e: KeyboardEvent) {
-      const target = e.target as HTMLElement;
-      if (target?.tagName === "INPUT" || target?.tagName === "TEXTAREA") return;
-      if (e.key === "/") {
-        e.preventDefault();
-        document.getElementById("global-search")?.focus();
-      }
-    }
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, []);
-
   function handleSignOut() {
     logout();
     navigate({ to: "/auth", replace: true });
   }
 
-  const shopName = db.getSettings()?.shop_name || "Kairos Bills";
+  const shopName = db.getSettings()?.shop_name || "MSS Ponkumar Store";
 
   return (
-    <div className="min-h-screen flex flex-col bg-background text-foreground">
-      {/* TOP HEADER / APP BAR */}
-      <header className="h-14 border-b border-border bg-card/70 backdrop-blur-md flex items-center justify-between gap-3 px-4 shrink-0 sticky top-0 z-30 shadow-xs print:hidden">
-        {/* Left: Brand & Home/Apps Button */}
-        <div className="flex items-center gap-3">
-          <Link to={isCashier ? "/pos" : "/apps"} className="flex items-center gap-2.5 group">
-            <div className="h-9 w-9 rounded-xl bg-white border border-primary/30 p-1 grid place-items-center group-hover:scale-105 transition shadow-xs overflow-hidden shrink-0">
-              <img src="/kairos-bills-logo.png" alt="Kairos Bills" className="h-full w-full object-contain" />
+    <div className="min-h-screen flex flex-col text-foreground" style={{ background: '#0F1A3E' }}>
+      {/* TOP HEADER */}
+      <header
+        className="h-14 border-b flex items-center justify-between gap-3 px-4 shrink-0 sticky top-0 z-30 print:hidden"
+        style={{ background: '#162044', borderColor: '#243068' }}
+      >
+        {/* Left: Brand */}
+        <Link to={isCashier ? "/pos" : "/apps"} className="flex items-center gap-2.5 group">
+          <div className="h-9 w-9 rounded-xl bg-white border border-white/20 p-0.5 grid place-items-center group-hover:scale-105 transition shadow overflow-hidden shrink-0">
+            <div className="text-[8px] font-black text-center leading-tight" style={{ color: '#1B2D6B' }}>
+              <div style={{ fontSize: '11px', fontWeight: 900, color: '#1B2D6B' }}>MSS</div>
             </div>
-            <div className="hidden sm:block">
-              <div className="text-xs font-black text-foreground group-hover:text-primary transition tracking-tight flex items-center gap-1.5">
-                <span>{shopName}</span>
-                <span className="text-[10px] font-normal px-1.5 py-0.2 rounded bg-primary/15 text-primary border border-primary/20">Cloud</span>
-              </div>
-              <div className="text-[9px] text-muted-foreground font-mono tracking-wider">
-                Smart Retail & Ledger
-              </div>
-            </div>
-          </Link>
-
-          <div className="h-4 w-[1px] bg-border mx-0.5 hidden sm:block" />
-
-          {/* Quick Module Navigation Links */}
-          <div className="flex items-center gap-1">
-            {!isCashier && (
-              <Link
-                to="/apps"
-                className={`h-8 px-2.5 rounded-lg text-xs font-bold flex items-center gap-1.5 transition ${
-                  location.pathname === "/apps"
-                    ? "bg-primary text-primary-foreground shadow-xs"
-                    : "text-muted-foreground hover:text-foreground hover:bg-secondary"
-                }`}
-                title="All Apps"
-              >
-                <Grid2X2 className="h-3.5 w-3.5" />
-                <span className="hidden md:inline">Apps</span>
-              </Link>
-            )}
-
-            <Link
-              to="/pos"
-              className={`h-8 px-2.5 rounded-lg text-xs font-bold flex items-center gap-1.5 transition ${
-                location.pathname.startsWith("/pos")
-                  ? "bg-primary text-primary-foreground shadow-xs"
-                  : "text-muted-foreground hover:text-foreground hover:bg-secondary"
-              }`}
-              title="POS Billing"
-            >
-              <ShoppingCart className="h-3.5 w-3.5" />
-              <span>POS</span>
-            </Link>
-
-            <Link
-              to="/invoices"
-              className={`h-8 px-2.5 rounded-lg text-xs font-bold flex items-center gap-1.5 transition ${
-                location.pathname.startsWith("/invoices")
-                  ? "bg-primary text-primary-foreground shadow-xs"
-                  : "text-muted-foreground hover:text-foreground hover:bg-secondary"
-              }`}
-              title="Invoices"
-            >
-              <Receipt className="h-3.5 w-3.5" />
-              <span className="hidden sm:inline">Invoices</span>
-            </Link>
-
-            {!isCashier && (
-              <>
-                <Link
-                  to="/customers"
-                  className={`h-8 px-2.5 rounded-lg text-xs font-bold flex items-center gap-1.5 transition ${
-                    location.pathname.startsWith("/customers")
-                      ? "bg-primary text-primary-foreground shadow-xs"
-                      : "text-muted-foreground hover:text-foreground hover:bg-secondary"
-                  }`}
-                  title="Customers"
-                >
-                  <Users className="h-3.5 w-3.5" />
-                  <span className="hidden lg:inline">Customers</span>
-                </Link>
-
-                <Link
-                  to="/ledger"
-                  className={`h-8 px-2.5 rounded-lg text-xs font-bold flex items-center gap-1.5 transition ${
-                    location.pathname.startsWith("/ledger")
-                      ? "bg-primary text-primary-foreground shadow-xs"
-                      : "text-muted-foreground hover:text-foreground hover:bg-secondary"
-                  }`}
-                  title="Khata Ledger"
-                >
-                  <Landmark className="h-3.5 w-3.5 text-amber-400" />
-                  <span className="hidden sm:inline">Ledger</span>
-                </Link>
-              </>
-            )}
           </div>
-        </div>
+          <div className="hidden sm:block">
+            <div className="text-xs font-black text-white group-hover:opacity-80 transition tracking-tight flex items-center gap-1.5">
+              <span>{shopName}</span>
+              <span
+                className="text-[9px] font-bold px-1.5 py-px rounded"
+                style={{ background: '#E8151B', color: '#fff' }}
+              >
+                WHOLESALE
+              </span>
+            </div>
+            <div className="text-[9px] font-mono tracking-wider" style={{ color: '#8B9CC5' }}>
+              BillDesk POS · Offline
+            </div>
+          </div>
+        </Link>
 
-        {/* Center: Search */}
-        <div className="relative flex-1 max-w-xs md:max-w-sm mx-1 hidden sm:block">
-          <Search className="h-3.5 w-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
-          <input
-            id="global-search"
-            placeholder="Quick search products or customers..."
-            className="w-full h-8 pl-8 pr-7 rounded-lg bg-input border border-border text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary"
-            onKeyDown={(e) => {
-              if (e.key === "Enter") {
-                navigate({ to: "/pos" });
-              }
-            }}
-          />
-          <kbd className="absolute right-2 top-1/2 -translate-y-1/2 text-[9px] px-1 py-0.2 rounded border border-border text-muted-foreground font-mono">
-            /
-          </kbd>
-        </div>
-
-        {/* Right: Server Status + New Sale + User Profile & Sign Out */}
+        {/* Right: New Sale + Settings + User */}
         <div className="flex items-center gap-2">
-          {/* Server Host Status Pill */}
-          <Link
-            to="/settings"
-            title="Local SQLite Server Host Online — Click to view Mobile Access IPs & VPN"
-            className="h-8 px-2.5 rounded-lg border text-[11px] font-semibold flex items-center gap-1.5 transition border-emerald-500/30 bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20"
-          >
-            <Server className="h-3.5 w-3.5 text-emerald-400 shrink-0" />
-            <span className="hidden md:inline">Server Online</span>
-          </Link>
-
           <Link
             to="/pos"
-            className="h-8 px-3 rounded-lg bg-primary text-primary-foreground text-xs font-bold flex items-center gap-1.5 hover:opacity-90 transition shadow-xs"
+            className="h-9 px-4 rounded-lg text-white text-xs font-bold flex items-center gap-1.5 transition shadow"
+            style={{ background: '#E8151B' }}
           >
-            <Plus className="h-3.5 w-3.5" /> <span className="hidden sm:inline">New Sale</span>
+            <Plus className="h-4 w-4" />
+            <span className="hidden sm:inline">New Sale</span>
           </Link>
 
           {!isCashier && (
             <Link
               to="/settings"
               title="Settings"
-              className="h-8 w-8 rounded-lg border border-border bg-card hover:bg-secondary grid place-items-center text-muted-foreground hover:text-foreground transition"
+              className="h-9 w-9 rounded-lg border flex items-center justify-center transition"
+              style={{ background: '#1A2755', borderColor: '#243068', color: '#8B9CC5' }}
             >
-              <SettingsIcon className="h-3.5 w-3.5" />
+              <SettingsIcon className="h-4 w-4" />
             </Link>
           )}
 
-          <div className="h-8 pl-2 pr-2 rounded-lg border border-border flex items-center gap-2 text-xs bg-card">
-            <div className="h-5 w-5 rounded-full bg-primary/20 border border-primary/40 grid place-items-center text-[9px] font-bold font-mono text-primary">
+          <div className="h-9 px-2 rounded-lg border flex items-center gap-2 text-xs" style={{ background: '#1A2755', borderColor: '#243068' }}>
+            <div
+              className="h-6 w-6 rounded-full grid place-items-center text-[10px] font-bold font-mono text-white"
+              style={{ background: '#1B2D6B', border: '1.5px solid #E8151B' }}
+            >
               {user?.username?.[0]?.toUpperCase() ?? "A"}
             </div>
-            <span className="font-semibold text-foreground hidden sm:inline text-xs">
+            <span className="font-semibold text-white hidden sm:inline text-xs">
               {user?.username ?? "admin"}
             </span>
             <button
               onClick={handleSignOut}
               title="Sign Out"
-              className="text-muted-foreground hover:text-destructive p-1 transition ml-0.5 cursor-pointer"
+              className="p-1 transition ml-0.5 cursor-pointer"
+              style={{ color: '#8B9CC5' }}
             >
               <LogOut className="h-3.5 w-3.5" />
             </button>
@@ -252,8 +139,8 @@ function Shell() {
         </div>
       </header>
 
-      {/* MAIN CONTENT AREA */}
-      <main className="flex-1 overflow-auto bg-background print:overflow-visible print:h-auto">
+      {/* MAIN CONTENT */}
+      <main className="flex-1 overflow-auto print:overflow-visible print:h-auto" style={{ background: '#0F1A3E' }}>
         <Outlet />
       </main>
     </div>

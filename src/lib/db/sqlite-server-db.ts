@@ -120,6 +120,7 @@ export class SQLiteDatabaseManager {
         cost_price REAL,
         selling_price REAL,
         mrp REAL DEFAULT 0,
+        wholesale_price REAL DEFAULT 0,
         stock_qty REAL,
         godown_qty REAL,
         moq REAL,
@@ -195,6 +196,7 @@ export class SQLiteDatabaseManager {
         customer_name TEXT,
         customer_mobile TEXT,
         invoice_type TEXT,
+        bill_mode TEXT DEFAULT 'RETAIL',
         subtotal REAL,
         tax_amount REAL,
         discount_amount REAL,
@@ -349,6 +351,8 @@ export class SQLiteDatabaseManager {
       `ALTER TABLE invoice_items ADD COLUMN gst_rate REAL DEFAULT 0;`,
       `ALTER TABLE invoice_items ADD COLUMN unit TEXT;`,
       `ALTER TABLE invoice_items ADD COLUMN barcode TEXT;`,
+      `ALTER TABLE inventory ADD COLUMN wholesale_price REAL DEFAULT 0;`,
+      `ALTER TABLE invoices ADD COLUMN bill_mode TEXT DEFAULT 'RETAIL';`,
     ];
 
     for (const sql of migrations) {
@@ -376,17 +380,17 @@ export class SQLiteDatabaseManager {
       const settingsCount = await db.get(`SELECT COUNT(*) as count FROM settings`);
       if (settingsCount && (settingsCount.count === 0 || settingsCount.count === '0')) {
         const defaultSettings: Record<string, string> = {
-          shop_name: 'BillDesk Store',
-          legal_name: 'BillDesk POS',
+          shop_name: 'MSS Ponkumar Store',
+          legal_name: 'MSS Ponkumar Store - Wholesale Shop',
           phone: '9876543210',
-          email: 'admin@billdesk.local',
-          gstin: '33AAAAA0000A1Z5',
-          upi_id: 'billdesk@upi',
-          address_line1: '123 Commercial Hub, Main Road',
-          city_pincode: 'Chennai, TN - 600001',
-          invoice_prefix: 'BD-',
-          receipt_footer_message: 'Thank you for shopping with BillDesk!',
-          api_key: 'bd_' + Math.random().toString(36).substring(2, 12),
+          email: 'admin@msspk.local',
+          gstin: '',
+          upi_id: '',
+          address_line1: 'MSS Ponkumar Store',
+          city_pincode: 'Your City - PIN',
+          invoice_prefix: 'MSSP-',
+          receipt_footer_message: 'Thank you for shopping at MSS Ponkumar Store!',
+          api_key: 'mssp_' + Math.random().toString(36).substring(2, 12),
           server_port: '3000',
           currency_symbol: '₹',
         };

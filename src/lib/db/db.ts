@@ -26,6 +26,7 @@ export interface InventoryItem {
   cost_price: number;
   selling_price: number;
   mrp?: number;
+  wholesale_price?: number;
   stock_qty: number;
   godown_qty?: number;
   moq?: number;
@@ -75,6 +76,7 @@ export interface Invoice {
   customer_address?: string;
   customer_gstin?: string;
   invoice_type: 'GST' | 'NON_GST' | 'MIXED';
+  bill_mode?: 'RETAIL' | 'WHOLESALE';
   subtotal: number;
   tax_amount: number;
   discount_amount: number;
@@ -168,21 +170,21 @@ export interface DBStore {
 const LOCAL_STORAGE_KEY = 'billdesk_vpn_store_v1';
 
 const DEFAULT_SETTINGS: Settings = {
-  shop_name: 'BillDesk Store',
-  legal_name: 'BillDesk POS',
+  shop_name: 'MSS Ponkumar Store',
+  legal_name: 'MSS Ponkumar Store - Wholesale Shop',
   phone: '9876543210',
-  email: 'admin@billdesk.local',
-  gstin: '33AAAAA0000A1Z5',
-  upi_id: 'billdesk@upi',
-  address_line1: '123 Commercial Hub, Main Road',
-  address_line2: 'Market Complex',
-  city_pincode: 'Chennai, TN - 600001',
-  invoice_prefix: 'BD-',
-  receipt_footer_message: 'Thank you for shopping with us!',
+  email: 'admin@msspk.local',
+  gstin: '',
+  upi_id: '',
+  address_line1: 'MSS Ponkumar Store',
+  address_line2: '',
+  city_pincode: 'Your City - PIN',
+  invoice_prefix: 'MSSP-',
+  receipt_footer_message: 'Thank you for shopping at MSS Ponkumar Store!',
   terms_line1: '1. Goods once sold can be exchanged with valid bill within 7 days.',
   terms_line2: '2. All disputes subject to local jurisdiction.',
   currency_symbol: '₹',
-  api_key: 'bd_secret_key_88',
+  api_key: 'mssp_secret_key_88',
   server_port: '3000',
   custom_tunnel_url: '',
 };
@@ -207,13 +209,14 @@ const DEFAULT_STORE: DBStore = {
   inventory: [
     {
       id: 'inv-1',
-      barcode: 'BD8901001',
+      barcode: 'MSSP8901001',
       name: 'Stainless Steel Flask 1000ml',
       category: 'Utensils',
       unit: 'Pcs',
       cost_price: 350,
       selling_price: 550,
       mrp: 650,
+      wholesale_price: 450,
       stock_qty: 45,
       min_stock_alert: 5,
       gst_rate: 18,
@@ -222,13 +225,14 @@ const DEFAULT_STORE: DBStore = {
     },
     {
       id: 'inv-2',
-      barcode: 'BD8901002',
+      barcode: 'MSSP8901002',
       name: 'Hard Anodised Cooker 5L',
       category: 'Cookware',
       unit: 'Pcs',
       cost_price: 1200,
       selling_price: 1750,
       mrp: 1999,
+      wholesale_price: 1400,
       stock_qty: 20,
       min_stock_alert: 3,
       gst_rate: 12,
@@ -237,13 +241,14 @@ const DEFAULT_STORE: DBStore = {
     },
     {
       id: 'inv-3',
-      barcode: 'BD8901003',
+      barcode: 'MSSP8901003',
       name: 'Electric Mixer Grinder 750W',
       category: 'Appliances',
       unit: 'Pcs',
       cost_price: 1850,
       selling_price: 2600,
       mrp: 2999,
+      wholesale_price: 2100,
       stock_qty: 12,
       min_stock_alert: 2,
       gst_rate: 18,
@@ -478,12 +483,13 @@ class BillDeskDB {
         stock_qty: Number(item.stock_qty ?? this.store.inventory[existingIndex].stock_qty ?? 0),
         min_stock_alert: Number(item.min_stock_alert ?? this.store.inventory[existingIndex].min_stock_alert ?? 0),
         gst_rate: Number(item.gst_rate ?? this.store.inventory[existingIndex].gst_rate ?? 0),
+        wholesale_price: Number(item.wholesale_price ?? this.store.inventory[existingIndex].wholesale_price ?? 0),
       };
       this.store.inventory[existingIndex] = savedItem;
     } else {
       savedItem = {
         id: item.id || `inv-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}`,
-        barcode: item.barcode || `BD${Date.now().toString().slice(-7)}`,
+        barcode: item.barcode || `MSSP${Date.now().toString().slice(-7)}`,
         name: item.name || 'Untitled Item',
         category: item.category || 'General',
         unit: item.unit || 'Pcs',
@@ -493,6 +499,7 @@ class BillDeskDB {
         stock_qty: Number(item.stock_qty || 0),
         min_stock_alert: Number(item.min_stock_alert || 0),
         gst_rate: Number(item.gst_rate || 0),
+        wholesale_price: Number(item.wholesale_price || 0),
         sku_code: item.sku_code || '',
         created_at: now,
       };
@@ -619,6 +626,7 @@ class BillDeskDB {
     customer_address?: string;
     customer_gstin?: string;
     invoice_type?: 'GST' | 'NON_GST' | 'MIXED';
+    bill_mode?: 'RETAIL' | 'WHOLESALE';
     subtotal: number;
     tax_amount: number;
     discount_amount: number;
@@ -691,6 +699,7 @@ class BillDeskDB {
       customer_address: saleData.customer_address,
       customer_gstin: saleData.customer_gstin,
       invoice_type: saleData.invoice_type || 'GST',
+      bill_mode: saleData.bill_mode || 'RETAIL',
       subtotal: Number(saleData.subtotal || 0),
       tax_amount: Number(saleData.tax_amount || 0),
       discount_amount: Number(saleData.discount_amount || 0),

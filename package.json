@@ -1,8 +1,8 @@
 {
   "name": "kairos-bills",
   "version": "1.0.0",
-  "description": "Kairos Bills - Smart Cloud Retail & Customer Ledger",
-  "author": "Kairos Bills",
+  "description": "MSS Ponkumar Store - Wholesale Billing & POS Console",
+  "author": "MSS Ponkumar Store",
   "private": true,
   "sideEffects": false,
   "type": "module",
@@ -13,13 +13,13 @@
     "build:dev": "vite build --mode development",
     "preview": "vite preview",
     "build:electron": "tsc electron/main.ts electron/preload.ts --outDir electron/dist --module NodeNext --target ES2022 --skipLibCheck",
-    "dist": "npm run build && npm run build:electron && electron-packager . \"Kairos Bills\" --platform=win32 --arch=x64 --icon=public/kairos-bills-logo.png --out=release-desktop --overwrite",
+    "dist": "npm run build && npm run build:electron && electron-packager . \"MSS Ponkumar Store\" --platform=win32 --arch=x64 --out=release-desktop --overwrite",
     "lint": "eslint .",
     "format": "prettier --write ."
   },
   "build": {
-    "appId": "com.kairos.bills",
-    "productName": "Kairos Bills",
+    "appId": "com.msspk.billdesk",
+    "productName": "MSS Ponkumar Store",
     "npmRebuild": false,
     "directories": {
       "output": "build-installer"
@@ -45,7 +45,7 @@
       "allowToChangeInstallationDirectory": true,
       "createDesktopShortcut": true,
       "createStartMenuShortcut": true,
-      "shortcutName": "Ponmani Agencies Console ERP"
+      "shortcutName": "MSS Ponkumar Store"
     }
   },
   "dependencies": {
