@@ -22,9 +22,15 @@ interface BillViewerModalProps {
 function generateWhatsAppText(i: Invoice, items: InvoiceItem[], storeSettings: any) {
   let t = `*BILL RECEIPT: ${i.invoice_number}*\n`;
   t += `*${(storeSettings?.shop_name || "MSS PONKUMAR STORE").toUpperCase()}*\n`;
-  t += `*WHOLESALE SHOP*\n`;
-  t += `${storeSettings?.address_line1 || storeSettings?.shop_address || "MSS Ponkumar Store"}\n`;
-  t += `Ph: ${storeSettings?.phone || storeSettings?.shop_phone || ""}\n`;
+  if (storeSettings?.receipt_header_note) {
+    t += `*${storeSettings.receipt_header_note.toUpperCase()}*\n`;
+  }
+  const addr = storeSettings?.shop_address || storeSettings?.address_line1;
+  if (addr) t += `${addr}\n`;
+  const ph = storeSettings?.shop_phone || storeSettings?.phone;
+  if (ph) t += `Ph: ${ph}\n`;
+  const gstin = storeSettings?.shop_gstin || storeSettings?.gstin;
+  if (gstin) t += `GSTIN: ${gstin}\n`;
   t += `-----------------------------\n`;
   t += `*Customer:* ${i.customer_name || "Walk-in Customer"}\n`;
   if (i.customer_mobile) t += `*Mobile:* ${i.customer_mobile}\n`;
@@ -66,7 +72,7 @@ function generateWhatsAppText(i: Invoice, items: InvoiceItem[], storeSettings: a
   }
   t += `*GRAND TOTAL: ₹${Number(i.grand_total).toFixed(2)}*\n`;
   t += `-----------------------------\n`;
-  t += `_${storeSettings?.receipt_footer_note || "Thank you for shopping!"}_`;
+  t += `_${storeSettings?.receipt_footer_note || storeSettings?.receipt_footer_message || "Thank you for shopping!"}_`;
   return t;
 }
 
@@ -102,7 +108,12 @@ export function BillViewerModal({
 
   const invoiceObj = propInvoice || initialData?.invoice || (query.data as any)?.invoice || query.data;
   const items = propItems || initialData?.items || query.data?.items || [];
-  const storeSettings = db.getSettings();
+  
+  const settingsQuery = useQuery({
+    queryKey: ["local-settings"],
+    queryFn: () => db.getSettings(),
+  });
+  const storeSettings = settingsQuery.data || db.getSettings();
 
   useEffect(() => {
     function handleKeyDown(e: KeyboardEvent) {

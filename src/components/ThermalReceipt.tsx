@@ -52,9 +52,13 @@ function SimpleBarcodeSVG({ value }: { value: string }) {
 
 export function ThermalReceipt({ invoice: i, items = [], storeSettings }: ThermalReceiptProps) {
   const shopName = storeSettings?.shop_name || "MSS PONKUMAR STORE";
+  const shopHeader = storeSettings?.receipt_header_note || storeSettings?.tagline || "WHOLESALE SHOP";
   const shopAddress = storeSettings?.address_line1 || storeSettings?.shop_address || "MSS Ponkumar Store";
   const shopPhone = storeSettings?.phone || storeSettings?.shop_phone || "";
   const shopGstin = storeSettings?.gstin || storeSettings?.shop_gstin || "";
+  const shopLogo = storeSettings?.shop_logo || "/mss-logo.png";
+  const showLogo = storeSettings?.show_logo !== false;
+  const footerText = storeSettings?.receipt_footer_note || storeSettings?.receipt_footer_message;
   const isWholesale = i.bill_mode === "WHOLESALE";
 
   const isGst = i.invoice_type === "GST";
@@ -106,14 +110,26 @@ export function ThermalReceipt({ invoice: i, items = [], storeSettings }: Therma
     >
       {/* ─── BRANDING HEADER ─── */}
       <div className="text-center pb-2 mb-2 border-b-2 border-dashed border-black flex flex-col items-center font-bold text-black">
-        <div className="text-base font-black tracking-wider uppercase text-black">
+        {showLogo && (
+          <img
+            src={shopLogo}
+            alt={shopName}
+            className="w-14 h-14 object-contain mx-auto mb-1.5"
+            onError={(e) => {
+              (e.target as HTMLElement).style.display = 'none';
+            }}
+          />
+        )}
+        <div className="text-base font-black tracking-wider uppercase text-black leading-tight">
           {shopName}
         </div>
-        <div className="text-[10px] font-black tracking-widest uppercase border border-black px-2 py-0.5 mt-0.5">
-          WHOLESALE SHOP
-        </div>
-        {shopAddress && <div className="text-[9.5px] font-bold mt-1 text-black">{shopAddress}</div>}
-        {shopPhone && <div className="text-[9.5px] font-bold text-black">Ph: {shopPhone}</div>}
+        {shopHeader && (
+          <div className="text-[10px] font-black tracking-widest uppercase border border-black px-2 py-0.5 mt-1">
+            {shopHeader}
+          </div>
+        )}
+        {shopAddress && <div className="text-[9.5px] font-bold mt-1 text-black whitespace-pre-line leading-tight">{shopAddress}</div>}
+        {shopPhone && <div className="text-[9.5px] font-bold text-black mt-0.5">Ph: {shopPhone}</div>}
         {isGst && shopGstin && (
           <div className="text-[9.5px] font-black mt-0.5 border border-black px-1.5 py-0.5 rounded-xs inline-block text-black">
             GSTIN: {shopGstin}
@@ -286,14 +302,14 @@ export function ThermalReceipt({ invoice: i, items = [], storeSettings }: Therma
 
       {/* ─── FOOTER & POLICIES ─── */}
       <div className="text-center border-t-2 border-dashed border-black pt-2 mt-2 pb-0 mb-0 text-[9px] font-bold text-black space-y-0.5">
-        {storeSettings?.receipt_footer_note ? (
-          <div style={{ whiteSpace: "pre-wrap" }} className="font-bold text-black">{storeSettings.receipt_footer_note}</div>
+        {footerText ? (
+          <div style={{ whiteSpace: "pre-wrap" }} className="font-bold text-black leading-relaxed">{footerText}</div>
         ) : (
           <>
             <div className="font-black text-[10px] text-black">*** Thank You For Your Business! ***</div>
             <div className="font-bold text-black">Goods once sold can be exchanged within 7 days.</div>
             <div className="font-bold text-black">Please retain this bill for warranty & service reference.</div>
-            <div className="font-black mt-1 text-[8.5px] pb-0 mb-0 text-black">MSS PONKUMAR STORE • WHOLESALE SHOP</div>
+            <div className="font-black mt-1 text-[8.5px] pb-0 mb-0 text-black">{shopName} • {shopHeader || "WHOLESALE SHOP"}</div>
           </>
         )}
       </div>

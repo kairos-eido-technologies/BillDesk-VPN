@@ -123,14 +123,21 @@ export interface Settings {
   shop_name: string;
   legal_name?: string;
   phone: string;
+  shop_phone?: string;
   email?: string;
   gstin: string;
+  shop_gstin?: string;
   upi_id: string;
   address_line1: string;
+  shop_address?: string;
   address_line2?: string;
   city_pincode: string;
   invoice_prefix: string;
+  receipt_header_note?: string;
+  receipt_footer_note?: string;
   receipt_footer_message?: string;
+  shop_logo?: string;
+  show_logo?: boolean;
   terms_line1?: string;
   terms_line2?: string;
   currency_symbol?: string;
@@ -174,14 +181,21 @@ const DEFAULT_SETTINGS: Settings = {
   shop_name: 'MSS Ponkumar Store',
   legal_name: 'MSS Ponkumar Store - Wholesale Shop',
   phone: '9876543210',
+  shop_phone: '9876543210',
   email: 'admin@msspk.local',
   gstin: '',
+  shop_gstin: '',
   upi_id: '',
   address_line1: 'MSS Ponkumar Store',
+  shop_address: 'MSS Ponkumar Store',
   address_line2: '',
   city_pincode: 'Your City - PIN',
   invoice_prefix: 'MSSP-',
-  receipt_footer_message: 'Thank you for shopping at MSS Ponkumar Store!',
+  receipt_header_note: 'WHOLESALE SHOP',
+  receipt_footer_note: '*** Thank You For Your Business! ***\nGoods once sold can be exchanged within 7 days with valid bill.\nPlease retain this bill for warranty & service reference.\nMSS PONKUMAR STORE • WHOLESALE SHOP',
+  receipt_footer_message: '*** Thank You For Your Business! ***\nGoods once sold can be exchanged within 7 days with valid bill.\nPlease retain this bill for warranty & service reference.\nMSS PONKUMAR STORE • WHOLESALE SHOP',
+  shop_logo: '/mss-logo.png',
+  show_logo: true,
   terms_line1: '1. Goods once sold can be exchanged with valid bill within 7 days.',
   terms_line2: '2. All disputes subject to local jurisdiction.',
   currency_symbol: '₹',

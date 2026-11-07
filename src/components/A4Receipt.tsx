@@ -73,10 +73,13 @@ export function A4Receipt({ invoice: i, items = [], storeSettings }: A4ReceiptPr
   }, []);
 
   const shopName = storeSettings?.shop_name || "MSS PONKUMAR STORE";
-  const shopHeaderNote = storeSettings?.receipt_header_note || "WHOLESALE SHOP";
+  const shopHeaderNote = storeSettings?.receipt_header_note || storeSettings?.tagline || "WHOLESALE SHOP";
   const shopAddress = storeSettings?.address_line1 || storeSettings?.shop_address || "MSS Ponkumar Store";
   const shopPhone = storeSettings?.phone || storeSettings?.shop_phone || "";
   const shopGstin = storeSettings?.gstin || storeSettings?.shop_gstin || "";
+  const shopLogo = storeSettings?.shop_logo || "/mss-logo.png";
+  const showLogo = storeSettings?.show_logo !== false;
+  const footerText = storeSettings?.receipt_footer_note || storeSettings?.receipt_footer_message;
   const isWholesale = i.bill_mode === "WHOLESALE";
 
   const isGst = i.invoice_type === "GST";
@@ -128,16 +131,30 @@ export function A4Receipt({ invoice: i, items = [], storeSettings }: A4ReceiptPr
         className="a4-sheet bg-white text-black p-10 shadow-2xl border border-gray-300 rounded-sm print:shadow-none print:border-none print:transform-none print:m-0 print:p-8 shrink-0"
       >
         {/* ─── BRANDING HEADER ─── */}
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", borderBottom: "3px solid #000", paddingBottom: "12px", marginBottom: "16px" }}>
-          <div>
-            <div style={{ fontSize: "20px", fontWeight: "900", letterSpacing: "1px", textTransform: "uppercase", color: "#1B2D6B" }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", borderBottom: "3px solid #000", paddingBottom: "14px", marginBottom: "16px" }}>
+          <div style={{ maxWidth: "60%" }}>
+            {showLogo && (
+              <div style={{ marginBottom: "8px" }}>
+                <img
+                  src={shopLogo}
+                  alt={shopName}
+                  style={{ height: "64px", width: "auto", maxHeight: "64px", objectFit: "contain", borderRadius: "4px" }}
+                  onError={(e) => {
+                    (e.target as HTMLElement).style.display = 'none';
+                  }}
+                />
+              </div>
+            )}
+            <div style={{ fontSize: "20px", fontWeight: "900", letterSpacing: "1px", textTransform: "uppercase", color: "#1B2D6B", lineHeight: "1.2" }}>
               {shopName}
             </div>
-            <div style={{ fontSize: "11px", fontWeight: "bold", textTransform: "uppercase", color: "#E8151B", marginTop: "2px", letterSpacing: "0.5px" }}>
-              {shopHeaderNote}
-            </div>
+            {shopHeaderNote && (
+              <div style={{ fontSize: "11px", fontWeight: "bold", textTransform: "uppercase", color: "#E8151B", marginTop: "2px", letterSpacing: "0.5px" }}>
+                {shopHeaderNote}
+              </div>
+            )}
             {shopAddress && (
-              <div style={{ fontSize: "11px", color: "#4b5563", marginTop: "2px" }}>
+              <div style={{ fontSize: "11px", color: "#4b5563", marginTop: "3px", whiteSpace: "pre-line", lineHeight: "1.4" }}>
                 {shopAddress}
               </div>
             )}
@@ -329,14 +346,14 @@ export function A4Receipt({ invoice: i, items = [], storeSettings }: A4ReceiptPr
 
         {/* ─── FOOTER & POLICIES ─── */}
         <div style={{ marginTop: "28px", paddingTop: "14px", borderTop: "1px dashed #cbd5e1", textAlign: "center", fontSize: "10px", color: "#475569" }}>
-          {storeSettings?.receipt_footer_note ? (
-            <div style={{ whiteSpace: "pre-wrap" }}>{storeSettings.receipt_footer_note}</div>
+          {footerText ? (
+            <div style={{ whiteSpace: "pre-wrap", lineHeight: "1.6" }}>{footerText}</div>
           ) : (
             <>
               <div style={{ fontWeight: "bold", fontSize: "11px", color: "#0f172a" }}>*** Thank You For Your Business! ***</div>
               <div style={{ marginTop: "2px" }}>Goods once sold can be exchanged within 7 days with valid bill.</div>
               <div>Please retain this invoice for warranty & service reference.</div>
-              <div style={{ fontWeight: "bold", marginTop: "4px", fontSize: "9px", textTransform: "uppercase" }}>MSS PONKUMAR STORE • WHOLESALE BILLDESK</div>
+              <div style={{ fontWeight: "bold", marginTop: "4px", fontSize: "9px", textTransform: "uppercase" }}>{shopName} • {shopHeaderNote || "WHOLESALE BILLDESK"}</div>
             </>
           )}
         </div>

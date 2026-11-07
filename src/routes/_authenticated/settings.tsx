@@ -5,7 +5,7 @@ import { ExcelEngine } from "@/lib/excel/excel-engine";
 import { useState, useEffect } from "react";
 import { toast } from "sonner";
 import { PageHeader } from "./dashboard";
-import { Settings as SettingsIcon, Printer, Database, Key, ScanBarcode, ShieldCheck, Download, Upload, RefreshCw, CheckCircle, AlertTriangle, Trash2, Languages, UserPlus, Edit3, X, User as UserIcon, Lock, Store, RotateCcw, AlertOctagon, CheckSquare, Square, Server, Wifi, Globe, Copy, ExternalLink, Smartphone, Monitor, Type, ZoomIn, ZoomOut, Minus, Plus } from "lucide-react";
+import { Settings as SettingsIcon, Printer, Database, Key, ScanBarcode, ShieldCheck, Download, Upload, RefreshCw, CheckCircle, AlertTriangle, Trash2, Languages, UserPlus, Edit3, X, User as UserIcon, Lock, Store, RotateCcw, AlertOctagon, CheckSquare, Square, Server, Wifi, Globe, Copy, ExternalLink, Smartphone, Monitor, Type, ZoomIn, ZoomOut, Minus, Plus, Image as ImageIcon } from "lucide-react";
 import { useLang, useT } from "@/lib/lang/lang-context";
 
 export const Route = createFileRoute("/_authenticated/settings")({ component: SettingsPage });
@@ -199,10 +199,40 @@ function SettingsPage() {
     setStaffToDelete(null);
   }
 
+  function handleLogoUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (!file.type.startsWith("image/")) {
+      toast.error("Please select a valid image file (PNG, JPG, SVG, WebP)");
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = () => {
+      const base64 = reader.result as string;
+      setSettingsForm((prev: any) => ({ ...prev, shop_logo: base64, show_logo: true }));
+      toast.success("Logo uploaded into preview! Click 'Save Store Profile & Invoice Texts' to apply.");
+    };
+    reader.readAsDataURL(file);
+  }
+
   function handleSaveSettings(e: React.FormEvent) {
     e.preventDefault();
-    db.updateSettings(settingsForm);
-    toast.success("Local settings updated!");
+    const updated = {
+      ...settingsForm,
+      address_line1: settingsForm.shop_address || settingsForm.address_line1 || "",
+      shop_address: settingsForm.shop_address || settingsForm.address_line1 || "",
+      phone: settingsForm.shop_phone || settingsForm.phone || "",
+      shop_phone: settingsForm.shop_phone || settingsForm.phone || "",
+      gstin: settingsForm.shop_gstin || settingsForm.gstin || "",
+      shop_gstin: settingsForm.shop_gstin || settingsForm.gstin || "",
+      receipt_footer_note: settingsForm.receipt_footer_note || settingsForm.receipt_footer_message || "",
+      receipt_footer_message: settingsForm.receipt_footer_note || settingsForm.receipt_footer_message || "",
+      receipt_header_note: settingsForm.receipt_header_note || "",
+      shop_logo: settingsForm.shop_logo || "/mss-logo.png",
+      show_logo: settingsForm.show_logo !== false,
+    };
+    db.updateSettings(updated);
+    toast.success("Store Profile & Invoice Customizations saved successfully!");
     qc.invalidateQueries({ queryKey: ["local-settings"] });
   }
 
@@ -624,78 +654,246 @@ function SettingsPage() {
           </div>
         </div>
 
-        {/* Store Profile Settings */}
+        {/* Store Profile & Invoice Branding Settings */}
         <div className="card-surface p-5 border-l-4 border-l-primary space-y-4">
-          <div className="text-sm font-bold text-foreground flex items-center gap-2 border-b border-border pb-2">
-            <SettingsIcon className="h-4 w-4 text-primary" /> Store Profile & Tax Info
+          <div className="text-sm font-bold text-foreground flex items-center justify-between border-b border-border pb-2">
+            <span className="flex items-center gap-2">
+              <SettingsIcon className="h-4 w-4 text-primary" /> Store Profile & Invoice Customization
+            </span>
+            <span className="text-[11px] font-semibold text-muted-foreground bg-muted px-2 py-0.5 rounded">
+              Affects Thermal & A4 Receipts
+            </span>
           </div>
-          <form onSubmit={handleSaveSettings} className="space-y-3">
-            <L label="Store Name">
-              <input
-                value={settingsForm.shop_name || ""}
-                onChange={(e) => setSettingsForm({ ...settingsForm, shop_name: e.target.value })}
-                className={ic}
-              />
-            </L>
-            <L label="Store Address">
-              <input
-                value={settingsForm.shop_address || ""}
-                onChange={(e) => setSettingsForm({ ...settingsForm, shop_address: e.target.value })}
-                className={ic}
-              />
-            </L>
-            <div className="grid grid-cols-2 gap-2">
-              <L label="Phone">
+
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+            {/* Form Column */}
+            <form onSubmit={handleSaveSettings} className="space-y-4 lg:col-span-7">
+              {/* Logo Setup */}
+              <div className="p-3 bg-muted/40 rounded-lg border border-border space-y-2.5">
+                <div className="text-xs font-bold text-foreground flex items-center gap-1.5">
+                  <ImageIcon className="h-3.5 w-3.5 text-primary" /> Invoice Shop Logo (Bill Top)
+                </div>
+                <div className="flex items-center gap-4">
+                  <div className="h-16 w-16 rounded-lg border border-border bg-white flex items-center justify-center p-1 overflow-hidden shrink-0 shadow-xs">
+                    <img
+                      src={settingsForm.shop_logo || "/mss-logo.png"}
+                      alt="Store Logo"
+                      className="max-h-full max-w-full object-contain"
+                      onError={(e) => {
+                        (e.target as HTMLImageElement).src = "/mss-logo.png";
+                      }}
+                    />
+                  </div>
+                  <div className="space-y-1.5 flex-1">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <label className="cursor-pointer h-7 px-3 rounded bg-secondary text-foreground border border-border text-xs font-semibold inline-flex items-center gap-1 hover:bg-muted transition">
+                        <Upload className="h-3 w-3 text-primary" /> Upload Custom Logo
+                        <input
+                          type="file"
+                          accept="image/*"
+                          onChange={handleLogoUpload}
+                          className="hidden"
+                        />
+                      </label>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setSettingsForm((prev: any) => ({ ...prev, shop_logo: "/mss-logo.png", show_logo: true }));
+                          toast.info("Reset to default MSS Ponkumar Store logo.");
+                        }}
+                        className="h-7 px-2.5 rounded bg-muted text-muted-foreground text-[11px] hover:text-foreground transition"
+                      >
+                        Reset Default
+                      </button>
+                    </div>
+                    <label className="flex items-center gap-2 text-xs font-medium text-muted-foreground cursor-pointer pt-0.5">
+                      <input
+                        type="checkbox"
+                        checked={settingsForm.show_logo !== false}
+                        onChange={(e) => setSettingsForm({ ...settingsForm, show_logo: e.target.checked })}
+                        className="rounded border-border text-primary focus:ring-primary h-3.5 w-3.5"
+                      />
+                      <span>Print shop logo at the very top of invoice</span>
+                    </label>
+                  </div>
+                </div>
+              </div>
+
+              {/* Store Identity Fields */}
+              <L label="Store Name (Bill Header Line 1)">
                 <input
-                  value={settingsForm.shop_phone || ""}
-                  onChange={(e) => setSettingsForm({ ...settingsForm, shop_phone: e.target.value })}
+                  value={settingsForm.shop_name || ""}
+                  onChange={(e) => setSettingsForm({ ...settingsForm, shop_name: e.target.value })}
+                  placeholder="e.g. MSS Ponkumar Store"
                   className={ic}
                 />
               </L>
-              <L label="GSTIN">
+
+              <L label="Store Tagline / Sub-Header (Bill Header Line 2)">
                 <input
-                  value={settingsForm.shop_gstin || ""}
-                  onChange={(e) => setSettingsForm({ ...settingsForm, shop_gstin: e.target.value })}
-                  className={`${ic} font-mono`}
+                  value={settingsForm.receipt_header_note || ""}
+                  onChange={(e) => setSettingsForm({ ...settingsForm, receipt_header_note: e.target.value })}
+                  placeholder="e.g. WHOLESALE SHOP • Hardware & Electricals"
+                  className={ic}
                 />
               </L>
+
+              <L label="Store Address (Bill Header Line 3)">
+                <textarea
+                  value={settingsForm.shop_address || ""}
+                  onChange={(e) => setSettingsForm({ ...settingsForm, shop_address: e.target.value })}
+                  placeholder="e.g. MSS Ponkumar Store, Main Road, Kovilpatti - 628501"
+                  rows={2}
+                  className="w-full rounded bg-input border border-border p-2 text-xs focus:outline-none focus:border-primary font-mono"
+                />
+              </L>
+
+              <div className="grid grid-cols-2 gap-2">
+                <L label="Contact Phone / Mobile">
+                  <input
+                    value={settingsForm.shop_phone || ""}
+                    onChange={(e) => setSettingsForm({ ...settingsForm, shop_phone: e.target.value })}
+                    placeholder="e.g. 9876543210"
+                    className={ic}
+                  />
+                </L>
+                <L label="GSTIN Number">
+                  <input
+                    value={settingsForm.shop_gstin || ""}
+                    onChange={(e) => setSettingsForm({ ...settingsForm, shop_gstin: e.target.value })}
+                    placeholder="e.g. 33AAAAA0000A1Z5"
+                    className={`${ic} font-mono uppercase`}
+                  />
+                </L>
+              </div>
+
+              {/* Bill Footer & Terms */}
+              <div className="pt-2 border-t border-border space-y-3">
+                <div className="text-xs font-bold text-foreground">
+                  Invoice Footer & Terms Customization (Fully Editable)
+                </div>
+
+                <L label="Sales Receipt Custom Footer Notes & Terms (Prints at the bottom of bills)">
+                  <textarea
+                    value={settingsForm.receipt_footer_note || ""}
+                    onChange={(e) => setSettingsForm({ ...settingsForm, receipt_footer_note: e.target.value })}
+                    placeholder="e.g. *** Thank You For Your Business! ***&#10;Goods once sold can be exchanged within 7 days.&#10;Please retain this bill for warranty & service reference."
+                    rows={4}
+                    className="w-full rounded bg-input border border-border p-2.5 text-xs focus:outline-none focus:border-primary font-mono leading-relaxed"
+                  />
+                </L>
+
+                <L label="Service Intake Token Terms & Disclaimer">
+                  <textarea
+                    value={settingsForm.service_ticket_terms || ""}
+                    onChange={(e) => setSettingsForm({ ...settingsForm, service_ticket_terms: e.target.value })}
+                    placeholder="e.g. Present this receipt token during device collection. Unclaimed items after 30 days are subject to shop terms."
+                    rows={2}
+                    className="w-full rounded bg-input border border-border p-2 text-xs focus:outline-none focus:border-primary font-mono"
+                  />
+                </L>
+
+                <L label="Purchase Order Default Terms / Note">
+                  <textarea
+                    value={settingsForm.po_footer_terms || ""}
+                    onChange={(e) => setSettingsForm({ ...settingsForm, po_footer_terms: e.target.value })}
+                    placeholder="e.g. Please acknowledge receipt of this Purchase Order."
+                    rows={2}
+                    className="w-full rounded bg-input border border-border p-2 text-xs focus:outline-none focus:border-primary font-mono"
+                  />
+                </L>
+              </div>
+
+              <button
+                type="submit"
+                className="w-full sm:w-auto h-10 px-5 rounded bg-primary text-primary-foreground font-bold text-xs hover:accent-glow transition flex items-center justify-center gap-1.5 shadow-sm"
+              >
+                <CheckCircle className="h-4 w-4" /> Save Store Profile & Invoice Texts
+              </button>
+            </form>
+
+            {/* Live Bill Header & Footer Preview Column */}
+            <div className="lg:col-span-5 bg-card/60 p-4 rounded-xl border border-border space-y-3">
+              <div className="text-xs font-bold text-foreground flex items-center justify-between border-b border-border pb-2">
+                <span>Live Receipt Layout Preview</span>
+                <span className="text-[10px] text-muted-foreground uppercase font-mono">70mm Thermal</span>
+              </div>
+
+              {/* Thermal Bill Mockup */}
+              <div className="bg-white text-black p-4 rounded shadow-md border border-gray-300 font-mono text-[11px] select-none max-w-[280px] mx-auto leading-tight">
+                {/* 1. Logo at Top */}
+                {settingsForm.show_logo !== false && (
+                  <div className="flex justify-center mb-1.5">
+                    <img
+                      src={settingsForm.shop_logo || "/mss-logo.png"}
+                      alt="Logo Preview"
+                      className="h-12 w-12 object-contain"
+                      onError={(e) => {
+                        (e.target as HTMLImageElement).src = "/mss-logo.png";
+                      }}
+                    />
+                  </div>
+                )}
+
+                {/* 2. Store Name */}
+                <div className="text-center font-black text-xs uppercase tracking-wider text-black">
+                  {settingsForm.shop_name || "MSS PONKUMAR STORE"}
+                </div>
+
+                {/* 3. Sub-Header / Tagline */}
+                {settingsForm.receipt_header_note && (
+                  <div className="text-center text-[9px] font-black uppercase tracking-wider border border-black px-1 py-0.2 mt-0.5 inline-block mx-auto w-full">
+                    {settingsForm.receipt_header_note}
+                  </div>
+                )}
+
+                {/* 4. Store Address */}
+                {settingsForm.shop_address && (
+                  <div className="text-center text-[9px] font-bold mt-1 text-black whitespace-pre-line leading-tight">
+                    {settingsForm.shop_address}
+                  </div>
+                )}
+
+                {/* 5. Contact Details */}
+                {settingsForm.shop_phone && (
+                  <div className="text-center text-[9px] font-bold text-black mt-0.5">
+                    Ph: {settingsForm.shop_phone}
+                  </div>
+                )}
+                {settingsForm.shop_gstin && (
+                  <div className="text-center text-[9px] font-black text-black mt-0.5 border border-black px-1 inline-block mx-auto">
+                    GSTIN: {settingsForm.shop_gstin}
+                  </div>
+                )}
+
+                {/* Mock Bill Items Area */}
+                <div className="my-2 py-1.5 border-y border-dashed border-black text-[9px] space-y-1">
+                  <div className="flex justify-between font-bold text-black">
+                    <span>Item Sample x 1</span>
+                    <span>₹150.00</span>
+                  </div>
+                  <div className="flex justify-between font-black text-[10px] pt-1 border-t border-black">
+                    <span>NET AMOUNT:</span>
+                    <span>₹150.00</span>
+                  </div>
+                </div>
+
+                {/* 6. Footer at Bottom */}
+                <div className="text-center border-t border-dashed border-black pt-1.5 text-[8.5px] font-bold text-black whitespace-pre-wrap leading-tight">
+                  {settingsForm.receipt_footer_note || (
+                    <>
+                      *** Thank You For Your Business! ***<br />
+                      Goods once sold can be exchanged within 7 days.<br />
+                      Please retain this bill for warranty & service reference.
+                    </>
+                  )}
+                </div>
+              </div>
+              <p className="text-[11px] text-muted-foreground text-center italic">
+                Changes typed in the form update this live bill preview in real time!
+              </p>
             </div>
-            <L label="Receipt Custom Header (Sub-Header)">
-              <input
-                value={settingsForm.receipt_header_note || ""}
-                onChange={(e) => setSettingsForm({ ...settingsForm, receipt_header_note: e.target.value })}
-                placeholder="e.g. Hardware • Electricals • Electronics"
-                className={ic}
-              />
-            </L>
-            <L label="Sales Receipt Custom Footer / Terms">
-              <textarea
-                value={settingsForm.receipt_footer_note || ""}
-                onChange={(e) => setSettingsForm({ ...settingsForm, receipt_footer_note: e.target.value })}
-                placeholder="e.g. Goods once sold can be exchanged within 7 days..."
-                className="w-full min-h-[50px] rounded bg-input border border-border p-2 text-xs focus:outline-none focus:border-primary font-mono"
-              />
-            </L>
-            <L label="Service Intake Token Disclaimer & Terms">
-              <textarea
-                value={settingsForm.service_ticket_terms || ""}
-                onChange={(e) => setSettingsForm({ ...settingsForm, service_ticket_terms: e.target.value })}
-                placeholder="e.g. Present this receipt token during device collection. Unclaimed items after 30 days are subject to shop terms."
-                className="w-full min-h-[50px] rounded bg-input border border-border p-2 text-xs focus:outline-none focus:border-primary font-mono"
-              />
-            </L>
-            <L label="Purchase Order Default Terms / Note">
-              <textarea
-                value={settingsForm.po_footer_terms || ""}
-                onChange={(e) => setSettingsForm({ ...settingsForm, po_footer_terms: e.target.value })}
-                placeholder="e.g. Please acknowledge receipt of this Purchase Order."
-                className="w-full min-h-[50px] rounded bg-input border border-border p-2 text-xs focus:outline-none focus:border-primary font-mono"
-              />
-            </L>
-            <button type="submit" className="h-9 px-4 rounded bg-primary text-primary-foreground font-bold text-xs hover:accent-glow transition">
-              Save Store Profile & Receipt Texts
-            </button>
-          </form>
+          </div>
         </div>
 
         {/* Thermal Printer Driver Settings */}
