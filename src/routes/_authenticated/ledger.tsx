@@ -1,8 +1,9 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { db, Customer, LedgerEntry, Invoice } from "@/lib/db/db";
 import { BillViewerModal } from "@/components/BillViewerModal";
+import { PaginationControls } from "@/components/PaginationControls";
 import { toast } from "sonner";
 import {
   Landmark,
@@ -51,6 +52,10 @@ export interface StoreBuyerRecord {
   customer?: Customer;
 }
 
+type FeedItem =
+  | { kind: "INVOICE"; id: string; date: string; invoice: Invoice }
+  | { kind: "PAYMENT"; id: string; date: string; ledger: LedgerEntry };
+
 function LedgerPage() {
   const queryClient = useQueryClient();
   const [activeTab, setActiveTab] = useState<"balances" | "transactions">("balances");
@@ -60,6 +65,13 @@ function LedgerPage() {
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [paymentBuyer, setPaymentBuyer] = useState<StoreBuyerRecord | null>(null);
   const [viewingInvoice, setViewingInvoice] = useState<Invoice | null>(null);
+
+  // Pagination states (20 per page)
+  const PAGE_SIZE = 20;
+  const [buyerPage, setBuyerPage] = useState(1);
+  const [feedPage, setFeedPage] = useState(1);
+  const [modalInvPage, setModalInvPage] = useState(1);
+  const [modalLedgerPage, setModalLedgerPage] = useState(1);
 
   // Payment form state
   const [paymentAmount, setPaymentAmount] = useState<string>("");
@@ -84,6 +96,20 @@ function LedgerPage() {
   const customers = customersQuery.data || [];
   const ledger = ledgerQuery.data || [];
   const invoices = invoicesQuery.data || [];
+
+  // Reset pagination when filter/search/selected buyer changes
+  useEffect(() => {
+    setBuyerPage(1);
+  }, [buyerFilter, search]);
+
+  useEffect(() => {
+    setFeedPage(1);
+  }, [search]);
+
+  useEffect(() => {
+    setModalInvPage(1);
+    setModalLedgerPage(1);
+  }, [selectedBuyerId]);
 
   // -------------------------------------------------------------
   // Aggregate ALL Store Buyers (Registered + Direct Walk-in / Invoices)
@@ -194,7 +220,6 @@ function LedgerPage() {
   const totalPaymentsCollected = ledger
     .filter((l) => l.type === "CREDIT")
     .reduce((sum, l) => sum + (l.amount || 0), 0);
-  const totalCreditGiven = allStoreBuyers.reduce((sum, b) => sum + (b.balanceDue || 0), 0);
 
   // Filtered buyers list
   const filteredBuyers = useMemo(() => {
@@ -218,6 +243,10 @@ function LedgerPage() {
     });
   }, [allStoreBuyers, buyerFilter, search]);
 
+  // Paginated Buyers (20 per page)
+  const totalBuyerPages = Math.max(1, Math.ceil(filteredBuyers.length / PAGE_SIZE));
+  const paginatedBuyers = filteredBuyers.slice((buyerPage - 1) * PAGE_SIZE, buyerPage * PAGE_SIZE);
+
   // Filtered ledger list
   const filteredLedger = ledger.filter(
     (l) =>
@@ -226,11 +255,60 @@ function LedgerPage() {
       (l.reference_id && l.reference_id.toLowerCase().includes(search.toLowerCase()))
   );
 
+  // Unified Transaction Feed (Sales Invoices + Ledger Receipts)
+  const allFeedItems = useMemo<FeedItem[]>(() => {
+    const list: FeedItem[] = [];
+
+    invoices.forEach((inv) => {
+      if (search.trim()) {
+        const clean = search.toLowerCase();
+        const matchName = (inv.customer_name || "").toLowerCase().includes(clean);
+        const matchMobile = (inv.customer_mobile || "").includes(clean);
+        const matchNumber = (inv.invoice_number || "").toLowerCase().includes(clean);
+        if (!matchName && !matchMobile && !matchNumber) return;
+      }
+      list.push({
+        kind: "INVOICE",
+        id: `inv-${inv.id}`,
+        date: inv.created_at,
+        invoice: inv,
+      });
+    });
+
+    filteredLedger.forEach((l) => {
+      list.push({
+        kind: "PAYMENT",
+        id: `led-${l.id}`,
+        date: l.date,
+        ledger: l,
+      });
+    });
+
+    return list.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+  }, [invoices, filteredLedger, search]);
+
+  // Paginated Feed (20 per page)
+  const totalFeedPages = Math.max(1, Math.ceil(allFeedItems.length / PAGE_SIZE));
+  const paginatedFeed = allFeedItems.slice((feedPage - 1) * PAGE_SIZE, feedPage * PAGE_SIZE);
+
   // Selected buyer for statement modal
   const selectedBuyer = allStoreBuyers.find((b) => b.id === selectedBuyerId);
   const selectedBuyerLedger = selectedBuyer
     ? db.getCustomerLedger(selectedBuyer.isRegistered ? selectedBuyer.id : "", selectedBuyer.name, selectedBuyer.mobile)
     : [];
+
+  // Paginated Statement Invoices (20 per page)
+  const totalModalInvPages = selectedBuyer ? Math.max(1, Math.ceil(selectedBuyer.invoices.length / PAGE_SIZE)) : 1;
+  const paginatedModalInvoices = selectedBuyer
+    ? selectedBuyer.invoices.slice((modalInvPage - 1) * PAGE_SIZE, modalInvPage * PAGE_SIZE)
+    : [];
+
+  // Paginated Statement Ledger (20 per page)
+  const totalModalLedgerPages = Math.max(1, Math.ceil(selectedBuyerLedger.length / PAGE_SIZE));
+  const paginatedModalLedger = selectedBuyerLedger.slice(
+    (modalLedgerPage - 1) * PAGE_SIZE,
+    modalLedgerPage * PAGE_SIZE
+  );
 
   // Payment record mutation
   const recordPaymentMutation = useMutation({
@@ -390,7 +468,7 @@ function LedgerPage() {
             }`}
           >
             <Receipt className="h-3.5 w-3.5" />
-            <span>Transaction Feed ({ledger.length + invoices.length})</span>
+            <span>Transaction Feed ({allFeedItems.length})</span>
           </button>
         </div>
 
@@ -486,7 +564,7 @@ function LedgerPage() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-border">
-                  {filteredBuyers.map((b) => {
+                  {paginatedBuyers.map((b) => {
                     const hasDue = (b.balanceDue || 0) > 0;
                     const isPaid = b.paymentStatus === "PAID";
                     const isPartial = b.paymentStatus === "PARTIAL";
@@ -604,6 +682,14 @@ function LedgerPage() {
                 </tbody>
               </table>
             </div>
+
+            <PaginationControls
+              currentPage={buyerPage}
+              totalPages={totalBuyerPages}
+              totalItems={filteredBuyers.length}
+              pageSize={PAGE_SIZE}
+              onPageChange={setBuyerPage}
+            />
           </div>
         </div>
       )}
@@ -625,74 +711,75 @@ function LedgerPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-border">
-                {/* 1. Combined stream: Ledger receipts + Invoices */}
-                {invoices.map((inv) => {
-                  const isPaid = inv.payment_status === "PAID" || (inv.balance_due || 0) === 0;
-                  return (
-                    <tr key={`inv-${inv.id}`} className="hover:bg-muted/30 transition">
-                      <td className="py-3.5 px-4 font-mono text-muted-foreground">
-                        {inv.created_at ? format(new Date(inv.created_at), "dd MMM yyyy, hh:mm a") : "—"}
-                      </td>
-                      <td className="py-3.5 px-4">
-                        <div className="font-bold text-foreground">
-                          {inv.customer_name || "Walk-in Retail Customer"}
-                        </div>
-                        {inv.customer_mobile && (
-                          <div className="text-[11px] text-muted-foreground font-mono">
-                            {inv.customer_mobile}
+                {paginatedFeed.map((item) => {
+                  if (item.kind === "INVOICE") {
+                    const inv = item.invoice;
+                    const isPaid = inv.payment_status === "PAID" || (inv.balance_due || 0) === 0;
+                    return (
+                      <tr key={item.id} className="hover:bg-muted/30 transition">
+                        <td className="py-3.5 px-4 font-mono text-muted-foreground">
+                          {inv.created_at ? format(new Date(inv.created_at), "dd MMM yyyy, hh:mm a") : "—"}
+                        </td>
+                        <td className="py-3.5 px-4">
+                          <div className="font-bold text-foreground">
+                            {inv.customer_name || "Walk-in Retail Customer"}
                           </div>
-                        )}
-                      </td>
-                      <td className="py-3.5 px-4 font-mono font-bold text-primary">
-                        {inv.invoice_number}
-                      </td>
-                      <td className="py-3.5 px-4 text-muted-foreground">
-                        <div className="flex items-center gap-1.5">
-                          <span className="font-semibold text-foreground uppercase">
-                            {inv.payment_method || "CASH"}
+                          {inv.customer_mobile && (
+                            <div className="text-[11px] text-muted-foreground font-mono">
+                              {inv.customer_mobile}
+                            </div>
+                          )}
+                        </td>
+                        <td className="py-3.5 px-4 font-mono font-bold text-primary">
+                          {inv.invoice_number}
+                        </td>
+                        <td className="py-3.5 px-4 text-muted-foreground">
+                          <div className="flex items-center gap-1.5">
+                            <span className="font-semibold text-foreground uppercase">
+                              {inv.payment_method || "CASH"}
+                            </span>
+                            <span className="text-[10px] px-1.5 py-0.5 rounded bg-secondary text-foreground border border-border font-bold">
+                              {inv.bill_mode || "RETAIL"}
+                            </span>
+                          </div>
+                        </td>
+                        <td className="py-3.5 px-4 text-center">
+                          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-rose-500/15 text-rose-600 dark:text-rose-400 border border-rose-500/30">
+                            <ArrowUpRight className="h-3 w-3" /> Sale Debit
                           </span>
-                          <span className="text-[10px] px-1.5 py-0.5 rounded bg-secondary text-foreground border border-border font-bold">
-                            {inv.bill_mode || "RETAIL"}
-                          </span>
-                        </div>
-                      </td>
-                      <td className="py-3.5 px-4 text-center">
-                        <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-rose-500/15 text-rose-600 dark:text-rose-400 border border-rose-500/30">
-                          <ArrowUpRight className="h-3 w-3" /> Sale Debit
-                        </span>
-                      </td>
-                      <td className="py-3.5 px-4 text-right font-mono font-bold text-sm text-foreground">
-                        + ₹{Number(inv.grand_total || 0).toLocaleString("en-IN", { minimumFractionDigits: 2 })}
-                      </td>
-                      <td className="py-3.5 px-4 text-center">
-                        <div className="flex items-center justify-center gap-2">
-                          <span
-                            className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
-                              isPaid
-                                ? "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30"
-                                : "bg-amber-500/15 text-amber-600 dark:text-amber-400 border border-amber-500/30"
-                            }`}
-                          >
-                            {isPaid ? "Paid" : "Credit"}
-                          </span>
-                          <button
-                            onClick={() => setViewingInvoice(inv)}
-                            className="h-6 px-2 rounded bg-primary/10 hover:bg-primary/20 text-primary border border-primary/25 text-[10px] font-bold flex items-center gap-1 transition cursor-pointer"
-                            title="View & Print Bill"
-                          >
-                            <Eye className="h-2.5 w-2.5" />
-                            <span>Bill</span>
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  );
-                })}
+                        </td>
+                        <td className="py-3.5 px-4 text-right font-mono font-bold text-sm text-foreground">
+                          + ₹{Number(inv.grand_total || 0).toLocaleString("en-IN", { minimumFractionDigits: 2 })}
+                        </td>
+                        <td className="py-3.5 px-4 text-center">
+                          <div className="flex items-center justify-center gap-2">
+                            <span
+                              className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                                isPaid
+                                  ? "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30"
+                                  : "bg-amber-500/15 text-amber-600 dark:text-amber-400 border border-amber-500/30"
+                              }`}
+                            >
+                              {isPaid ? "Paid" : "Credit"}
+                            </span>
+                            <button
+                              onClick={() => setViewingInvoice(inv)}
+                              className="h-6 px-2 rounded bg-primary/10 hover:bg-primary/20 text-primary border border-primary/25 text-[10px] font-bold flex items-center gap-1 transition cursor-pointer"
+                              title="View & Print Bill"
+                            >
+                              <Eye className="h-2.5 w-2.5" />
+                              <span>Bill</span>
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  }
 
-                {filteredLedger.map((l) => {
-                  const isCredit = l.type === "CREDIT";
+                  // PAYMENT entry
+                  const l = item.ledger;
                   return (
-                    <tr key={`led-${l.id}`} className="hover:bg-muted/30 transition bg-emerald-500/5">
+                    <tr key={item.id} className="hover:bg-muted/30 transition bg-emerald-500/5">
                       <td className="py-3.5 px-4 font-mono text-muted-foreground">
                         {l.date ? format(new Date(l.date), "dd MMM yyyy, hh:mm a") : "—"}
                       </td>
@@ -730,7 +817,7 @@ function LedgerPage() {
                   );
                 })}
 
-                {invoices.length === 0 && filteredLedger.length === 0 && (
+                {allFeedItems.length === 0 && (
                   <tr>
                     <td colSpan={7} className="py-12 text-center text-muted-foreground text-xs">
                       No transactions recorded yet.
@@ -740,6 +827,14 @@ function LedgerPage() {
               </tbody>
             </table>
           </div>
+
+          <PaginationControls
+            currentPage={feedPage}
+            totalPages={totalFeedPages}
+            totalItems={allFeedItems.length}
+            pageSize={PAGE_SIZE}
+            onPageChange={setFeedPage}
+          />
         </div>
       )}
 
@@ -941,7 +1036,7 @@ function LedgerPage() {
               <h4 className="text-xs font-bold text-muted-foreground uppercase tracking-wider flex items-center justify-between">
                 <span>Invoices History ({selectedBuyer.invoices.length})</span>
                 <span className="text-[11px] font-normal lowercase text-muted-foreground">
-                  Click 'View Bill' to inspect or print receipt
+                  Click 'View Bill' to inspect or print receipt (20 per page)
                 </span>
               </h4>
               <div className="rounded-xl border border-border overflow-hidden">
@@ -960,7 +1055,7 @@ function LedgerPage() {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-border">
-                    {selectedBuyer.invoices.map((inv) => {
+                    {paginatedModalInvoices.map((inv) => {
                       const isPaid = inv.payment_status === "PAID" || (inv.balance_due || 0) === 0;
                       const itemsSummary = inv.items && inv.items.length > 0
                         ? inv.items.map((it: any) => `${it.qty || 1}x ${it.product_name || it.name || "Item"}`).join(", ")
@@ -1042,12 +1137,23 @@ function LedgerPage() {
                   </tbody>
                 </table>
               </div>
+
+              <PaginationControls
+                currentPage={modalInvPage}
+                totalPages={totalModalInvPages}
+                totalItems={selectedBuyer.invoices.length}
+                pageSize={PAGE_SIZE}
+                onPageChange={setModalInvPage}
+              />
             </div>
 
             {/* Customer Ledger Statement */}
             <div className="space-y-2">
-              <h4 className="text-xs font-bold text-muted-foreground uppercase tracking-wider">
-                Ledger Entries & Running Balance ({selectedBuyerLedger.length})
+              <h4 className="text-xs font-bold text-muted-foreground uppercase tracking-wider flex items-center justify-between">
+                <span>Ledger Entries & Running Balance ({selectedBuyerLedger.length})</span>
+                <span className="text-[11px] font-normal lowercase text-muted-foreground">
+                  Receipts & Khata settlements (20 per page)
+                </span>
               </h4>
               <div className="rounded-xl border border-border overflow-hidden">
                 <table className="w-full text-left text-xs">
@@ -1062,7 +1168,7 @@ function LedgerPage() {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-border">
-                    {selectedBuyerLedger.map((row) => (
+                    {paginatedModalLedger.map((row) => (
                       <tr key={row.id} className="hover:bg-muted/20">
                         <td className="py-2 px-3 font-mono text-muted-foreground">
                           {row.date ? format(new Date(row.date), "dd/MM/yyyy") : "—"}
@@ -1103,6 +1209,14 @@ function LedgerPage() {
                   </tbody>
                 </table>
               </div>
+
+              <PaginationControls
+                currentPage={modalLedgerPage}
+                totalPages={totalModalLedgerPages}
+                totalItems={selectedBuyerLedger.length}
+                pageSize={PAGE_SIZE}
+                onPageChange={setModalLedgerPage}
+              />
             </div>
           </div>
         </div>

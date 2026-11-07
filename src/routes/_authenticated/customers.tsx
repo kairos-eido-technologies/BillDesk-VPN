@@ -7,6 +7,7 @@ import { toast } from "sonner";
 import { PageHeader } from "./dashboard";
 import { inr } from "@/lib/format";
 import { BillViewerModal } from "@/components/BillViewerModal";
+import { PaginationControls } from "@/components/PaginationControls";
 import {
   Plus,
   X,
@@ -39,6 +40,12 @@ function CustomersPage() {
   const [viewingInvoice, setViewingInvoice] = useState<Invoice | null>(null);
   const [activeTab, setActiveTab] = useState<"invoices" | "ledger">("invoices");
 
+  // Pagination states (20 per page)
+  const [customerPage, setCustomerPage] = useState(1);
+  const [invPage, setInvPage] = useState(1);
+  const [ledgerPage, setLedgerPage] = useState(1);
+  const PAGE_SIZE = 20;
+
   // Payment form state
   const [payAmount, setPayAmount] = useState("");
   const [payMode, setPayMode] = useState<"CASH" | "UPI" | "BANK" | "CHEQUE">("UPI");
@@ -70,6 +77,26 @@ function CustomersPage() {
   const customerInvoices = selected ? db.getCustomerInvoices(selected.id) : [];
   // Customer Ledger
   const customerLedger = selected ? db.getCustomerLedger(selected.id) : [];
+
+  // Reset pagination when search query or selected customer changes
+  useEffect(() => {
+    setCustomerPage(1);
+  }, [q]);
+
+  useEffect(() => {
+    setInvPage(1);
+    setLedgerPage(1);
+  }, [selected?.id]);
+
+  // Paginated Slices (20 per page)
+  const totalCustomerPages = Math.max(1, Math.ceil(allCust.length / PAGE_SIZE));
+  const paginatedCustomers = allCust.slice((customerPage - 1) * PAGE_SIZE, customerPage * PAGE_SIZE);
+
+  const totalInvPages = Math.max(1, Math.ceil(customerInvoices.length / PAGE_SIZE));
+  const paginatedInvoices = customerInvoices.slice((invPage - 1) * PAGE_SIZE, invPage * PAGE_SIZE);
+
+  const totalLedgerPages = Math.max(1, Math.ceil(customerLedger.length / PAGE_SIZE));
+  const paginatedLedger = customerLedger.slice((ledgerPage - 1) * PAGE_SIZE, ledgerPage * PAGE_SIZE);
 
   // Payment Mutation
   const payMutation = useMutation({
@@ -167,7 +194,7 @@ function CustomersPage() {
           </div>
 
           <div className="max-h-[580px] overflow-auto divide-y divide-border">
-            {allCust.map((c) => {
+            {paginatedCustomers.map((c) => {
               const hasDue = (c.balance_due || 0) > 0;
               const isSelected = selected?.id === c.id;
               return (
@@ -210,6 +237,14 @@ function CustomersPage() {
               </div>
             )}
           </div>
+
+          <PaginationControls
+            currentPage={customerPage}
+            totalPages={totalCustomerPages}
+            totalItems={allCust.length}
+            pageSize={PAGE_SIZE}
+            onPageChange={setCustomerPage}
+          />
         </div>
 
         {/* Right: Selected Customer Profile & History */}
@@ -294,7 +329,7 @@ function CustomersPage() {
                   </div>
 
                   <div className="space-y-2.5 max-h-[380px] overflow-auto pr-1">
-                    {customerInvoices.map((inv) => {
+                    {paginatedInvoices.map((inv) => {
                       const isPaid = inv.payment_status === "PAID" || (inv.balance_due || 0) === 0;
                       const isUnpaid = inv.payment_status === "UNPAID" || inv.amount_paid === 0;
                       const isPartial = inv.payment_status === "PARTIAL" || (!isPaid && !isUnpaid);
@@ -394,6 +429,14 @@ function CustomersPage() {
                       </div>
                     )}
                   </div>
+
+                  <PaginationControls
+                    currentPage={invPage}
+                    totalPages={totalInvPages}
+                    totalItems={customerInvoices.length}
+                    pageSize={PAGE_SIZE}
+                    onPageChange={setInvPage}
+                  />
                 </div>
               )}
 
@@ -405,7 +448,7 @@ function CustomersPage() {
                   </div>
 
                   <div className="space-y-2 max-h-[380px] overflow-auto pr-1">
-                    {customerLedger.map((row) => {
+                    {paginatedLedger.map((row) => {
                       const isDebit = row.type === "DEBIT";
                       return (
                         <div
@@ -455,6 +498,14 @@ function CustomersPage() {
                       </div>
                     )}
                   </div>
+
+                  <PaginationControls
+                    currentPage={ledgerPage}
+                    totalPages={totalLedgerPages}
+                    totalItems={customerLedger.length}
+                    pageSize={PAGE_SIZE}
+                    onPageChange={setLedgerPage}
+                  />
                 </div>
               )}
             </div>
