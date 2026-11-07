@@ -9,6 +9,7 @@ import {
   ShoppingBag,
   ArrowUpRight,
   IndianRupee,
+  Layers,
 } from "lucide-react";
 import { Link } from "@tanstack/react-router";
 import {
@@ -49,7 +50,7 @@ function Dashboard() {
         0
       );
 
-      // Items sold today (sum of qty across all items in today's invoices)
+      // Items sold today
       const todayItemsSold = todayInvoices.reduce((s, inv) => {
         const items = inv.items || [];
         return s + items.reduce((si, it) => si + Number(it.qty || 0), 0);
@@ -116,43 +117,39 @@ function Dashboard() {
   const data = stats.data;
 
   return (
-    <div className="p-6 space-y-6">
+    <div className="p-6 space-y-6 max-w-7xl mx-auto">
       {/* Header */}
-      <div
-        className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b pb-4"
-        style={{ borderColor: "#243068" }}
-      >
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-[#E2E8F0] pb-4">
         <div>
-          <h1 className="text-xl font-bold tracking-tight text-white">
-            Daily Dashboard
+          <h1 className="text-2xl font-black tracking-tight text-[#1B2D6B]">
+            Daily Operations Dashboard
           </h1>
-          <p className="text-xs mt-0.5" style={{ color: "#8B9CC5" }}>
-            MSS Ponkumar Store · Today's Operations Summary
+          <p className="text-xs text-[#64748B] mt-0.5">
+            MSS Ponkumar Store · Live Store Performance & Daily Cash Flow
           </p>
         </div>
         <Link
           to="/pos"
-          className="h-9 px-4 rounded-xl font-bold text-xs flex items-center gap-1 text-white hover:opacity-90 transition shadow"
-          style={{ background: "#E8151B" }}
+          className="h-10 px-4 rounded-xl font-bold text-xs flex items-center gap-1.5 text-white bg-[#E8151B] hover:bg-[#c90f14] transition shadow-sm active:scale-95"
         >
-          New Sale <ArrowUpRight className="h-4 w-4" />
+          Open POS Billing <ArrowUpRight className="h-4 w-4" />
         </Link>
       </div>
 
       {/* KPI Row 1 — Today's key numbers */}
-      <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-5 gap-4">
         <KPI
           label="Today's Total Sales"
           value={inr(data?.todayTotalSales)}
           icon={IndianRupee}
-          color="#E8151B"
+          color="#1B2D6B"
           accent
         />
         <KPI
           label="Daily Income (Cash In)"
           value={inr(data?.todayDailyIncome)}
           icon={TrendingUp}
-          color="#22c55e"
+          color="#16a34a"
         />
         <KPI
           label="Items Sold Today"
@@ -165,118 +162,85 @@ function Dashboard() {
           value={`${data?.todayPaidBills ?? 0} bills`}
           sub={inr(data?.todayPaidAmount)}
           icon={CheckCircle2}
-          color="#22c55e"
+          color="#16a34a"
         />
         <KPI
           label="Credit Bills"
           value={`${data?.todayCreditBills ?? 0} bills`}
           sub={`${inr(data?.todayCreditOutstanding)} due`}
           icon={Clock}
-          color="#f59e0b"
+          color="#d97706"
         />
       </div>
 
-      {/* Row 2 — Billing Type breakdown */}
+      {/* Row 2 — Billing Breakdown */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <div
-          className="rounded-xl p-4 border-l-4"
-          style={{
-            background: "#162044",
-            border: "1px solid #243068",
-            borderLeftColor: "#1B2D6B",
-            borderLeftWidth: "4px",
-          }}
-        >
-          <div className="text-xs mb-1" style={{ color: "#8B9CC5" }}>
-            Retail Bills Today
+        <div className="rounded-xl p-5 bg-white border border-[#E2E8F0] border-l-4 border-l-[#1B2D6B] shadow-xs">
+          <div className="text-xs font-semibold text-[#64748B] mb-1">
+            Retail Invoices Today
           </div>
-          <div
-            className="text-2xl font-bold font-mono"
-            style={{ color: "#fff" }}
-          >
+          <div className="text-3xl font-black font-mono text-[#1B2D6B]">
             {data?.todayRetailBills ?? 0}
           </div>
-          <div className="text-[10px] mt-1" style={{ color: "#8B9CC5" }}>
-            Retail invoices
+          <div className="text-[11px] text-[#64748B] mt-1">
+            Standard customer retail bills
           </div>
         </div>
-        <div
-          className="rounded-xl p-4 border-l-4"
-          style={{
-            background: "#162044",
-            border: "1px solid #243068",
-            borderLeftColor: "#E8151B",
-            borderLeftWidth: "4px",
-          }}
-        >
-          <div className="text-xs mb-1" style={{ color: "#8B9CC5" }}>
-            Wholesale Bills Today
+
+        <div className="rounded-xl p-5 bg-white border border-[#E2E8F0] border-l-4 border-l-[#E8151B] shadow-xs">
+          <div className="text-xs font-semibold text-[#64748B] mb-1">
+            Wholesale Invoices Today
           </div>
-          <div
-            className="text-2xl font-bold font-mono"
-            style={{ color: "#E8151B" }}
-          >
+          <div className="text-3xl font-black font-mono text-[#E8151B]">
             {data?.todayWholesaleBills ?? 0}
           </div>
-          <div className="text-[10px] mt-1" style={{ color: "#8B9CC5" }}>
-            Wholesale invoices
+          <div className="text-[11px] text-[#64748B] mt-1">
+            Wholesale discounted bills
           </div>
         </div>
-        <div
-          className="rounded-xl p-4 border-l-4"
-          style={{
-            background: "#162044",
-            border: "1px solid #243068",
-            borderLeftColor: "#22c55e",
-            borderLeftWidth: "4px",
-          }}
-        >
-          <div className="text-xs mb-1" style={{ color: "#8B9CC5" }}>
-            Catalog Size
+
+        <div className="rounded-xl p-5 bg-white border border-[#E2E8F0] border-l-4 border-l-[#16a34a] shadow-xs">
+          <div className="text-xs font-semibold text-[#64748B] mb-1">
+            Total Inventory Catalog
           </div>
-          <div
-            className="text-2xl font-bold font-mono"
-            style={{ color: "#22c55e" }}
-          >
+          <div className="text-3xl font-black font-mono text-[#16a34a]">
             {data?.productCount ?? 0}
           </div>
-          <div className="text-[10px] mt-1" style={{ color: "#8B9CC5" }}>
-            Products in inventory
+          <div className="text-[11px] text-[#64748B] mt-1">
+            Active products in store catalog
           </div>
         </div>
       </div>
 
       {/* Chart */}
-      <div
-        className="rounded-xl p-4"
-        style={{ background: "#162044", border: "1px solid #243068" }}
-      >
-        <div className="text-sm font-medium mb-3 flex items-center justify-between">
-          <span className="text-white">Last 7 Days Revenue</span>
-          <span className="text-[10px] font-mono" style={{ color: "#8B9CC5" }}>
-            Offline SQLite · Live
+      <div className="rounded-xl p-6 bg-white border border-[#E2E8F0] shadow-xs">
+        <div className="text-sm font-bold text-[#1B2D6B] mb-4 flex items-center justify-between">
+          <span>Last 7 Days Sales Trend (₹)</span>
+          <span className="text-xs font-mono text-[#64748B] font-normal">
+            Local SQLite · Ground Truth
           </span>
         </div>
-        <div className="h-56">
+        <div className="h-64">
           <ResponsiveContainer width="100%" height="100%">
             <BarChart data={data?.chart ?? []}>
-              <CartesianGrid stroke="#243068" vertical={false} />
-              <XAxis dataKey="d" stroke="#8B9CC5" fontSize={11} />
-              <YAxis stroke="#8B9CC5" fontSize={11} />
+              <CartesianGrid stroke="#F1F5F9" vertical={false} />
+              <XAxis dataKey="d" stroke="#64748B" fontSize={11} />
+              <YAxis stroke="#64748B" fontSize={11} />
               <Tooltip
                 contentStyle={{
-                  background: "#1A2755",
-                  border: "1px solid #243068",
+                  background: "#FFFFFF",
+                  border: "1px solid #CBD5E1",
                   borderRadius: 8,
                   fontSize: 12,
-                  color: "#fff",
+                  color: "#0F172A",
+                  boxShadow: "0 4px 6px -1px rgba(0,0,0,0.1)",
                 }}
                 formatter={(val: any) => [`₹${val}`, "Revenue"]}
               />
               <Bar
                 dataKey="v"
                 fill="#1B2D6B"
-                radius={[4, 4, 0, 0]}
+                radius={[6, 6, 0, 0]}
                 isAnimationActive={false}
               />
             </BarChart>
@@ -297,14 +261,11 @@ export function PageHeader({
   action?: React.ReactNode;
 }) {
   return (
-    <div
-      className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b pb-4"
-      style={{ borderColor: "#243068" }}
-    >
+    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-[#E2E8F0] pb-4">
       <div>
-        <h1 className="text-xl font-bold tracking-tight text-white">{title}</h1>
+        <h1 className="text-xl font-black tracking-tight text-[#1B2D6B]">{title}</h1>
         {subtitle && (
-          <p className="text-xs mt-0.5" style={{ color: "#8B9CC5" }}>
+          <p className="text-xs text-[#64748B] mt-0.5">
             {subtitle}
           </p>
         )}
@@ -331,32 +292,27 @@ function KPI({
 }) {
   return (
     <div
-      className="rounded-xl p-4"
-      style={{
-        background: "#162044",
-        border: `1px solid ${accent ? color || "#E8151B" : "#243068"}`,
-        boxShadow: accent
-          ? `0 0 0 1px ${color}33, 0 0 20px -4px ${color}44`
-          : undefined,
-      }}
+      className={`rounded-xl p-4 bg-white border transition shadow-xs ${
+        accent ? "border-[#1B2D6B] ring-1 ring-[#1B2D6B]/10" : "border-[#E2E8F0]"
+      }`}
     >
       <div className="flex items-center justify-between">
-        <div className="text-xs font-medium" style={{ color: "#8B9CC5" }}>
+        <div className="text-xs font-semibold text-[#64748B]">
           {label}
         </div>
         <Icon
           className="h-4 w-4"
-          style={{ color: color || "#8B9CC5" }}
+          style={{ color: color || "#1B2D6B" }}
         />
       </div>
       <div
-        className="mt-2 text-2xl font-mono font-bold"
-        style={{ color: color || "#fff" }}
+        className="mt-2 text-2xl font-mono font-black"
+        style={{ color: color || "#1B2D6B" }}
       >
         {value}
       </div>
       {sub && (
-        <div className="text-[10px] mt-0.5 font-mono" style={{ color: "#8B9CC5" }}>
+        <div className="text-[10px] mt-0.5 font-mono text-[#64748B] font-semibold">
           {sub}
         </div>
       )}

@@ -155,24 +155,24 @@ function AppsPage() {
         className="pointer-events-none select-none fixed inset-0 flex flex-col items-center justify-center z-0"
         aria-hidden="true"
       >
-        <div className="text-center flex flex-col items-center gap-1 opacity-[0.06]">
+        <div className="text-center flex flex-col items-center gap-2 opacity-[0.06]">
           <div
-            className="font-black uppercase text-foreground"
-            style={{ fontSize: "clamp(36px, 8vw, 80px)", letterSpacing: "0.3em" }}
+            className="font-black uppercase text-[#1B2D6B]"
+            style={{ fontSize: "clamp(32px, 7vw, 76px)", letterSpacing: "0.15em", lineHeight: 1.1 }}
           >
-            KAIROS
+            MSS PONKUMAR STORE
           </div>
           <div
-            className="font-bold uppercase text-foreground"
-            style={{ fontSize: "clamp(18px, 4vw, 42px)", letterSpacing: "0.5em" }}
+            className="font-black uppercase text-[#E8151B]"
+            style={{ fontSize: "clamp(18px, 3.5vw, 40px)", letterSpacing: "0.35em" }}
           >
-            BILLS
+            WHOLESALE SHOP
           </div>
           <div
-            className="font-semibold uppercase text-primary mt-1"
-            style={{ fontSize: "clamp(9px, 1.5vw, 16px)", letterSpacing: "0.35em" }}
+            className="font-bold uppercase text-[#1B2D6B] mt-1"
+            style={{ fontSize: "clamp(10px, 1.5vw, 16px)", letterSpacing: "0.25em" }}
           >
-            SMART CLOUD BILLING
+            OFFLINE BILLDESK POS
           </div>
         </div>
       </div>

@@ -1,7 +1,6 @@
 import {
   createFileRoute,
   Outlet,
-  redirect,
   Link,
   useNavigate,
 } from "@tanstack/react-router";
@@ -10,23 +9,15 @@ import { useAuth } from "@/lib/auth-store";
 import { db } from "@/lib/db/db";
 import { useQueryClient } from "@tanstack/react-query";
 import {
-  LogOut,
   Plus,
   Settings as SettingsIcon,
+  Store,
 } from "lucide-react";
 
 export const Route = createFileRoute("/_authenticated")({
   ssr: false,
-  beforeLoad: async ({ location }) => {
+  beforeLoad: async () => {
     const user = useAuth.getState().user;
-    if (!user) throw redirect({ to: "/auth" });
-    if (
-      user.role?.toLowerCase() === "cashier" &&
-      !location.pathname.startsWith("/pos") &&
-      !location.pathname.startsWith("/invoices")
-    ) {
-      throw redirect({ to: "/pos" });
-    }
     return { userId: user.id, username: user.username, role: user.role };
   },
   component: Shell,
@@ -35,10 +26,7 @@ export const Route = createFileRoute("/_authenticated")({
 function Shell() {
   const navigate = useNavigate();
   const user = useAuth((s) => s.user);
-  const logout = useAuth((s) => s.logout);
   const queryClient = useQueryClient();
-
-  const isCashier = user?.role?.toLowerCase() === "cashier";
 
   // Periodically refresh SQLite server store
   useEffect(() => {
@@ -58,89 +46,87 @@ function Shell() {
     };
   }, [queryClient]);
 
-  function handleSignOut() {
-    logout();
-    navigate({ to: "/auth", replace: true });
-  }
-
   const shopName = db.getSettings()?.shop_name || "MSS Ponkumar Store";
 
   return (
-    <div className="min-h-screen flex flex-col text-foreground" style={{ background: '#0F1A3E' }}>
-      {/* TOP HEADER */}
-      <header
-        className="h-14 border-b flex items-center justify-between gap-3 px-4 shrink-0 sticky top-0 z-30 print:hidden"
-        style={{ background: '#162044', borderColor: '#243068' }}
+    <div className="min-h-screen flex flex-col bg-[#F8FAFC] text-[#0F172A] relative">
+      {/* ── Background Watermark of Shop Name across App Interface ── */}
+      <div
+        className="pointer-events-none select-none fixed inset-0 flex flex-col items-center justify-center z-0 overflow-hidden"
+        aria-hidden="true"
       >
-        {/* Left: Brand */}
-        <Link to={isCashier ? "/pos" : "/apps"} className="flex items-center gap-2.5 group">
-          <div className="h-9 w-9 rounded-xl bg-white border border-white/20 p-0.5 grid place-items-center group-hover:scale-105 transition shadow overflow-hidden shrink-0">
-            <div className="text-[8px] font-black text-center leading-tight" style={{ color: '#1B2D6B' }}>
-              <div style={{ fontSize: '11px', fontWeight: 900, color: '#1B2D6B' }}>MSS</div>
-            </div>
+        <div className="text-center flex flex-col items-center gap-3 opacity-[0.035] -rotate-6">
+          <div
+            className="font-black uppercase text-[#1B2D6B]"
+            style={{ fontSize: "clamp(36px, 9vw, 96px)", letterSpacing: "0.2em", lineHeight: 1 }}
+          >
+            MSS PONKUMAR STORE
           </div>
-          <div className="hidden sm:block">
-            <div className="text-xs font-black text-white group-hover:opacity-80 transition tracking-tight flex items-center gap-1.5">
+          <div
+            className="font-black uppercase text-[#E8151B]"
+            style={{ fontSize: "clamp(20px, 4.5vw, 50px)", letterSpacing: "0.45em" }}
+          >
+            WHOLESALE SHOP
+          </div>
+        </div>
+      </div>
+
+      {/* TOP HEADER — Clean White Theme with Navy & Red Palette */}
+      <header className="h-16 border-b border-[#E2E8F0] bg-white/95 backdrop-blur-md flex items-center justify-between gap-3 px-4 shrink-0 sticky top-0 z-30 shadow-xs print:hidden">
+        {/* Left: Brand with Official Logo */}
+        <Link to="/apps" className="flex items-center gap-3 group">
+          <div className="h-11 w-11 rounded-xl bg-white border border-[#CBD5E1] p-1 grid place-items-center group-hover:scale-105 transition shadow-xs overflow-hidden shrink-0">
+            <img
+              src="/mss-logo.png"
+              alt="MSS Ponkumar Store"
+              className="h-full w-full object-contain"
+            />
+          </div>
+          <div>
+            <div className="text-sm font-black text-[#1B2D6B] tracking-tight flex items-center gap-2">
               <span>{shopName}</span>
-              <span
-                className="text-[9px] font-bold px-1.5 py-px rounded"
-                style={{ background: '#E8151B', color: '#fff' }}
-              >
+              <span className="text-[10px] font-black px-2 py-0.5 rounded-full bg-[#E8151B] text-white shadow-xs">
                 WHOLESALE
               </span>
             </div>
-            <div className="text-[9px] font-mono tracking-wider" style={{ color: '#8B9CC5' }}>
-              BillDesk POS · Offline
+            <div className="text-[10px] font-mono text-[#64748B] tracking-wider">
+              Offline POS · Direct Desk
             </div>
           </div>
         </Link>
 
-        {/* Right: New Sale + Settings + User */}
-        <div className="flex items-center gap-2">
+        {/* Right: New Sale + Settings */}
+        <div className="flex items-center gap-2.5">
           <Link
             to="/pos"
-            className="h-9 px-4 rounded-lg text-white text-xs font-bold flex items-center gap-1.5 transition shadow"
-            style={{ background: '#E8151B' }}
+            className="h-9 px-4 rounded-lg bg-[#E8151B] hover:bg-[#c90f14] text-white text-xs font-bold flex items-center gap-1.5 transition shadow-sm active:scale-95"
           >
             <Plus className="h-4 w-4" />
-            <span className="hidden sm:inline">New Sale</span>
+            <span>New Sale</span>
           </Link>
 
-          {!isCashier && (
-            <Link
-              to="/settings"
-              title="Settings"
-              className="h-9 w-9 rounded-lg border flex items-center justify-center transition"
-              style={{ background: '#1A2755', borderColor: '#243068', color: '#8B9CC5' }}
-            >
-              <SettingsIcon className="h-4 w-4" />
-            </Link>
-          )}
+          <Link
+            to="/settings"
+            title="Settings"
+            className="h-9 w-9 rounded-lg border border-[#E2E8F0] bg-[#F8FAFC] hover:bg-[#F1F5F9] grid place-items-center text-[#64748B] hover:text-[#1B2D6B] transition shadow-xs"
+          >
+            <SettingsIcon className="h-4 w-4" />
+          </Link>
 
-          <div className="h-9 px-2 rounded-lg border flex items-center gap-2 text-xs" style={{ background: '#1A2755', borderColor: '#243068' }}>
-            <div
-              className="h-6 w-6 rounded-full grid place-items-center text-[10px] font-bold font-mono text-white"
-              style={{ background: '#1B2D6B', border: '1.5px solid #E8151B' }}
-            >
-              {user?.username?.[0]?.toUpperCase() ?? "A"}
+          {/* Admin Tag */}
+          <div className="h-9 px-2.5 rounded-lg border border-[#E2E8F0] bg-[#F8FAFC] flex items-center gap-2 text-xs">
+            <div className="h-5 w-5 rounded-full bg-[#1B2D6B] grid place-items-center text-[10px] font-bold text-white">
+              A
             </div>
-            <span className="font-semibold text-white hidden sm:inline text-xs">
-              {user?.username ?? "admin"}
+            <span className="font-bold text-[#1B2D6B] text-xs">
+              Admin
             </span>
-            <button
-              onClick={handleSignOut}
-              title="Sign Out"
-              className="p-1 transition ml-0.5 cursor-pointer"
-              style={{ color: '#8B9CC5' }}
-            >
-              <LogOut className="h-3.5 w-3.5" />
-            </button>
           </div>
         </div>
       </header>
 
-      {/* MAIN CONTENT */}
-      <main className="flex-1 overflow-auto print:overflow-visible print:h-auto" style={{ background: '#0F1A3E' }}>
+      {/* MAIN CONTENT AREA */}
+      <main className="flex-1 overflow-auto relative z-10 print:overflow-visible print:h-auto">
         <Outlet />
       </main>
     </div>

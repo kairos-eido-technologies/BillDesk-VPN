@@ -21,9 +21,10 @@ interface BillViewerModalProps {
 // Generate formatted WhatsApp text receipt
 function generateWhatsAppText(i: Invoice, items: InvoiceItem[], storeSettings: any) {
   let t = `*BILL RECEIPT: ${i.invoice_number}*\n`;
-  t += `*${(storeSettings?.shop_name || "PONMANI AGENCIES").toUpperCase()}*\n`;
-  t += `${storeSettings?.shop_address || "Tenkasi, Tamil Nadu"}\n`;
-  t += `Ph: ${storeSettings?.shop_phone || "+91 94422 12345"}\n`;
+  t += `*${(storeSettings?.shop_name || "MSS PONKUMAR STORE").toUpperCase()}*\n`;
+  t += `*WHOLESALE SHOP*\n`;
+  t += `${storeSettings?.address_line1 || storeSettings?.shop_address || "MSS Ponkumar Store"}\n`;
+  t += `Ph: ${storeSettings?.phone || storeSettings?.shop_phone || ""}\n`;
   t += `-----------------------------\n`;
   t += `*Customer:* ${i.customer_name || "Walk-in Customer"}\n`;
   if (i.customer_mobile) t += `*Mobile:* ${i.customer_mobile}\n`;
@@ -174,9 +175,9 @@ export function BillViewerModal({
       </head>
       <body>
         <div class="header">
-          <div class="title">${storeSettings?.shop_name || "PONMANI AGENCIES"}</div>
-          <div class="subtitle">Hardware, Electricals & Electronics | Tenkasi</div>
-          <div class="subtitle">GSTIN: ${storeSettings?.shop_gstin || "33AAPFP1234H1Z9"}</div>
+          <div class="title">${storeSettings?.shop_name || "MSS PONKUMAR STORE"}</div>
+          <div class="subtitle">WHOLESALE SHOP</div>
+          ${storeSettings?.gstin ? `<div class="subtitle">GSTIN: ${storeSettings.gstin}</div>` : ""}
         </div>
         <div class="meta">
           <div>
@@ -222,7 +223,7 @@ export function BillViewerModal({
           <span style="font-size: 20px; color: #000;">Grand Total: ₹${Number(invoiceObj.grand_total).toFixed(2)}</span>
         </div>
         <div style="margin-top: 30px; text-align: center; font-size: 11px; color: #666;">
-          Thank you for shopping at Ponmani Agencies!
+          Thank you for shopping at MSS Ponkumar Store!
         </div>
       </body>
       </html>

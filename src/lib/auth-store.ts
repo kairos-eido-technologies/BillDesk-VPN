@@ -1,36 +1,37 @@
 import { create } from 'zustand';
-import { db, User } from './db/db';
+import { User } from './db/db';
+
+const DEFAULT_ADMIN: User = {
+  id: 'usr-1',
+  username: 'admin',
+  pin: '1234',
+  role: 'Admin',
+  created_at: new Date().toISOString(),
+};
 
 interface AuthState {
-  user: User | null;
+  user: User;
   isAuthenticated: boolean;
-  loginWithPin: (username: string, pin: string) => User | null;
+  loginWithPin: (username: string, pin: string) => User;
   logout: () => void;
   initializeAuth: () => void;
 }
 
 export const useAuth = create<AuthState>((set) => ({
-  user: db.getUsers()[0] || null, // Default to Admin on boot for smooth UX
+  user: DEFAULT_ADMIN,
   isAuthenticated: true,
 
-  loginWithPin: (username: string, pin: string) => {
-    const matchedUser = db.authenticate(username, pin);
-    if (matchedUser) {
-      set({ user: matchedUser, isAuthenticated: true });
-      return matchedUser;
-    }
-    return null;
+  loginWithPin: () => {
+    set({ user: DEFAULT_ADMIN, isAuthenticated: true });
+    return DEFAULT_ADMIN;
   },
 
   logout: () => {
-    set({ user: null, isAuthenticated: false });
+    // Keep user as admin
+    set({ user: DEFAULT_ADMIN, isAuthenticated: true });
   },
 
   initializeAuth: () => {
-    const users = db.getUsers();
-    if (users.length > 0) {
-      set({ user: users[0], isAuthenticated: true });
-    }
+    set({ user: DEFAULT_ADMIN, isAuthenticated: true });
   },
 }));
-

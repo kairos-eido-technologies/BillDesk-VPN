@@ -354,6 +354,18 @@ class BillDeskDB {
       }
     }
 
+    // Always enforce MSS Ponkumar Store branding
+    if (
+      !this.store.settings.shop_name ||
+      this.store.settings.shop_name.includes("Ponmani") ||
+      this.store.settings.shop_name.includes("BillDesk") ||
+      this.store.settings.shop_name.includes("Kairos")
+    ) {
+      this.store.settings.shop_name = 'MSS Ponkumar Store';
+      this.store.settings.legal_name = 'MSS Ponkumar Store - Wholesale Shop';
+      this.persistLocal();
+    }
+
     this.isLoaded = true;
 
     // 2. Fetch ground-truth state from the local SQLite API server
@@ -423,6 +435,16 @@ class BillDeskDB {
 
         if (data.settings && typeof data.settings === 'object') {
           this.store.settings = { ...this.store.settings, ...data.settings };
+        }
+
+        if (
+          !this.store.settings.shop_name ||
+          this.store.settings.shop_name.includes("Ponmani") ||
+          this.store.settings.shop_name.includes("BillDesk") ||
+          this.store.settings.shop_name.includes("Kairos")
+        ) {
+          this.store.settings.shop_name = 'MSS Ponkumar Store';
+          this.store.settings.legal_name = 'MSS Ponkumar Store - Wholesale Shop';
         }
 
         this.persistLocal();

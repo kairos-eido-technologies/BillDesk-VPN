@@ -397,6 +397,16 @@ export class SQLiteDatabaseManager {
         for (const [key, value] of Object.entries(defaultSettings)) {
           await db.run(`INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)`, [key, JSON.stringify(value)]);
         }
+      } else {
+        // Migrate any legacy branding in existing databases
+        await db.run(
+          `UPDATE settings SET value = ? WHERE key = 'shop_name' AND (value LIKE '%Ponmani%' OR value LIKE '%BillDesk%' OR value LIKE '%Kairos%')`,
+          [JSON.stringify('MSS Ponkumar Store')]
+        );
+        await db.run(
+          `UPDATE settings SET value = ? WHERE key = 'legal_name' AND (value LIKE '%Ponmani%' OR value LIKE '%BillDesk%' OR value LIKE '%Kairos%')`,
+          [JSON.stringify('MSS Ponkumar Store - Wholesale Shop')]
+        );
       }
     } catch (e) {
       console.warn('[SQLite Server] Default seed check skipped:', e);

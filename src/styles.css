@@ -5,8 +5,8 @@
 @custom-variant dark (&:is(.dark *));
 
 /*
- * MSS Ponkumar Store – dark navy POS design system.
- * Navy Blue / Red brand palette. White text on deep navy surfaces.
+ * MSS Ponkumar Store – White theme with Navy & Red brand palette.
+ * Primary: Navy Blue #1B2D6B, Accent: Bright Red #E8151B, Background: Clean White #F8FAFC.
  * Inter for UI, JetBrains Mono for numeric/mono content (tabular numbers).
  */
 
@@ -59,45 +59,45 @@
 
 :root {
   --radius: 0.5rem;
-  --background: #0F1A3E;
-  --foreground: #FFFFFF;
-  --card: #162044;
-  --card-foreground: #FFFFFF;
-  --popover: #1A2650;
-  --popover-foreground: #FFFFFF;
+  --background: #F8FAFC;
+  --foreground: #0F172A;
+  --card: #FFFFFF;
+  --card-foreground: #0F172A;
+  --popover: #FFFFFF;
+  --popover-foreground: #0F172A;
   --primary: #1B2D6B;
   --primary-foreground: #FFFFFF;
-  --secondary: #1E2F72;
-  --secondary-foreground: #FFFFFF;
-  --muted: #1A2755;
-  --muted-foreground: #8B9CC5;
+  --secondary: #F1F5F9;
+  --secondary-foreground: #1B2D6B;
+  --muted: #F1F5F9;
+  --muted-foreground: #64748B;
   --accent: #E8151B;
   --accent-foreground: #FFFFFF;
   --destructive: #E8151B;
   --destructive-foreground: #FFFFFF;
-  --success: #22c55e;
-  --warning: #f59e0b;
-  --border: #243068;
-  --input: #1A2755;
+  --success: #16a34a;
+  --warning: #d97706;
+  --border: #E2E8F0;
+  --input: #FFFFFF;
   --ring: #1B2D6B;
   --chart-1: #1B2D6B;
   --chart-2: #E8151B;
-  --chart-3: #22c55e;
-  --chart-4: #f59e0b;
-  --chart-5: #8B5CF6;
-  --sidebar: #0D1836;
-  --sidebar-foreground: #8B9CC5;
+  --chart-3: #16a34a;
+  --chart-4: #d97706;
+  --chart-5: #6366F1;
+  --sidebar: #FFFFFF;
+  --sidebar-foreground: #0F172A;
   --sidebar-primary: #1B2D6B;
   --sidebar-primary-foreground: #FFFFFF;
-  --sidebar-accent: #162044;
-  --sidebar-accent-foreground: #FFFFFF;
-  --sidebar-border: #243068;
+  --sidebar-accent: #F1F5F9;
+  --sidebar-accent-foreground: #1B2D6B;
+  --sidebar-border: #E2E8F0;
   --sidebar-ring: #1B2D6B;
 }
 
 @layer base {
   html {
-    color-scheme: dark;
+    color-scheme: light;
   }
   * {
     border-color: var(--color-border);
@@ -179,11 +179,11 @@
   background: var(--card);
   border: 1px solid var(--border);
   border-radius: var(--radius-lg);
-  box-shadow: 0 1px 0 rgba(255,255,255,0.04) inset, 0 8px 24px -12px rgba(0,0,0,0.5);
+  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.05), 0 1px 2px -1px rgba(0, 0, 0, 0.05);
 }
 
 @utility accent-glow {
-  box-shadow: 0 0 0 1px rgba(27,45,107,0.5), 0 0 24px -4px rgba(27,45,107,0.5);
+  box-shadow: 0 0 0 1px rgba(27,45,107,0.2), 0 4px 14px -2px rgba(27,45,107,0.15);
 }
 
 @media print {

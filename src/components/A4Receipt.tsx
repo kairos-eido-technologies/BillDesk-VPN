@@ -336,7 +336,7 @@ export function A4Receipt({ invoice: i, items = [], storeSettings }: A4ReceiptPr
               <div style={{ fontWeight: "bold", fontSize: "11px", color: "#0f172a" }}>*** Thank You For Your Business! ***</div>
               <div style={{ marginTop: "2px" }}>Goods once sold can be exchanged within 7 days with valid bill.</div>
               <div>Please retain this invoice for warranty & service reference.</div>
-              <div style={{ fontWeight: "bold", marginTop: "4px", fontSize: "9px", textTransform: "uppercase" }}>PONMANI CONSOLE • RETAIL SYSTEM</div>
+              <div style={{ fontWeight: "bold", marginTop: "4px", fontSize: "9px", textTransform: "uppercase" }}>MSS PONKUMAR STORE • WHOLESALE BILLDESK</div>
             </>
           )}
         </div>

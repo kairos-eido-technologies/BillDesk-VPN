@@ -1,6 +1,6 @@
 import React from "react";
 
-interface KairosLogoProps {
+interface MSSLogoProps {
   variant?: "color" | "bw" | "icon";
   className?: string;
   style?: React.CSSProperties;
@@ -9,26 +9,26 @@ interface KairosLogoProps {
 }
 
 /**
- * Kairos Bills Brand Logo Component
- * Displays the modern stylized blue K with ₹ receipt invoice monogram.
+ * MSS Ponkumar Store Brand Logo Component
+ * Displays the official MSS shopping bag logo with Navy Blue & Red palette.
  */
-export function KairosLogo({
+export function MSSLogo({
   variant = "color",
   className = "",
   style,
   showText = true,
   size = "md",
-}: KairosLogoProps) {
+}: MSSLogoProps) {
   const iconHeightClass =
-    size === "sm" ? "h-8" : size === "lg" ? "h-14" : size === "xl" ? "h-20" : "h-10";
+    size === "sm" ? "h-8" : size === "lg" ? "h-16" : size === "xl" ? "h-24" : "h-11";
 
   if (variant === "icon" || !showText) {
     return (
       <div className={`inline-flex items-center justify-center shrink-0 ${className}`} style={style}>
         <img
-          src="/kairos-bills-logo.png"
-          alt="Kairos Bills Logo"
-          className={`${iconHeightClass} w-auto object-contain rounded-lg shrink-0`}
+          src="/mss-logo.png"
+          alt="MSS Ponkumar Store Logo"
+          className={`${iconHeightClass} w-auto object-contain rounded-xl shrink-0 shadow-sm`}
         />
       </div>
     );
@@ -38,12 +38,15 @@ export function KairosLogo({
     return (
       <div className={`flex flex-col items-center justify-center text-center text-black shrink-0 ${className}`} style={style}>
         <img
-          src="/kairos-bills-logo.png"
-          alt="Kairos Bills Logo"
+          src="/mss-logo.png"
+          alt="MSS Ponkumar Store Logo"
           className={`${iconHeightClass} w-auto object-contain mx-auto mb-1 grayscale contrast-200 shrink-0`}
         />
         <div className="font-sans font-black text-sm tracking-wider uppercase text-black leading-none">
-          KAIROS BILLS
+          MSS PONKUMAR STORE
+        </div>
+        <div className="text-[10px] font-bold uppercase tracking-wider text-black mt-0.5">
+          WHOLESALE SHOP
         </div>
       </div>
     );
@@ -52,17 +55,20 @@ export function KairosLogo({
   return (
     <div className={`inline-flex items-center gap-3 shrink-0 ${className}`} style={style}>
       <img
-        src="/kairos-bills-logo.png"
-        alt="Kairos Bills Logo"
-        className={`${iconHeightClass} w-auto object-contain rounded-lg shrink-0 shadow-sm`}
+        src="/mss-logo.png"
+        alt="MSS Ponkumar Store Logo"
+        className={`${iconHeightClass} w-auto object-contain rounded-xl shrink-0 shadow-sm border border-slate-200 bg-white`}
       />
       {showText && (
         <div className="flex flex-col text-left leading-none shrink-0">
-          <span className="font-sans font-black text-foreground tracking-tight text-base sm:text-lg leading-tight flex items-center gap-1">
-            <span className="text-primary font-black">Kairos</span> Bills
+          <span className="font-sans font-black text-[#1B2D6B] tracking-tight text-base sm:text-lg leading-tight flex items-center gap-1.5">
+            <span>MSS Ponkumar Store</span>
+            <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-[#E8151B] text-white">
+              WHOLESALE
+            </span>
           </span>
-          <span className="text-[9px] font-mono font-semibold text-muted-foreground uppercase tracking-widest mt-0.5">
-            Smart Cloud Billing & Ledger
+          <span className="text-[10px] font-bold text-[#E8151B] uppercase tracking-wider mt-1">
+            Whole Sale Shop · BillDesk POS
           </span>
         </div>
       )}
@@ -70,5 +76,6 @@ export function KairosLogo({
   );
 }
 
-// Backward compatibility alias
-export const PonmaniLogo = KairosLogo;
+// Backward compatibility aliases
+export const KairosLogo = MSSLogo;
+export const PonmaniLogo = MSSLogo;
