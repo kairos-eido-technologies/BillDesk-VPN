@@ -117,27 +117,28 @@ function Dashboard() {
   const data = stats.data;
 
   return (
-    <div className="p-6 space-y-6 max-w-7xl mx-auto">
+    <div className="p-3 sm:p-6 space-y-4 sm:space-y-6 max-w-7xl mx-auto">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-[#E2E8F0] pb-4">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-[#E2E8F0] pb-3 sm:pb-4">
         <div>
-          <h1 className="text-2xl font-black tracking-tight text-[#1B2D6B]">
+          <h1 className="text-xl sm:text-2xl font-black tracking-tight text-[#1B2D6B]">
             Daily Operations Dashboard
           </h1>
           <p className="text-xs text-[#64748B] mt-0.5">
-            MSS Ponkumar Store · Live Store Performance & Daily Cash Flow
+            MSS Ponkumar Store · Live Store Performance &amp; Daily Cash Flow
           </p>
         </div>
+        {/* Hide POS on mobile */}
         <Link
           to="/pos"
-          className="h-10 px-4 rounded-xl font-bold text-xs flex items-center gap-1.5 text-white bg-[#E8151B] hover:bg-[#c90f14] transition shadow-sm active:scale-95"
+          className="hidden md:flex h-10 px-4 rounded-xl font-bold text-xs items-center gap-1.5 text-white bg-[#E8151B] hover:bg-[#c90f14] transition shadow-sm active:scale-95 w-fit"
         >
           Open POS Billing <ArrowUpRight className="h-4 w-4" />
         </Link>
       </div>
 
-      {/* KPI Row 1 — Today's key numbers */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-5 gap-4">
+      {/* KPI Row 1 — Today's key numbers formatted for mobile screens */}
+      <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-5 gap-2.5 sm:gap-4">
         <KPI
           label="Today's Total Sales"
           value={inr(data?.todayTotalSales)}

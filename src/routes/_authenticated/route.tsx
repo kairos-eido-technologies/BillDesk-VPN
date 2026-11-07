@@ -53,25 +53,25 @@ function Shell() {
     <div className="min-h-screen flex flex-col bg-[#F8FAFC] text-[#0F172A] relative">
       {/* ── Light Transparent Store Name Watermark in Background (Straight) ── */}
       <div
-        className="pointer-events-none select-none fixed inset-0 flex flex-col items-center justify-center z-0 overflow-hidden"
+        className="pointer-events-none select-none fixed inset-0 flex flex-col items-center justify-center z-0 overflow-hidden px-4"
         aria-hidden="true"
       >
-        <div className="text-center flex flex-col items-center gap-2.5 opacity-[0.09]">
+        <div className="text-center flex flex-col items-center gap-2 opacity-[0.08] max-w-full">
           <div
-            className="font-black uppercase text-[#1B2D6B]"
-            style={{ fontSize: "clamp(42px, 8vw, 110px)", letterSpacing: "0.18em", lineHeight: 1.05 }}
+            className="font-black uppercase text-[#1B2D6B] max-w-full truncate"
+            style={{ fontSize: "clamp(22px, 5.5vw, 110px)", letterSpacing: "0.14em", lineHeight: 1.1 }}
           >
             MSS PONKUMAR STORE
           </div>
           <div
             className="font-black uppercase text-[#E8151B]"
-            style={{ fontSize: "clamp(22px, 4.2vw, 56px)", letterSpacing: "0.4em" }}
+            style={{ fontSize: "clamp(13px, 3.2vw, 56px)", letterSpacing: "0.3em" }}
           >
             WHOLESALE SHOP
           </div>
           <div
-            className="font-bold uppercase text-[#1B2D6B] mt-1"
-            style={{ fontSize: "clamp(12px, 2vw, 22px)", letterSpacing: "0.25em" }}
+            className="font-bold uppercase text-[#1B2D6B] mt-0.5"
+            style={{ fontSize: "clamp(9px, 1.8vw, 22px)", letterSpacing: "0.2em" }}
           >
             OFFLINE BILLDESK POS
           </div>
@@ -79,38 +79,39 @@ function Shell() {
       </div>
 
       {/* TOP HEADER — Clean White Theme with Navy & Red Palette */}
-      <header className="h-16 border-b border-[#E2E8F0] bg-white/95 backdrop-blur-md flex items-center justify-between gap-3 px-4 shrink-0 sticky top-0 z-20 shadow-xs print:hidden">
+      <header className="h-14 sm:h-16 border-b border-[#E2E8F0] bg-white/95 backdrop-blur-md flex items-center justify-between gap-2 sm:gap-3 px-3 sm:px-4 shrink-0 sticky top-0 z-20 shadow-xs print:hidden">
         {/* Left: Brand with Official Logo (Clean, no second line) */}
-        <Link to="/apps" className="flex items-center gap-3 group">
-          <div className="h-11 w-11 rounded-xl bg-white border border-[#CBD5E1] p-1 grid place-items-center group-hover:scale-105 transition shadow-xs overflow-hidden shrink-0">
+        <Link to="/apps" className="flex items-center gap-2 sm:gap-3 group min-w-0">
+          <div className="h-9 w-9 sm:h-11 sm:w-11 rounded-xl bg-white border border-[#CBD5E1] p-1 grid place-items-center group-hover:scale-105 transition shadow-xs overflow-hidden shrink-0">
             <img
               src="/mss-logo.png"
               alt="MSS Ponkumar Store"
               className="h-full w-full object-contain"
             />
           </div>
-          <div className="text-base font-black text-[#1B2D6B] tracking-tight flex items-center gap-2">
-            <span>{shopName}</span>
-            <span className="text-[10px] font-black px-2 py-0.5 rounded-full bg-[#E8151B] text-white shadow-xs">
+          <div className="text-sm sm:text-base font-black text-[#1B2D6B] tracking-tight flex items-center gap-1.5 sm:gap-2 truncate">
+            <span className="truncate">{shopName}</span>
+            <span className="text-[9px] sm:text-[10px] font-black px-1.5 sm:px-2 py-0.5 rounded-full bg-[#E8151B] text-white shadow-xs shrink-0">
               WHOLESALE
             </span>
           </div>
         </Link>
 
-        {/* Right: Home + New Sale + Settings */}
-        <div className="flex items-center gap-2 sm:gap-2.5">
+        {/* Right: Home + New Sale (Desktop Only) + Settings */}
+        <div className="flex items-center gap-1.5 sm:gap-2.5 shrink-0">
           <Link
             to="/apps"
             title="Home"
-            className="h-9 px-3 rounded-lg border border-[#E2E8F0] bg-[#F8FAFC] hover:bg-[#F1F5F9] text-[#1B2D6B] text-xs font-bold flex items-center gap-1.5 transition shadow-xs active:scale-95"
+            className="h-8.5 sm:h-9 px-2.5 sm:px-3 rounded-lg border border-[#E2E8F0] bg-[#F8FAFC] hover:bg-[#F1F5F9] text-[#1B2D6B] text-xs font-bold flex items-center gap-1.5 transition shadow-xs active:scale-95"
           >
             <Home className="h-4 w-4 text-[#1B2D6B]" />
             <span className="hidden sm:inline">Home</span>
           </Link>
 
+          {/* POS Billing: Desktop Only */}
           <Link
             to="/pos"
-            className="h-9 px-3.5 sm:px-4 rounded-lg bg-[#E8151B] hover:bg-[#c90f14] text-white text-xs font-bold flex items-center gap-1.5 transition shadow-sm active:scale-95"
+            className="hidden md:flex h-9 px-3.5 sm:px-4 rounded-lg bg-[#E8151B] hover:bg-[#c90f14] text-white text-xs font-bold items-center gap-1.5 transition shadow-sm active:scale-95"
           >
             <Plus className="h-4 w-4" />
             <span>New Sale</span>
@@ -119,7 +120,7 @@ function Shell() {
           <Link
             to="/settings"
             title="Settings"
-            className="h-9 w-9 rounded-lg border border-[#E2E8F0] bg-[#F8FAFC] hover:bg-[#F1F5F9] grid place-items-center text-[#64748B] hover:text-[#1B2D6B] transition shadow-xs"
+            className="h-8.5 w-8.5 sm:h-9 sm:w-9 rounded-lg border border-[#E2E8F0] bg-[#F8FAFC] hover:bg-[#F1F5F9] grid place-items-center text-[#64748B] hover:text-[#1B2D6B] transition shadow-xs"
           >
             <SettingsIcon className="h-4 w-4" />
           </Link>

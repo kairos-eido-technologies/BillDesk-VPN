@@ -74,7 +74,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
   head: () => ({
     meta: [
       { charSet: "utf-8" },
-      { name: "viewport", content: "width=device-width, initial-scale=1" },
+      { name: "viewport", content: "width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" },
       { title: "MSS Ponkumar Store — Wholesale Billing & POS Console" },
       { name: "description", content: "MSS Ponkumar Store wholesale & retail billing, offline SQLite ledger, and local mobile host server." },
       { name: "author", content: "MSS Ponkumar Store" },
@@ -110,13 +110,15 @@ function RootShell({ children }: { children: ReactNode }) {
           dangerouslySetInnerHTML={{
             __html: `
               try {
-                var savedZoom = localStorage.getItem('mssp_display_zoom');
-                if (savedZoom) {
-                  document.documentElement.style.zoom = savedZoom + '%';
-                }
-                var savedFontSize = localStorage.getItem('mssp_display_font_size');
-                if (savedFontSize) {
-                  document.documentElement.style.fontSize = savedFontSize + 'px';
+                if (window.innerWidth >= 768) {
+                  var savedZoom = localStorage.getItem('mssp_display_zoom');
+                  if (savedZoom) {
+                    document.documentElement.style.zoom = savedZoom + '%';
+                  }
+                  var savedFontSize = localStorage.getItem('mssp_display_font_size');
+                  if (savedFontSize) {
+                    document.documentElement.style.fontSize = savedFontSize + 'px';
+                  }
                 }
               } catch(e) {}
             `,
@@ -140,13 +142,15 @@ function RootComponent() {
   useEffect(() => {
     // Apply display zoom and font-size from storage
     try {
-      const savedZoom = localStorage.getItem('mssp_display_zoom');
-      if (savedZoom) {
-        document.documentElement.style.zoom = `${savedZoom}%`;
-      }
-      const savedFontSize = localStorage.getItem('mssp_display_font_size');
-      if (savedFontSize) {
-        document.documentElement.style.fontSize = `${savedFontSize}px`;
+      if (window.innerWidth >= 768) {
+        const savedZoom = localStorage.getItem('mssp_display_zoom');
+        if (savedZoom) {
+          document.documentElement.style.zoom = `${savedZoom}%`;
+        }
+        const savedFontSize = localStorage.getItem('mssp_display_font_size');
+        if (savedFontSize) {
+          document.documentElement.style.fontSize = `${savedFontSize}px`;
+        }
       }
     } catch (e) {
       console.warn("Could not load display preferences:", e);

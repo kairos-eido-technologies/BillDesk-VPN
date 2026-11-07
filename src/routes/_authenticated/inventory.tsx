@@ -157,7 +157,7 @@ function InventoryPage() {
   }
 
   return (
-    <div className="p-6 space-y-4">
+    <div className="p-3 sm:p-6 space-y-3 sm:space-y-4">
       <PageHeader
         title={t("inventory.title")}
         subtitle={`${products.data?.length ?? 0} ${t("inventory.subtitle")}`}

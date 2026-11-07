@@ -165,7 +165,7 @@ function InvoicesPage() {
   }
 
   return (
-    <div className="p-4 sm:p-6 space-y-4 max-w-7xl mx-auto">
+    <div className="p-3 sm:p-6 space-y-3 sm:space-y-4 max-w-7xl mx-auto">
       <PageHeader
         title="Sales Invoices & Billing History"
         subtitle={`${allInvs.length} total invoices on record`}
@@ -227,9 +227,10 @@ function InvoicesPage() {
         </div>
       </div>
 
-      {/* Invoices Table */}
+      {/* Invoices List — Table on Desktop, Cards on Mobile */}
       <div className="rounded-2xl border border-border bg-card overflow-hidden shadow-xs">
-        <div className="overflow-x-auto">
+        {/* Desktop Table View */}
+        <div className="hidden md:block overflow-x-auto">
           <table className="w-full text-xs">
             <thead className="bg-secondary/60 text-muted-foreground font-semibold border-b border-border">
               <tr>
@@ -327,6 +328,85 @@ function InvoicesPage() {
               )}
             </tbody>
           </table>
+        </div>
+
+        {/* Mobile Phone Card View — Perfectly Formatted for Phones */}
+        <div className="block md:hidden divide-y divide-border">
+          {displayedInvoices.map((inv) => {
+            const isPaid = inv.payment_status === "PAID" || (inv.balance_due || 0) === 0;
+            const isUnpaid = inv.payment_status === "UNPAID" || inv.amount_paid === 0;
+            const isPartial = inv.payment_status === "PARTIAL" || (!isPaid && !isUnpaid);
+
+            return (
+              <div key={inv.id} className="p-3.5 space-y-2.5 bg-card hover:bg-muted/20 transition">
+                <div className="flex items-center justify-between gap-2">
+                  <span className="font-mono font-black text-sm text-[#1B2D6B]">
+                    {inv.invoice_number}
+                  </span>
+                  <span
+                    className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                      isPaid
+                        ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
+                        : isPartial
+                        ? "bg-amber-50 text-amber-700 border border-amber-200"
+                        : "bg-rose-50 text-rose-700 border border-rose-200"
+                    }`}
+                  >
+                    {isPaid ? "Paid" : isPartial ? "Partial Due" : "Unpaid"}
+                  </span>
+                </div>
+
+                <div className="flex items-center justify-between text-xs text-[#0F172A]">
+                  <div className="font-bold truncate max-w-[180px]">{inv.customer_name || "Walk-in Customer"}</div>
+                  <div className="text-[11px] text-muted-foreground font-mono">
+                    {inv.created_at ? format(new Date(inv.created_at), "dd MMM, hh:mm a") : "—"}
+                  </div>
+                </div>
+
+                {/* Amount breakdown */}
+                <div className="grid grid-cols-3 gap-2 bg-[#F8FAFC] rounded-xl p-2.5 text-center font-mono">
+                  <div>
+                    <div className="text-[10px] text-muted-foreground">Total</div>
+                    <div className="text-xs font-bold text-[#0F172A]">₹{Math.round(inv.grand_total || 0)}</div>
+                  </div>
+                  <div>
+                    <div className="text-[10px] text-emerald-600 font-semibold">Paid</div>
+                    <div className="text-xs font-bold text-emerald-600">₹{Math.round(inv.amount_paid || 0)}</div>
+                  </div>
+                  <div>
+                    <div className="text-[10px] text-amber-600 font-semibold">Due</div>
+                    <div className="text-xs font-bold text-amber-600">₹{Math.round(inv.balance_due || 0)}</div>
+                  </div>
+                </div>
+
+                {/* Action buttons */}
+                <div className="flex items-center gap-2 pt-1">
+                  <button
+                    onClick={() => setSelectedBill({ invoice: inv, items: inv.items || [] })}
+                    className="flex-1 h-8.5 rounded-xl bg-[#1B2D6B] text-white text-xs font-bold flex items-center justify-center gap-1.5 transition active:scale-95 shadow-xs"
+                  >
+                    <Printer className="h-3.5 w-3.5" /> View Bill
+                  </button>
+                  {!isPaid && (
+                    <button
+                      onClick={() => {
+                        setSettlingInvoice(inv);
+                        setSettleAmount(String(inv.balance_due));
+                      }}
+                      className="h-8.5 px-3 rounded-xl bg-emerald-600 text-white text-xs font-bold flex items-center justify-center gap-1.5 transition active:scale-95 shadow-xs"
+                    >
+                      <Wallet className="h-3.5 w-3.5" /> Pay Due
+                    </button>
+                  )}
+                </div>
+              </div>
+            );
+          })}
+          {displayedInvoices.length === 0 && (
+            <div className="text-center py-10 text-xs text-muted-foreground">
+              No matching invoices found.
+            </div>
+          )}
         </div>
 
         {/* Pagination */}

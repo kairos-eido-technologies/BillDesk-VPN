@@ -1,5 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { KairosLogo } from "@/components/KairosLogo";
 import {
   LayoutDashboard,
@@ -137,27 +137,42 @@ const INDIVIDUAL_APPS: SingleApp[] = [
 function AppsPage() {
   const t = useT();
   const [search, setSearch] = useState("");
+  const [isMobile, setIsMobile] = useState(false);
+
+  useEffect(() => {
+    const check = () => {
+      setIsMobile(
+        typeof window !== "undefined" &&
+          (window.innerWidth < 768 || /Android|iPhone|iPad/i.test(navigator.userAgent))
+      );
+    };
+    check();
+    window.addEventListener("resize", check);
+    return () => window.removeEventListener("resize", check);
+  }, []);
 
   const apps = INDIVIDUAL_APPS.map((app) => ({
     ...app,
     name: t(`apps.${app.id}`, app.name),
   }));
 
-  const filteredApps = apps.filter((app) =>
-    app.name.toLowerCase().includes(search.toLowerCase())
-  );
+  const filteredApps = apps.filter((app) => {
+    // Hide POS Billing on mobile phones as requested
+    if (isMobile && app.id === "pos") return false;
+    return app.name.toLowerCase().includes(search.toLowerCase());
+  });
 
   return (
     <div className="relative min-h-[calc(100vh-3.5rem)] bg-transparent">
       {/* ── Foreground content ── */}
-      <div className="relative z-10 flex flex-col items-center p-6 md:p-10">
+      <div className="relative z-10 flex flex-col items-center p-4 sm:p-8 md:p-10">
         {/* Brand Header */}
-        <div className="flex flex-col items-center mb-6">
-          <KairosLogo size="lg" className="mb-2" />
+        <div className="flex flex-col items-center mb-4 sm:mb-6">
+          <KairosLogo size="lg" className="mb-1 sm:mb-2 max-w-[200px] sm:max-w-none" />
         </div>
 
         {/* Search Input */}
-        <div className="w-full max-w-md mb-8">
+        <div className="w-full max-w-md mb-6 sm:mb-8 px-2 sm:px-0">
           <div className="relative">
             <Search className="h-4 w-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
             <input
@@ -165,31 +180,31 @@ function AppsPage() {
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder="Search apps or tools..."
-              className="w-full h-11 pl-10 pr-4 rounded-2xl bg-card border border-border text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary shadow-xs"
+              className="w-full h-10 sm:h-11 pl-10 pr-4 rounded-xl sm:rounded-2xl bg-card border border-border text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary shadow-xs"
             />
           </div>
         </div>
 
-        {/* App Grid */}
-        <div className="w-full max-w-4xl grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-y-8 gap-x-6 justify-items-center">
+        {/* App Grid — Formatted for Phone Aspect Ratios */}
+        <div className="w-full max-w-4xl grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-y-5 sm:gap-y-8 gap-x-3.5 sm:gap-x-6 justify-items-center px-1">
           {filteredApps.map((app) => {
             const Icon = app.icon;
             return (
               <Link
                 key={app.id}
                 to={app.to as any}
-                className="group flex flex-col items-center gap-3 p-3 rounded-2xl transition-all duration-200 active:scale-95 hover:scale-105 cursor-pointer focus:outline-none"
+                className="group flex flex-col items-center gap-2 sm:gap-3 p-2 sm:p-3 rounded-2xl transition-all duration-200 active:scale-95 hover:scale-105 cursor-pointer focus:outline-none w-full max-w-[140px]"
               >
                 {/* App Squircle */}
                 <div
-                  className={`relative h-20 w-20 sm:h-22 sm:w-22 rounded-[22px] bg-gradient-to-br ${app.bgColor} border ${app.borderColor} grid place-items-center shadow-md group-hover:shadow-xl group-hover:border-primary/60 transition-all duration-200`}
+                  className={`relative h-17 w-17 sm:h-22 sm:w-22 rounded-2xl sm:rounded-[22px] bg-gradient-to-br ${app.bgColor} border ${app.borderColor} grid place-items-center shadow-md group-hover:shadow-xl group-hover:border-primary/60 transition-all duration-200`}
                 >
-                  <Icon className={`h-9 w-9 sm:h-10 sm:w-10 ${app.color} drop-shadow-xs`} />
+                  <Icon className={`h-8 w-8 sm:h-10 sm:w-10 ${app.color} drop-shadow-xs`} />
                 </div>
 
                 {/* App Name Only (No second line) */}
                 <div className="text-center px-1">
-                  <span className="text-sm font-bold text-center text-foreground group-hover:text-primary transition-colors block line-clamp-1 leading-snug">
+                  <span className="text-xs sm:text-sm font-bold text-center text-foreground group-hover:text-primary transition-colors block line-clamp-1 leading-snug">
                     {app.name}
                   </span>
                 </div>
@@ -199,7 +214,7 @@ function AppsPage() {
         </div>
 
         {filteredApps.length === 0 && (
-          <div className="text-center py-12 rounded-2xl border border-dashed border-border p-6 max-w-sm w-full">
+          <div className="text-center py-10 rounded-2xl border border-dashed border-border p-6 max-w-sm w-full">
             <p className="text-sm text-muted-foreground">No apps found for "{search}"</p>
             <button
               onClick={() => setSearch("")}

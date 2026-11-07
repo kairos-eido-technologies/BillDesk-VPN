@@ -166,8 +166,8 @@ function LedgerPage() {
       const key = inv.customer_mobile?.trim()
         ? `mobile:${inv.customer_mobile.trim()}`
         : inv.customer_name?.trim()
-        ? `name:${inv.customer_name.trim().toLowerCase()}`
-        : "walk-in";
+          ? `name:${inv.customer_name.trim().toLowerCase()}`
+          : "walk-in";
 
       if (!unlinkedGroups.has(key)) {
         unlinkedGroups.set(key, []);
@@ -355,7 +355,7 @@ function LedgerPage() {
   }
 
   return (
-    <div className="p-4 sm:p-6 max-w-7xl mx-auto space-y-6">
+    <div className="p-3 sm:p-6 max-w-7xl mx-auto space-y-4 sm:space-y-6">
       {/* Top Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
@@ -450,22 +450,20 @@ function LedgerPage() {
         <div className="flex items-center gap-2">
           <button
             onClick={() => setActiveTab("balances")}
-            className={`h-9 px-4 rounded-xl text-xs font-bold transition cursor-pointer flex items-center gap-2 ${
-              activeTab === "balances"
+            className={`h-9 px-4 rounded-xl text-xs font-bold transition cursor-pointer flex items-center gap-2 ${activeTab === "balances"
                 ? "bg-primary text-primary-foreground shadow-xs"
                 : "bg-secondary text-muted-foreground hover:text-foreground"
-            }`}
+              }`}
           >
             <Users className="h-3.5 w-3.5" />
             <span>Store Buyers & Balances ({allStoreBuyers.length})</span>
           </button>
           <button
             onClick={() => setActiveTab("transactions")}
-            className={`h-9 px-4 rounded-xl text-xs font-bold transition cursor-pointer flex items-center gap-2 ${
-              activeTab === "transactions"
+            className={`h-9 px-4 rounded-xl text-xs font-bold transition cursor-pointer flex items-center gap-2 ${activeTab === "transactions"
                 ? "bg-primary text-primary-foreground shadow-xs"
                 : "bg-secondary text-muted-foreground hover:text-foreground"
-            }`}
+              }`}
           >
             <Receipt className="h-3.5 w-3.5" />
             <span>Transaction Feed ({allFeedItems.length})</span>
@@ -494,53 +492,48 @@ function LedgerPage() {
             </span>
             <button
               onClick={() => setBuyerFilter("ALL")}
-              className={`h-8 px-3 rounded-lg text-xs font-bold transition cursor-pointer ${
-                buyerFilter === "ALL"
+              className={`h-8 px-3 rounded-lg text-xs font-bold transition cursor-pointer ${buyerFilter === "ALL"
                   ? "bg-primary text-primary-foreground shadow-xs"
                   : "bg-secondary text-muted-foreground hover:text-foreground"
-              }`}
+                }`}
             >
               All Buyers ({allStoreBuyers.length})
             </button>
             <button
               onClick={() => setBuyerFilter("DUE")}
-              className={`h-8 px-3 rounded-lg text-xs font-bold transition cursor-pointer flex items-center gap-1.5 ${
-                buyerFilter === "DUE"
+              className={`h-8 px-3 rounded-lg text-xs font-bold transition cursor-pointer flex items-center gap-1.5 ${buyerFilter === "DUE"
                   ? "bg-amber-500 text-white shadow-xs"
                   : "bg-amber-500/10 text-amber-600 dark:text-amber-400 hover:bg-amber-500/20"
-              }`}
+                }`}
             >
               <AlertCircle className="h-3 w-3" />
               <span>Pending Due / Unpaid ({buyersWithDue.length})</span>
             </button>
             <button
               onClick={() => setBuyerFilter("PAID")}
-              className={`h-8 px-3 rounded-lg text-xs font-bold transition cursor-pointer flex items-center gap-1.5 ${
-                buyerFilter === "PAID"
+              className={`h-8 px-3 rounded-lg text-xs font-bold transition cursor-pointer flex items-center gap-1.5 ${buyerFilter === "PAID"
                   ? "bg-emerald-600 text-white shadow-xs"
                   : "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/20"
-              }`}
+                }`}
             >
               <CheckCircle2 className="h-3 w-3" />
               <span>Paid in Full ({buyersPaidInFull.length})</span>
             </button>
             <button
               onClick={() => setBuyerFilter("WHOLESALE")}
-              className={`h-8 px-3 rounded-lg text-xs font-bold transition cursor-pointer ${
-                buyerFilter === "WHOLESALE"
+              className={`h-8 px-3 rounded-lg text-xs font-bold transition cursor-pointer ${buyerFilter === "WHOLESALE"
                   ? "bg-blue-600 text-white shadow-xs"
                   : "bg-blue-500/10 text-blue-600 dark:text-blue-400 hover:bg-blue-500/20"
-              }`}
+                }`}
             >
               Wholesale ({wholesaleBuyers.length})
             </button>
             <button
               onClick={() => setBuyerFilter("RETAIL")}
-              className={`h-8 px-3 rounded-lg text-xs font-bold transition cursor-pointer ${
-                buyerFilter === "RETAIL"
+              className={`h-8 px-3 rounded-lg text-xs font-bold transition cursor-pointer ${buyerFilter === "RETAIL"
                   ? "bg-secondary text-foreground border border-border"
                   : "bg-secondary/60 text-muted-foreground hover:text-foreground"
-              }`}
+                }`}
             >
               Retail ({retailBuyers.length})
             </button>
@@ -594,11 +587,10 @@ function LedgerPage() {
                             {b.billModes.map((m) => (
                               <span
                                 key={m}
-                                className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
-                                  m === "WHOLESALE"
+                                className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${m === "WHOLESALE"
                                     ? "bg-rose-500/15 text-rose-600 dark:text-rose-400 border border-rose-500/30"
                                     : "bg-blue-500/15 text-blue-600 dark:text-blue-400 border border-blue-500/30"
-                                }`}
+                                  }`}
                               >
                                 {m}
                               </span>
@@ -628,11 +620,10 @@ function LedgerPage() {
                         <td className="py-3.5 px-4 text-center">
                           {hasDue ? (
                             <span
-                              className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold ${
-                                isPartial
+                              className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold ${isPartial
                                   ? "bg-amber-500/15 text-amber-600 dark:text-amber-400 border border-amber-500/30"
                                   : "bg-rose-500/15 text-rose-600 dark:text-rose-400 border border-rose-500/30"
-                              }`}
+                                }`}
                             >
                               <AlertCircle className="h-3 w-3" />
                               {isPartial ? "Partially Paid" : "Due Pending (Credit)"}
@@ -754,11 +745,10 @@ function LedgerPage() {
                         <td className="py-3.5 px-4 text-center">
                           <div className="flex items-center justify-center gap-2">
                             <span
-                              className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
-                                isPaid
+                              className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${isPaid
                                   ? "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30"
                                   : "bg-amber-500/15 text-amber-600 dark:text-amber-400 border border-amber-500/30"
-                              }`}
+                                }`}
                             >
                               {isPaid ? "Paid" : "Credit"}
                             </span>
@@ -901,11 +891,10 @@ function LedgerPage() {
                       key={mode}
                       type="button"
                       onClick={() => setPaymentMode(mode)}
-                      className={`h-9 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1 cursor-pointer ${
-                        paymentMode === mode
+                      className={`h-9 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1 cursor-pointer ${paymentMode === mode
                           ? "bg-primary text-primary-foreground shadow-xs"
                           : "bg-secondary text-muted-foreground hover:text-foreground"
-                      }`}
+                        }`}
                     >
                       {mode === "UPI" && <QrCode className="h-3.5 w-3.5" />}
                       {mode === "CASH" && <Banknote className="h-3.5 w-3.5" />}
@@ -969,11 +958,10 @@ function LedgerPage() {
                       Account Statement — {selectedBuyer.name}
                     </h3>
                     <span
-                      className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
-                        selectedBuyer.balanceDue > 0
+                      className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${selectedBuyer.balanceDue > 0
                           ? "bg-amber-500/15 text-amber-600 dark:text-amber-400 border border-amber-500/30"
                           : "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30"
-                      }`}
+                        }`}
                     >
                       {selectedBuyer.balanceDue > 0 ? "Pending Due" : "Paid in Full"}
                     </span>
@@ -1013,9 +1001,8 @@ function LedgerPage() {
               <div className="p-3.5 rounded-xl bg-secondary/50 border border-border text-center">
                 <div className="text-[11px] text-muted-foreground font-semibold">Current Balance Due</div>
                 <div
-                  className={`text-base font-bold font-mono mt-0.5 ${
-                    selectedBuyer.balanceDue > 0 ? "text-amber-500 font-black" : "text-emerald-500"
-                  }`}
+                  className={`text-base font-bold font-mono mt-0.5 ${selectedBuyer.balanceDue > 0 ? "text-amber-500 font-black" : "text-emerald-500"
+                    }`}
                 >
                   ₹{(selectedBuyer.balanceDue || 0).toLocaleString("en-IN", { minimumFractionDigits: 2 })}
                 </div>
@@ -1090,11 +1077,10 @@ function LedgerPage() {
                           </td>
                           <td className="py-2 px-3 text-center">
                             <span
-                              className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
-                                isPaid
+                              className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${isPaid
                                   ? "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30"
                                   : "bg-rose-500/15 text-rose-600 dark:text-rose-400 border border-rose-500/30"
-                              }`}
+                                }`}
                             >
                               {isPaid ? "PAID" : "CREDIT"}
                             </span>

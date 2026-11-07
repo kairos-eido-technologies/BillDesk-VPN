@@ -159,7 +159,7 @@ function CustomersPage() {
   }
 
   return (
-    <div className="p-4 sm:p-6 space-y-5 max-w-7xl mx-auto">
+    <div className="p-3 sm:p-6 space-y-3 sm:space-y-5 max-w-7xl mx-auto">
       <PageHeader
         title="Customers & Client Accounts"
         subtitle={`${customers.data?.length ?? 0} registered customer profiles`}

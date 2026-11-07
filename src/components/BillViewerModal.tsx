@@ -337,30 +337,30 @@ export function BillViewerModal({
             )}
           </div>
 
-          {/* Action Toolbar */}
-          <div className="px-5 py-3 border-t border-border bg-card flex items-center justify-between shrink-0">
-            <div className="text-xs text-muted-foreground font-mono">
+          {/* Action Toolbar — Formatted for Phone and Desktop */}
+          <div className="px-3 sm:px-5 py-2.5 sm:py-3 border-t border-border bg-card flex flex-col sm:flex-row items-center justify-between gap-2 shrink-0">
+            <div className="hidden sm:block text-xs text-muted-foreground font-mono">
               Press <kbd className="px-1.5 py-0.5 rounded bg-muted border border-border text-[10px]">ESC</kbd> to close modal
             </div>
-            <div className="flex gap-2">
+            <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
               <button
                 onClick={() => setShowWhatsAppDialog(true)}
-                className="h-9 px-4 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold flex items-center gap-1.5 shadow transition"
+                className="flex-1 sm:flex-none h-9 px-3.5 sm:px-4 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold flex items-center justify-center gap-1.5 shadow transition active:scale-95"
               >
                 <Share2 className="h-4 w-4" /> Share WhatsApp
               </button>
               <button
                 onClick={handleDownload}
-                className="h-9 px-4 rounded-lg bg-secondary hover:bg-muted text-foreground text-xs font-bold flex items-center gap-1.5 border border-border transition"
+                className="flex-1 sm:flex-none h-9 px-3 sm:px-4 rounded-lg bg-secondary hover:bg-muted text-foreground text-xs font-bold flex items-center justify-center gap-1.5 border border-border transition active:scale-95"
               >
                 {downloaded ? <Check className="h-4 w-4 text-emerald-400" /> : <Download className="h-4 w-4" />}
-                {downloaded ? "Downloaded!" : "Download Bill"}
+                {downloaded ? "Downloaded!" : "Download"}
               </button>
               <button
                 onClick={handlePrint}
-                className="h-9 px-5 rounded-lg bg-primary hover:opacity-90 text-primary-foreground text-xs font-bold flex items-center gap-1.5 shadow transition"
+                className="h-9 px-4 sm:px-5 rounded-lg bg-primary hover:opacity-90 text-primary-foreground text-xs font-bold flex items-center justify-center gap-1.5 shadow transition active:scale-95"
               >
-                <Printer className="h-4 w-4" /> Print Bill
+                <Printer className="h-4 w-4" /> Print
               </button>
             </div>
           </div>
