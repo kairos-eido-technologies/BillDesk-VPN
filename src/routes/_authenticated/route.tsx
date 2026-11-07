@@ -12,6 +12,7 @@ import {
   Plus,
   Settings as SettingsIcon,
   Store,
+  Home,
 } from "lucide-react";
 
 export const Route = createFileRoute("/_authenticated")({
@@ -50,23 +51,29 @@ function Shell() {
 
   return (
     <div className="min-h-screen flex flex-col bg-[#F8FAFC] text-[#0F172A] relative">
-      {/* ── Subtle Background Watermark of Shop Name ── */}
+      {/* ── Light Transparent Store Name Watermark in Background ── */}
       <div
-        className="pointer-events-none select-none fixed bottom-6 right-8 z-0 overflow-hidden"
+        className="pointer-events-none select-none fixed inset-0 flex flex-col items-center justify-center z-0 overflow-hidden"
         aria-hidden="true"
       >
-        <div className="text-right flex flex-col items-end opacity-[0.045]">
+        <div className="text-center flex flex-col items-center gap-3 opacity-[0.028] -rotate-6">
           <div
             className="font-black uppercase text-[#1B2D6B]"
-            style={{ fontSize: "clamp(20px, 3.5vw, 38px)", letterSpacing: "0.15em", lineHeight: 1.1 }}
+            style={{ fontSize: "clamp(36px, 8vw, 100px)", letterSpacing: "0.2em", lineHeight: 1 }}
           >
             MSS PONKUMAR STORE
           </div>
           <div
             className="font-black uppercase text-[#E8151B]"
-            style={{ fontSize: "clamp(11px, 1.8vw, 18px)", letterSpacing: "0.35em" }}
+            style={{ fontSize: "clamp(20px, 4.2vw, 52px)", letterSpacing: "0.45em" }}
           >
             WHOLESALE SHOP
+          </div>
+          <div
+            className="font-bold uppercase text-[#1B2D6B] mt-2"
+            style={{ fontSize: "clamp(11px, 2vw, 20px)", letterSpacing: "0.3em" }}
+          >
+            OFFLINE BILLDESK POS
           </div>
         </div>
       </div>
@@ -95,11 +102,20 @@ function Shell() {
           </div>
         </Link>
 
-        {/* Right: New Sale + Settings */}
-        <div className="flex items-center gap-2.5">
+        {/* Right: Home + New Sale + Settings */}
+        <div className="flex items-center gap-2 sm:gap-2.5">
+          <Link
+            to="/apps"
+            title="Home"
+            className="h-9 px-3 rounded-lg border border-[#E2E8F0] bg-[#F8FAFC] hover:bg-[#F1F5F9] text-[#1B2D6B] text-xs font-bold flex items-center gap-1.5 transition shadow-xs active:scale-95"
+          >
+            <Home className="h-4 w-4 text-[#1B2D6B]" />
+            <span className="hidden sm:inline">Home</span>
+          </Link>
+
           <Link
             to="/pos"
-            className="h-9 px-4 rounded-lg bg-[#E8151B] hover:bg-[#c90f14] text-white text-xs font-bold flex items-center gap-1.5 transition shadow-sm active:scale-95"
+            className="h-9 px-3.5 sm:px-4 rounded-lg bg-[#E8151B] hover:bg-[#c90f14] text-white text-xs font-bold flex items-center gap-1.5 transition shadow-sm active:scale-95"
           >
             <Plus className="h-4 w-4" />
             <span>New Sale</span>
@@ -118,7 +134,7 @@ function Shell() {
             <div className="h-5 w-5 rounded-full bg-[#1B2D6B] grid place-items-center text-[10px] font-bold text-white">
               A
             </div>
-            <span className="font-bold text-[#1B2D6B] text-xs">
+            <span className="font-bold text-[#1B2D6B] text-xs hidden sm:inline">
               Admin
             </span>
           </div>

@@ -20,7 +20,7 @@ export const Route = createFileRoute("/_authenticated/apps")({
   component: AppsPage,
 });
 
-export type SingleApp = {
+type SingleApp = {
   id: string;
   name: string;
   category: string;
@@ -32,7 +32,7 @@ export type SingleApp = {
   borderColor: string;
 };
 
-export const INDIVIDUAL_APPS: SingleApp[] = [
+const INDIVIDUAL_APPS: SingleApp[] = [
   {
     id: "dashboard",
     name: "Dashboard",
