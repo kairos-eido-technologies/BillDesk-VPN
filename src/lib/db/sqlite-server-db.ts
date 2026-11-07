@@ -5,6 +5,12 @@ import fs from 'fs';
 
 // Helper to determine OS-specific persistent database path
 function getDbPath(): string {
+  // 1. Always prioritize workspace master database if present
+  const workspaceDb = path.join(process.cwd(), 'mssp_store.db');
+  if (fs.existsSync(workspaceDb)) {
+    return workspaceDb;
+  }
+
   const isElectron = typeof process !== 'undefined' && (!!process.versions?.electron || !!process.env.ELECTRON_RUN_AS_NODE);
   if (isElectron) {
     const userData = process.env.APPDATA || path.join(os.homedir(), 'AppData', 'Roaming');

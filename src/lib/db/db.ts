@@ -370,10 +370,10 @@ class BillDeskDB {
       this.persistLocal();
     }
 
-    this.isLoaded = true;
-
     // 2. Fetch ground-truth state from the local SQLite API server
     await this.fetchFromServer();
+
+    this.isLoaded = true;
   }
 
   private persistLocal() {

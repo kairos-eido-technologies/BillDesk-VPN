@@ -29,9 +29,18 @@ function Shell() {
   const user = useAuth((s) => s.user);
   const queryClient = useQueryClient();
 
-  // Periodically refresh SQLite server store
+  // Immediately sync on mount and periodically refresh SQLite server store
   useEffect(() => {
     let active = true;
+
+    // 1. Immediate sync on page mount
+    db.fetchFromServer().then((updated) => {
+      if (active && updated) {
+        queryClient.invalidateQueries();
+      }
+    });
+
+    // 2. Periodic sync every 10 seconds
     const interval = setInterval(async () => {
       if (!db.isLoaded) return;
       const oldStoreStr = JSON.stringify(db.getStore());
@@ -40,7 +49,8 @@ function Shell() {
       if (active && updated && oldStoreStr !== newStoreStr) {
         queryClient.invalidateQueries();
       }
-    }, 15000);
+    }, 10000);
+
     return () => {
       active = false;
       clearInterval(interval);
