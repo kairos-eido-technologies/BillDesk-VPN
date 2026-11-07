@@ -1,7 +1,9 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { db, Customer, LedgerEntry, Invoice } from "@/lib/db/db";
+import { BillViewerModal } from "@/components/BillViewerModal";
+import { toast } from "sonner";
 import {
   Landmark,
   Search,
@@ -18,6 +20,11 @@ import {
   CreditCard,
   Banknote,
   QrCode,
+  Eye,
+  Receipt,
+  Users,
+  ShoppingBag,
+  Filter,
 } from "lucide-react";
 import { format } from "date-fns";
 
@@ -25,13 +32,34 @@ export const Route = createFileRoute("/_authenticated/ledger")({
   component: LedgerPage,
 });
 
+export interface StoreBuyerRecord {
+  id: string;
+  name: string;
+  mobile: string;
+  email?: string;
+  address?: string;
+  gst_number?: string;
+  isRegistered: boolean;
+  totalBills: number;
+  totalSpent: number;
+  totalPaid: number;
+  balanceDue: number;
+  paymentStatus: "PAID" | "UNPAID" | "PARTIAL" | "NO_PURCHASES";
+  billModes: string[];
+  lastPurchaseDate?: string;
+  invoices: Invoice[];
+  customer?: Customer;
+}
+
 function LedgerPage() {
   const queryClient = useQueryClient();
   const [activeTab, setActiveTab] = useState<"balances" | "transactions">("balances");
+  const [buyerFilter, setBuyerFilter] = useState<"ALL" | "DUE" | "PAID" | "WHOLESALE" | "RETAIL">("ALL");
   const [search, setSearch] = useState("");
-  const [selectedCustomerId, setSelectedCustomerId] = useState<string | null>(null);
+  const [selectedBuyerId, setSelectedBuyerId] = useState<string | null>(null);
   const [showPaymentModal, setShowPaymentModal] = useState(false);
-  const [paymentCustomer, setPaymentCustomer] = useState<Customer | null>(null);
+  const [paymentBuyer, setPaymentBuyer] = useState<StoreBuyerRecord | null>(null);
+  const [viewingInvoice, setViewingInvoice] = useState<Invoice | null>(null);
 
   // Payment form state
   const [paymentAmount, setPaymentAmount] = useState<string>("");
@@ -57,22 +85,138 @@ function LedgerPage() {
   const ledger = ledgerQuery.data || [];
   const invoices = invoicesQuery.data || [];
 
+  // -------------------------------------------------------------
+  // Aggregate ALL Store Buyers (Registered + Direct Walk-in / Invoices)
+  // -------------------------------------------------------------
+  const allStoreBuyers = useMemo(() => {
+    const list: StoreBuyerRecord[] = [];
+    const matchedInvoiceIds = new Set<string>();
+
+    // 1. Process registered customer accounts
+    customers.forEach((c) => {
+      const custInvs = db.getCustomerInvoices(c.id, c.name, c.mobile);
+      custInvs.forEach((inv) => matchedInvoiceIds.add(inv.id));
+
+      const totalBills = custInvs.length;
+      const totalSpent = custInvs.reduce((acc, inv) => acc + (inv.grand_total || 0), 0);
+      const totalPaid = custInvs.reduce((acc, inv) => acc + (inv.amount_paid || 0), 0);
+      const balanceDue = Number(c.balance_due || 0);
+
+      let paymentStatus: "PAID" | "UNPAID" | "PARTIAL" | "NO_PURCHASES" = "NO_PURCHASES";
+      if (balanceDue > 0) {
+        paymentStatus = totalPaid > 0 ? "PARTIAL" : "UNPAID";
+      } else if (totalSpent > 0 || totalBills > 0) {
+        paymentStatus = "PAID";
+      }
+
+      const modes = Array.from(new Set(custInvs.map((inv) => inv.bill_mode || "RETAIL")));
+      const lastDate = custInvs[0]?.created_at;
+
+      list.push({
+        id: c.id,
+        name: c.name || "Customer",
+        mobile: c.mobile || "",
+        email: c.email,
+        address: c.address,
+        gst_number: c.gst_number,
+        isRegistered: true,
+        totalBills,
+        totalSpent,
+        totalPaid,
+        balanceDue,
+        paymentStatus,
+        billModes: modes.length > 0 ? modes : ["RETAIL"],
+        lastPurchaseDate: lastDate,
+        invoices: custInvs,
+        customer: c,
+      });
+    });
+
+    // 2. Process invoices not associated with any registered customer (Walk-ins / Direct buyers)
+    const unlinkedInvoices = invoices.filter((inv) => !matchedInvoiceIds.has(inv.id));
+    const unlinkedGroups = new Map<string, Invoice[]>();
+
+    unlinkedInvoices.forEach((inv) => {
+      const key = inv.customer_mobile?.trim()
+        ? `mobile:${inv.customer_mobile.trim()}`
+        : inv.customer_name?.trim()
+        ? `name:${inv.customer_name.trim().toLowerCase()}`
+        : "walk-in";
+
+      if (!unlinkedGroups.has(key)) {
+        unlinkedGroups.set(key, []);
+      }
+      unlinkedGroups.get(key)!.push(inv);
+    });
+
+    unlinkedGroups.forEach((invs, key) => {
+      const first = invs[0];
+      const name = first.customer_name?.trim() || "Walk-in Retail Buyer";
+      const mobile = first.customer_mobile?.trim() || "";
+      const totalBills = invs.length;
+      const totalSpent = invs.reduce((acc, inv) => acc + (inv.grand_total || 0), 0);
+      const totalPaid = invs.reduce((acc, inv) => acc + (inv.amount_paid || 0), 0);
+      const balanceDue = invs.reduce((acc, inv) => acc + (inv.balance_due || 0), 0);
+
+      let paymentStatus: "PAID" | "UNPAID" | "PARTIAL" | "NO_PURCHASES" = "PAID";
+      if (balanceDue > 0) {
+        paymentStatus = totalPaid > 0 ? "PARTIAL" : "UNPAID";
+      }
+
+      const modes = Array.from(new Set(invs.map((inv) => inv.bill_mode || "RETAIL")));
+
+      list.push({
+        id: `direct-buyer-${key}`,
+        name,
+        mobile,
+        isRegistered: false,
+        totalBills,
+        totalSpent,
+        totalPaid,
+        balanceDue,
+        paymentStatus,
+        billModes: modes,
+        lastPurchaseDate: invs[0]?.created_at,
+        invoices: invs,
+      });
+    });
+
+    return list;
+  }, [customers, invoices]);
+
   // Summary Metrics
-  const totalReceivables = customers.reduce((sum, c) => sum + (c.balance_due || 0), 0);
-  const customersWithDue = customers.filter((c) => (c.balance_due || 0) > 0);
+  const totalReceivables = allStoreBuyers.reduce((sum, b) => sum + (b.balanceDue || 0), 0);
+  const buyersWithDue = allStoreBuyers.filter((b) => (b.balanceDue || 0) > 0);
+  const buyersPaidInFull = allStoreBuyers.filter((b) => b.paymentStatus === "PAID" && b.totalBills > 0);
+  const wholesaleBuyers = allStoreBuyers.filter((b) => b.billModes.includes("WHOLESALE"));
+  const retailBuyers = allStoreBuyers.filter((b) => b.billModes.includes("RETAIL"));
+
   const totalPaymentsCollected = ledger
     .filter((l) => l.type === "CREDIT")
     .reduce((sum, l) => sum + (l.amount || 0), 0);
-  const totalCreditGiven = ledger
-    .filter((l) => l.type === "DEBIT")
-    .reduce((sum, l) => sum + (l.amount || 0), 0);
+  const totalCreditGiven = allStoreBuyers.reduce((sum, b) => sum + (b.balanceDue || 0), 0);
 
-  // Filtered customer list
-  const filteredCustomers = customers.filter(
-    (c) =>
-      c.name.toLowerCase().includes(search.toLowerCase()) ||
-      c.mobile.includes(search)
-  );
+  // Filtered buyers list
+  const filteredBuyers = useMemo(() => {
+    return allStoreBuyers.filter((b) => {
+      // Filter status
+      if (buyerFilter === "DUE" && b.balanceDue <= 0) return false;
+      if (buyerFilter === "PAID" && (b.balanceDue > 0 || b.paymentStatus !== "PAID")) return false;
+      if (buyerFilter === "WHOLESALE" && !b.billModes.includes("WHOLESALE")) return false;
+      if (buyerFilter === "RETAIL" && !b.billModes.includes("RETAIL")) return false;
+
+      // Search query
+      if (search.trim()) {
+        const clean = search.toLowerCase();
+        const matchName = b.name.toLowerCase().includes(clean);
+        const matchMobile = b.mobile.includes(clean);
+        const matchInvoices = b.invoices.some((inv) => inv.invoice_number.toLowerCase().includes(clean));
+        if (!matchName && !matchMobile && !matchInvoices) return false;
+      }
+
+      return true;
+    });
+  }, [allStoreBuyers, buyerFilter, search]);
 
   // Filtered ledger list
   const filteredLedger = ledger.filter(
@@ -82,42 +226,55 @@ function LedgerPage() {
       (l.reference_id && l.reference_id.toLowerCase().includes(search.toLowerCase()))
   );
 
+  // Selected buyer for statement modal
+  const selectedBuyer = allStoreBuyers.find((b) => b.id === selectedBuyerId);
+  const selectedBuyerLedger = selectedBuyer
+    ? db.getCustomerLedger(selectedBuyer.isRegistered ? selectedBuyer.id : "", selectedBuyer.name, selectedBuyer.mobile)
+    : [];
+
   // Payment record mutation
   const recordPaymentMutation = useMutation({
     mutationFn: async () => {
-      if (!paymentCustomer || !paymentAmount || Number(paymentAmount) <= 0) return;
+      if (!paymentBuyer || !paymentAmount || Number(paymentAmount) <= 0) return;
       return db.recordLedgerPayment({
-        customer_id: paymentCustomer.id,
-        customer_name: paymentCustomer.name,
-        customer_mobile: paymentCustomer.mobile,
+        customer_id: paymentBuyer.id,
+        customer_name: paymentBuyer.name,
+        customer_mobile: paymentBuyer.mobile,
         amount: Number(paymentAmount),
         payment_mode: paymentMode,
-        notes: paymentNotes || "Payment received against khata balance",
+        notes: paymentNotes || "Payment received against store ledger balance",
       });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["customers"] });
       queryClient.invalidateQueries({ queryKey: ["ledger"] });
+      queryClient.invalidateQueries({ queryKey: ["invoices"] });
+      toast.success("Payment recorded and ledger balance updated!");
       setShowPaymentModal(false);
       setPaymentAmount("");
       setPaymentNotes("");
-      setPaymentCustomer(null);
+      setPaymentBuyer(null);
     },
   });
 
-  function openPaymentForCustomer(c: Customer) {
-    setPaymentCustomer(c);
-    setPaymentAmount(c.balance_due > 0 ? String(c.balance_due) : "");
+  // Mark invoice paid mutation
+  const markInvoicePaidMutation = useMutation({
+    mutationFn: async ({ invoiceId, amount }: { invoiceId: string; amount: number }) => {
+      return db.updateInvoicePaymentStatus(invoiceId, "PAID", amount, "CASH");
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["customers"] });
+      queryClient.invalidateQueries({ queryKey: ["invoices"] });
+      queryClient.invalidateQueries({ queryKey: ["ledger"] });
+      toast.success("Invoice marked as Paid! Balance cleared.");
+    },
+  });
+
+  function openPaymentForBuyer(b: StoreBuyerRecord) {
+    setPaymentBuyer(b);
+    setPaymentAmount(b.balanceDue > 0 ? String(b.balanceDue) : "");
     setShowPaymentModal(true);
   }
-
-  const selectedCustomer = customers.find((c) => c.id === selectedCustomerId);
-  const selectedCustomerLedger = selectedCustomerId
-    ? db.getCustomerLedger(selectedCustomerId)
-    : [];
-  const selectedCustomerInvoices = selectedCustomerId
-    ? db.getCustomerInvoices(selectedCustomerId)
-    : [];
 
   return (
     <div className="p-4 sm:p-6 max-w-7xl mx-auto space-y-6">
@@ -125,15 +282,15 @@ function LedgerPage() {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <div className="flex items-center gap-2.5">
-            <div className="h-10 w-10 rounded-xl bg-amber-500/15 border border-amber-500/30 grid place-items-center text-amber-400">
+            <div className="h-10 w-10 rounded-xl bg-primary/10 border border-primary/20 grid place-items-center text-primary">
               <Landmark className="h-5 w-5" />
             </div>
             <div>
               <h1 className="text-xl sm:text-2xl font-black text-foreground tracking-tight">
-                Customer Khata & Ledger
+                Customer Khata & Store Ledger
               </h1>
               <p className="text-xs text-muted-foreground">
-                Track credit sales, payments received, and running account balances
+                All store buyers, paid in full vs credit/due balances, invoices & receipts
               </p>
             </div>
           </div>
@@ -142,8 +299,9 @@ function LedgerPage() {
         <div className="flex items-center gap-2">
           <button
             onClick={() => {
-              if (customers.length > 0) {
-                openPaymentForCustomer(customers[0]);
+              if (allStoreBuyers.length > 0) {
+                const dueBuyer = allStoreBuyers.find((b) => b.balanceDue > 0) || allStoreBuyers[0];
+                openPaymentForBuyer(dueBuyer);
               }
             }}
             className="h-9 px-4 rounded-xl bg-primary text-primary-foreground font-bold text-xs flex items-center gap-2 hover:opacity-90 transition shadow-xs cursor-pointer"
@@ -158,79 +316,81 @@ function LedgerPage() {
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
         <div className="p-4 rounded-2xl bg-card border border-border shadow-xs">
           <div className="flex items-center justify-between text-muted-foreground mb-1">
-            <span className="text-xs font-semibold">Total Receivables (Due)</span>
-            <AlertCircle className="h-4 w-4 text-amber-400" />
+            <span className="text-xs font-semibold">Total Receivables (Pending Due)</span>
+            <AlertCircle className="h-4 w-4 text-amber-500" />
           </div>
-          <div className="text-xl sm:text-2xl font-black text-amber-400 font-mono">
+          <div className="text-xl sm:text-2xl font-black text-amber-500 font-mono">
             ₹{totalReceivables.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
           </div>
           <div className="text-[11px] text-muted-foreground mt-1">
-            Across {customersWithDue.length} customers with pending dues
+            Across {buyersWithDue.length} buyers with pending dues
           </div>
         </div>
 
         <div className="p-4 rounded-2xl bg-card border border-border shadow-xs">
           <div className="flex items-center justify-between text-muted-foreground mb-1">
-            <span className="text-xs font-semibold">Payments Received</span>
-            <ArrowDownLeft className="h-4 w-4 text-emerald-400" />
+            <span className="text-xs font-semibold">Total Paid in Full</span>
+            <CheckCircle2 className="h-4 w-4 text-emerald-500" />
           </div>
-          <div className="text-xl sm:text-2xl font-black text-emerald-400 font-mono">
+          <div className="text-xl sm:text-2xl font-black text-emerald-500 font-mono">
+            {buyersPaidInFull.length} Buyers
+          </div>
+          <div className="text-[11px] text-muted-foreground mt-1">
+            Zero balance due & fully settled
+          </div>
+        </div>
+
+        <div className="p-4 rounded-2xl bg-card border border-border shadow-xs">
+          <div className="flex items-center justify-between text-muted-foreground mb-1">
+            <span className="text-xs font-semibold">Payments Collected</span>
+            <ArrowDownLeft className="h-4 w-4 text-emerald-500" />
+          </div>
+          <div className="text-xl sm:text-2xl font-black text-emerald-500 font-mono">
             ₹{totalPaymentsCollected.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
           </div>
           <div className="text-[11px] text-muted-foreground mt-1">
-            Total settlements & receipts logged
+            Direct ledger settlement receipts
           </div>
         </div>
 
         <div className="p-4 rounded-2xl bg-card border border-border shadow-xs">
           <div className="flex items-center justify-between text-muted-foreground mb-1">
-            <span className="text-xs font-semibold">Total Credit Billed</span>
-            <ArrowUpRight className="h-4 w-4 text-sky-400" />
-          </div>
-          <div className="text-xl sm:text-2xl font-black text-sky-400 font-mono">
-            ₹{totalCreditGiven.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
-          </div>
-          <div className="text-[11px] text-muted-foreground mt-1">
-            Invoiced to customer accounts
-          </div>
-        </div>
-
-        <div className="p-4 rounded-2xl bg-card border border-border shadow-xs">
-          <div className="flex items-center justify-between text-muted-foreground mb-1">
-            <span className="text-xs font-semibold">Khata Accounts</span>
-            <UserCheck className="h-4 w-4 text-primary" />
+            <span className="text-xs font-semibold">Total Store Buyers</span>
+            <Users className="h-4 w-4 text-primary" />
           </div>
           <div className="text-xl sm:text-2xl font-black text-foreground font-mono">
-            {customers.length}
+            {allStoreBuyers.length}
           </div>
           <div className="text-[11px] text-muted-foreground mt-1">
-            Registered customer accounts
+            Registered accounts & retail buyers
           </div>
         </div>
       </div>
 
-      {/* Tabs & Search */}
+      {/* Primary Tabs */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-border pb-3">
         <div className="flex items-center gap-2">
           <button
             onClick={() => setActiveTab("balances")}
-            className={`h-9 px-4 rounded-xl text-xs font-bold transition cursor-pointer ${
+            className={`h-9 px-4 rounded-xl text-xs font-bold transition cursor-pointer flex items-center gap-2 ${
               activeTab === "balances"
                 ? "bg-primary text-primary-foreground shadow-xs"
                 : "bg-secondary text-muted-foreground hover:text-foreground"
             }`}
           >
-            Customer Balances ({customers.length})
+            <Users className="h-3.5 w-3.5" />
+            <span>Store Buyers & Balances ({allStoreBuyers.length})</span>
           </button>
           <button
             onClick={() => setActiveTab("transactions")}
-            className={`h-9 px-4 rounded-xl text-xs font-bold transition cursor-pointer ${
+            className={`h-9 px-4 rounded-xl text-xs font-bold transition cursor-pointer flex items-center gap-2 ${
               activeTab === "transactions"
                 ? "bg-primary text-primary-foreground shadow-xs"
                 : "bg-secondary text-muted-foreground hover:text-foreground"
             }`}
           >
-            Transaction Feed ({ledger.length})
+            <Receipt className="h-3.5 w-3.5" />
+            <span>Transaction Feed ({ledger.length + invoices.length})</span>
           </button>
         </div>
 
@@ -240,97 +400,215 @@ function LedgerPage() {
             type="text"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search name, phone, invoice..."
-            className="w-full h-9 pl-9 pr-3 rounded-xl bg-card border border-border text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+            placeholder="Search buyer name, phone, bill #..."
+            className="w-full h-9 pl-9 pr-3 rounded-xl bg-card border border-border text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary font-mono"
           />
         </div>
       </div>
 
-      {/* TAB 1: Customer Balances */}
+      {/* TAB 1: Store Buyers & Balances */}
       {activeTab === "balances" && (
-        <div className="rounded-2xl border border-border bg-card overflow-hidden shadow-xs">
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs">
-              <thead className="bg-secondary/60 border-b border-border text-muted-foreground font-semibold">
-                <tr>
-                  <th className="py-3 px-4">Customer</th>
-                  <th className="py-3 px-4">Contact</th>
-                  <th className="py-3 px-4 text-right">Total Spent</th>
-                  <th className="py-3 px-4 text-right">Balance Due (To Pay)</th>
-                  <th className="py-3 px-4 text-center">Status</th>
-                  <th className="py-3 px-4 text-right">Actions</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-border">
-                {filteredCustomers.map((c) => {
-                  const hasDue = (c.balance_due || 0) > 0;
-                  return (
-                    <tr key={c.id} className="hover:bg-muted/30 transition">
-                      <td className="py-3.5 px-4">
-                        <div className="font-bold text-foreground text-sm">{c.name}</div>
-                        <div className="text-[11px] text-muted-foreground font-mono">
-                          ID: {c.id}
-                        </div>
-                      </td>
-                      <td className="py-3.5 px-4 font-mono text-muted-foreground">
-                        {c.mobile || "—"}
-                      </td>
-                      <td className="py-3.5 px-4 text-right font-mono font-semibold text-foreground">
-                        ₹{(c.total_spent || 0).toLocaleString("en-IN", { minimumFractionDigits: 2 })}
-                      </td>
-                      <td className="py-3.5 px-4 text-right font-mono font-bold">
-                        <span className={hasDue ? "text-amber-400 text-sm" : "text-muted-foreground"}>
-                          ₹{(c.balance_due || 0).toLocaleString("en-IN", { minimumFractionDigits: 2 })}
-                        </span>
-                      </td>
-                      <td className="py-3.5 px-4 text-center">
-                        {hasDue ? (
-                          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-amber-500/15 text-amber-300 border border-amber-500/30">
-                            Due Pending
-                          </span>
-                        ) : (
-                          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-emerald-500/15 text-emerald-300 border border-emerald-500/30">
-                            <CheckCircle2 className="h-3 w-3" /> Clear
-                          </span>
-                        )}
-                      </td>
-                      <td className="py-3.5 px-4 text-right">
-                        <div className="flex items-center justify-end gap-2">
-                          <button
-                            onClick={() => setSelectedCustomerId(c.id)}
-                            className="h-7 px-2.5 rounded-lg border border-border bg-secondary hover:bg-muted text-[11px] font-bold flex items-center gap-1.5 transition cursor-pointer"
-                          >
-                            <FileText className="h-3 w-3 text-primary" />
-                            <span>Statement</span>
-                          </button>
-                          {hasDue && (
-                            <button
-                              onClick={() => openPaymentForCustomer(c)}
-                              className="h-7 px-2.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-[11px] font-bold flex items-center gap-1.5 transition cursor-pointer shadow-xs"
-                            >
-                              <Wallet className="h-3 w-3" />
-                              <span>Settle</span>
-                            </button>
+        <div className="space-y-4">
+          {/* Quick Filter Pills */}
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="text-xs font-semibold text-muted-foreground flex items-center gap-1.5 mr-1">
+              <Filter className="h-3.5 w-3.5 text-primary" /> Filter Buyers:
+            </span>
+            <button
+              onClick={() => setBuyerFilter("ALL")}
+              className={`h-8 px-3 rounded-lg text-xs font-bold transition cursor-pointer ${
+                buyerFilter === "ALL"
+                  ? "bg-primary text-primary-foreground shadow-xs"
+                  : "bg-secondary text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              All Buyers ({allStoreBuyers.length})
+            </button>
+            <button
+              onClick={() => setBuyerFilter("DUE")}
+              className={`h-8 px-3 rounded-lg text-xs font-bold transition cursor-pointer flex items-center gap-1.5 ${
+                buyerFilter === "DUE"
+                  ? "bg-amber-500 text-white shadow-xs"
+                  : "bg-amber-500/10 text-amber-600 dark:text-amber-400 hover:bg-amber-500/20"
+              }`}
+            >
+              <AlertCircle className="h-3 w-3" />
+              <span>Pending Due / Unpaid ({buyersWithDue.length})</span>
+            </button>
+            <button
+              onClick={() => setBuyerFilter("PAID")}
+              className={`h-8 px-3 rounded-lg text-xs font-bold transition cursor-pointer flex items-center gap-1.5 ${
+                buyerFilter === "PAID"
+                  ? "bg-emerald-600 text-white shadow-xs"
+                  : "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/20"
+              }`}
+            >
+              <CheckCircle2 className="h-3 w-3" />
+              <span>Paid in Full ({buyersPaidInFull.length})</span>
+            </button>
+            <button
+              onClick={() => setBuyerFilter("WHOLESALE")}
+              className={`h-8 px-3 rounded-lg text-xs font-bold transition cursor-pointer ${
+                buyerFilter === "WHOLESALE"
+                  ? "bg-blue-600 text-white shadow-xs"
+                  : "bg-blue-500/10 text-blue-600 dark:text-blue-400 hover:bg-blue-500/20"
+              }`}
+            >
+              Wholesale ({wholesaleBuyers.length})
+            </button>
+            <button
+              onClick={() => setBuyerFilter("RETAIL")}
+              className={`h-8 px-3 rounded-lg text-xs font-bold transition cursor-pointer ${
+                buyerFilter === "RETAIL"
+                  ? "bg-secondary text-foreground border border-border"
+                  : "bg-secondary/60 text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              Retail ({retailBuyers.length})
+            </button>
+          </div>
+
+          {/* Buyers Ledger Table */}
+          <div className="rounded-2xl border border-border bg-card overflow-hidden shadow-xs">
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-xs">
+                <thead className="bg-secondary/60 border-b border-border text-muted-foreground font-semibold">
+                  <tr>
+                    <th className="py-3 px-4">Customer / Buyer</th>
+                    <th className="py-3 px-4">Contact</th>
+                    <th className="py-3 px-4 text-center">Billing Type</th>
+                    <th className="py-3 px-4 text-center">Bills</th>
+                    <th className="py-3 px-4 text-right">Total Billed</th>
+                    <th className="py-3 px-4 text-right">Total Paid</th>
+                    <th className="py-3 px-4 text-right">Balance Due (To Pay)</th>
+                    <th className="py-3 px-4 text-center">Payment Status</th>
+                    <th className="py-3 px-4 text-right">Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-border">
+                  {filteredBuyers.map((b) => {
+                    const hasDue = (b.balanceDue || 0) > 0;
+                    const isPaid = b.paymentStatus === "PAID";
+                    const isPartial = b.paymentStatus === "PARTIAL";
+
+                    return (
+                      <tr key={b.id} className="hover:bg-muted/30 transition">
+                        <td className="py-3.5 px-4">
+                          <div className="font-bold text-foreground text-sm flex items-center gap-1.5">
+                            <span>{b.name}</span>
+                            {!b.isRegistered && (
+                              <span className="px-1.5 py-0.5 rounded text-[10px] font-mono bg-secondary text-muted-foreground border border-border">
+                                Walk-in
+                              </span>
+                            )}
+                          </div>
+                          {b.gst_number && (
+                            <div className="text-[10px] font-mono text-muted-foreground">
+                              GST: {b.gst_number}
+                            </div>
                           )}
-                        </div>
+                        </td>
+                        <td className="py-3.5 px-4 font-mono text-muted-foreground">
+                          {b.mobile || "—"}
+                        </td>
+                        <td className="py-3.5 px-4 text-center">
+                          <div className="flex items-center justify-center gap-1">
+                            {b.billModes.map((m) => (
+                              <span
+                                key={m}
+                                className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                                  m === "WHOLESALE"
+                                    ? "bg-rose-500/15 text-rose-600 dark:text-rose-400 border border-rose-500/30"
+                                    : "bg-blue-500/15 text-blue-600 dark:text-blue-400 border border-blue-500/30"
+                                }`}
+                              >
+                                {m}
+                              </span>
+                            ))}
+                          </div>
+                        </td>
+                        <td className="py-3.5 px-4 text-center font-mono font-bold text-foreground">
+                          {b.totalBills}
+                        </td>
+                        <td className="py-3.5 px-4 text-right font-mono font-semibold text-foreground">
+                          ₹{(b.totalSpent || 0).toLocaleString("en-IN", { minimumFractionDigits: 2 })}
+                        </td>
+                        <td className="py-3.5 px-4 text-right font-mono font-semibold text-emerald-600 dark:text-emerald-400">
+                          ₹{(b.totalPaid || 0).toLocaleString("en-IN", { minimumFractionDigits: 2 })}
+                        </td>
+                        <td className="py-3.5 px-4 text-right font-mono font-bold">
+                          <span
+                            className={
+                              hasDue
+                                ? "text-amber-500 font-black text-sm"
+                                : "text-emerald-600 dark:text-emerald-400"
+                            }
+                          >
+                            ₹{(b.balanceDue || 0).toLocaleString("en-IN", { minimumFractionDigits: 2 })}
+                          </span>
+                        </td>
+                        <td className="py-3.5 px-4 text-center">
+                          {hasDue ? (
+                            <span
+                              className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold ${
+                                isPartial
+                                  ? "bg-amber-500/15 text-amber-600 dark:text-amber-400 border border-amber-500/30"
+                                  : "bg-rose-500/15 text-rose-600 dark:text-rose-400 border border-rose-500/30"
+                              }`}
+                            >
+                              <AlertCircle className="h-3 w-3" />
+                              {isPartial ? "Partially Paid" : "Due Pending (Credit)"}
+                            </span>
+                          ) : isPaid ? (
+                            <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30">
+                              <CheckCircle2 className="h-3 w-3" /> Paid in Full
+                            </span>
+                          ) : (
+                            <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-secondary text-muted-foreground border border-border">
+                              No Bills
+                            </span>
+                          )}
+                        </td>
+                        <td className="py-3.5 px-4 text-right">
+                          <div className="flex items-center justify-end gap-2">
+                            <button
+                              onClick={() => setSelectedBuyerId(b.id)}
+                              className="h-7 px-2.5 rounded-lg border border-border bg-secondary hover:bg-muted text-[11px] font-bold flex items-center gap-1.5 transition cursor-pointer"
+                              title="View Customer Statement & Invoices"
+                            >
+                              <FileText className="h-3 w-3 text-primary" />
+                              <span>Statement ({b.totalBills})</span>
+                            </button>
+                            {hasDue && (
+                              <button
+                                onClick={() => openPaymentForBuyer(b)}
+                                className="h-7 px-2.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-[11px] font-bold flex items-center gap-1.5 transition cursor-pointer shadow-xs"
+                                title="Collect payment to settle balance"
+                              >
+                                <Wallet className="h-3 w-3" />
+                                <span>Settle</span>
+                              </button>
+                            )}
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                  {filteredBuyers.length === 0 && (
+                    <tr>
+                      <td colSpan={9} className="py-12 text-center text-muted-foreground text-xs">
+                        No buyers found matching current filter or search "{search}".
                       </td>
                     </tr>
-                  );
-                })}
-                {filteredCustomers.length === 0 && (
-                  <tr>
-                    <td colSpan={6} className="py-12 text-center text-muted-foreground">
-                      No customer accounts found matching "{search}"
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
+                  )}
+                </tbody>
+              </table>
+            </div>
           </div>
         </div>
       )}
 
-      {/* TAB 2: All Transaction Feed */}
+      {/* TAB 2: Complete Transaction Feed (Invoices + Ledger Payments) */}
       {activeTab === "transactions" && (
         <div className="rounded-2xl border border-border bg-card overflow-hidden shadow-xs">
           <div className="overflow-x-auto">
@@ -338,19 +616,83 @@ function LedgerPage() {
               <thead className="bg-secondary/60 border-b border-border text-muted-foreground font-semibold">
                 <tr>
                   <th className="py-3 px-4">Date & Time</th>
-                  <th className="py-3 px-4">Customer</th>
-                  <th className="py-3 px-4">Reference</th>
+                  <th className="py-3 px-4">Customer / Buyer</th>
+                  <th className="py-3 px-4">Reference / Invoice #</th>
                   <th className="py-3 px-4">Mode / Details</th>
-                  <th className="py-3 px-4 text-center">Type</th>
+                  <th className="py-3 px-4 text-center">Transaction Type</th>
                   <th className="py-3 px-4 text-right">Amount</th>
-                  <th className="py-3 px-4 text-right">Balance After</th>
+                  <th className="py-3 px-4 text-center">Status / Bill</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-border">
+                {/* 1. Combined stream: Ledger receipts + Invoices */}
+                {invoices.map((inv) => {
+                  const isPaid = inv.payment_status === "PAID" || (inv.balance_due || 0) === 0;
+                  return (
+                    <tr key={`inv-${inv.id}`} className="hover:bg-muted/30 transition">
+                      <td className="py-3.5 px-4 font-mono text-muted-foreground">
+                        {inv.created_at ? format(new Date(inv.created_at), "dd MMM yyyy, hh:mm a") : "—"}
+                      </td>
+                      <td className="py-3.5 px-4">
+                        <div className="font-bold text-foreground">
+                          {inv.customer_name || "Walk-in Retail Customer"}
+                        </div>
+                        {inv.customer_mobile && (
+                          <div className="text-[11px] text-muted-foreground font-mono">
+                            {inv.customer_mobile}
+                          </div>
+                        )}
+                      </td>
+                      <td className="py-3.5 px-4 font-mono font-bold text-primary">
+                        {inv.invoice_number}
+                      </td>
+                      <td className="py-3.5 px-4 text-muted-foreground">
+                        <div className="flex items-center gap-1.5">
+                          <span className="font-semibold text-foreground uppercase">
+                            {inv.payment_method || "CASH"}
+                          </span>
+                          <span className="text-[10px] px-1.5 py-0.5 rounded bg-secondary text-foreground border border-border font-bold">
+                            {inv.bill_mode || "RETAIL"}
+                          </span>
+                        </div>
+                      </td>
+                      <td className="py-3.5 px-4 text-center">
+                        <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-rose-500/15 text-rose-600 dark:text-rose-400 border border-rose-500/30">
+                          <ArrowUpRight className="h-3 w-3" /> Sale Debit
+                        </span>
+                      </td>
+                      <td className="py-3.5 px-4 text-right font-mono font-bold text-sm text-foreground">
+                        + ₹{Number(inv.grand_total || 0).toLocaleString("en-IN", { minimumFractionDigits: 2 })}
+                      </td>
+                      <td className="py-3.5 px-4 text-center">
+                        <div className="flex items-center justify-center gap-2">
+                          <span
+                            className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                              isPaid
+                                ? "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30"
+                                : "bg-amber-500/15 text-amber-600 dark:text-amber-400 border border-amber-500/30"
+                            }`}
+                          >
+                            {isPaid ? "Paid" : "Credit"}
+                          </span>
+                          <button
+                            onClick={() => setViewingInvoice(inv)}
+                            className="h-6 px-2 rounded bg-primary/10 hover:bg-primary/20 text-primary border border-primary/25 text-[10px] font-bold flex items-center gap-1 transition cursor-pointer"
+                            title="View & Print Bill"
+                          >
+                            <Eye className="h-2.5 w-2.5" />
+                            <span>Bill</span>
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
+
                 {filteredLedger.map((l) => {
                   const isCredit = l.type === "CREDIT";
                   return (
-                    <tr key={l.id} className="hover:bg-muted/30 transition">
+                    <tr key={`led-${l.id}`} className="hover:bg-muted/30 transition bg-emerald-500/5">
                       <td className="py-3.5 px-4 font-mono text-muted-foreground">
                         {l.date ? format(new Date(l.date), "dd MMM yyyy, hh:mm a") : "—"}
                       </td>
@@ -363,41 +705,35 @@ function LedgerPage() {
                         )}
                       </td>
                       <td className="py-3.5 px-4 font-mono font-medium text-foreground">
-                        {l.reference_id || "—"}
+                        {l.reference_id || "Khata Receipt"}
                       </td>
                       <td className="py-3.5 px-4 text-muted-foreground">
                         <div className="flex items-center gap-1.5">
-                          <span className="font-semibold text-foreground">{l.payment_mode || "—"}</span>
+                          <span className="font-semibold text-foreground uppercase">{l.payment_mode || "—"}</span>
                           {l.notes && <span className="text-[11px] text-muted-foreground">({l.notes})</span>}
                         </div>
                       </td>
                       <td className="py-3.5 px-4 text-center">
-                        {isCredit ? (
-                          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-emerald-500/15 text-emerald-300 border border-emerald-500/30">
-                            <ArrowDownLeft className="h-3 w-3" /> Payment Received
-                          </span>
-                        ) : (
-                          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-rose-500/15 text-rose-300 border border-rose-500/30">
-                            <ArrowUpRight className="h-3 w-3" /> Bill Debit
-                          </span>
-                        )}
-                      </td>
-                      <td className="py-3.5 px-4 text-right font-mono font-bold text-sm">
-                        <span className={isCredit ? "text-emerald-400" : "text-rose-400"}>
-                          {isCredit ? "-" : "+"} ₹
-                          {Number(l.amount || 0).toLocaleString("en-IN", { minimumFractionDigits: 2 })}
+                        <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30">
+                          <ArrowDownLeft className="h-3 w-3" /> Payment Received
                         </span>
                       </td>
-                      <td className="py-3.5 px-4 text-right font-mono font-semibold text-foreground">
-                        ₹{Number(l.balance_after || 0).toLocaleString("en-IN", { minimumFractionDigits: 2 })}
+                      <td className="py-3.5 px-4 text-right font-mono font-bold text-sm text-emerald-600 dark:text-emerald-400">
+                        - ₹{Number(l.amount || 0).toLocaleString("en-IN", { minimumFractionDigits: 2 })}
+                      </td>
+                      <td className="py-3.5 px-4 text-center">
+                        <span className="text-[11px] font-mono text-muted-foreground">
+                          Bal: ₹{Number(l.balance_after || 0).toLocaleString("en-IN", { minimumFractionDigits: 2 })}
+                        </span>
                       </td>
                     </tr>
                   );
                 })}
-                {filteredLedger.length === 0 && (
+
+                {invoices.length === 0 && filteredLedger.length === 0 && (
                   <tr>
-                    <td colSpan={7} className="py-12 text-center text-muted-foreground">
-                      No ledger transactions logged yet.
+                    <td colSpan={7} className="py-12 text-center text-muted-foreground text-xs">
+                      No transactions recorded yet.
                     </td>
                   </tr>
                 )}
@@ -408,12 +744,12 @@ function LedgerPage() {
       )}
 
       {/* MODAL 1: Settle / Record Payment */}
-      {showPaymentModal && paymentCustomer && (
+      {showPaymentModal && paymentBuyer && (
         <div className="fixed inset-0 z-[100] bg-black/75 backdrop-blur-sm flex justify-center items-center overflow-y-auto p-4 sm:p-6">
           <div className="bg-card border border-border w-full max-w-md rounded-2xl shadow-2xl p-6 space-y-5 my-auto">
             <div className="flex items-center justify-between border-b border-border pb-3">
               <div className="flex items-center gap-2">
-                <Wallet className="h-5 w-5 text-emerald-400" />
+                <Wallet className="h-5 w-5 text-emerald-500" />
                 <h3 className="font-bold text-base text-foreground">Record Payment / Khata Settlement</h3>
               </div>
               <button
@@ -424,15 +760,17 @@ function LedgerPage() {
               </button>
             </div>
 
-            {/* Customer Info Card */}
+            {/* Buyer Info Card */}
             <div className="p-3.5 rounded-xl bg-secondary/60 border border-border space-y-1">
               <div className="text-xs text-muted-foreground">Paying Customer</div>
-              <div className="font-bold text-sm text-foreground">{paymentCustomer.name}</div>
-              <div className="text-xs text-muted-foreground font-mono">{paymentCustomer.mobile}</div>
+              <div className="font-bold text-sm text-foreground">{paymentBuyer.name}</div>
+              {paymentBuyer.mobile && (
+                <div className="text-xs text-muted-foreground font-mono">{paymentBuyer.mobile}</div>
+              )}
               <div className="flex items-center justify-between pt-2 border-t border-border mt-2">
                 <span className="text-xs text-muted-foreground font-medium">Outstanding Balance:</span>
-                <span className="text-sm font-bold font-mono text-amber-400">
-                  ₹{(paymentCustomer.balance_due || 0).toLocaleString("en-IN", { minimumFractionDigits: 2 })}
+                <span className="text-sm font-bold font-mono text-amber-500">
+                  ₹{(paymentBuyer.balanceDue || 0).toLocaleString("en-IN", { minimumFractionDigits: 2 })}
                 </span>
               </div>
             </div>
@@ -492,7 +830,7 @@ function LedgerPage() {
                   value={paymentNotes}
                   onChange={(e) => setPaymentNotes(e.target.value)}
                   placeholder="e.g. GPay UPI Ref: 489218..."
-                  className="w-full h-9 px-3 rounded-xl bg-input border border-border text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+                  className="w-full h-9 px-3 rounded-xl bg-input border border-border text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary font-mono"
                 />
               </div>
             </div>
@@ -520,10 +858,10 @@ function LedgerPage() {
         </div>
       )}
 
-      {/* MODAL 2: Customer Account Statement */}
-      {selectedCustomer && (
+      {/* MODAL 2: Customer / Buyer Statement & Invoices */}
+      {selectedBuyer && (
         <div className="fixed inset-0 z-[100] bg-black/75 backdrop-blur-sm flex justify-center items-center overflow-y-auto p-3 sm:p-6">
-          <div className="bg-card border border-border w-full max-w-3xl rounded-2xl shadow-2xl p-6 space-y-6 max-h-[88vh] my-auto overflow-y-auto">
+          <div className="bg-card border border-border w-full max-w-4xl rounded-2xl shadow-2xl p-6 space-y-6 max-h-[88vh] my-auto overflow-y-auto">
             {/* Modal Header */}
             <div className="flex items-center justify-between border-b border-border pb-4">
               <div className="flex items-center gap-3">
@@ -531,12 +869,23 @@ function LedgerPage() {
                   <Landmark className="h-5 w-5" />
                 </div>
                 <div>
-                  <h3 className="font-black text-lg text-foreground">
-                    Account Statement — {selectedCustomer.name}
-                  </h3>
+                  <div className="flex items-center gap-2">
+                    <h3 className="font-black text-lg text-foreground">
+                      Account Statement — {selectedBuyer.name}
+                    </h3>
+                    <span
+                      className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                        selectedBuyer.balanceDue > 0
+                          ? "bg-amber-500/15 text-amber-600 dark:text-amber-400 border border-amber-500/30"
+                          : "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30"
+                      }`}
+                    >
+                      {selectedBuyer.balanceDue > 0 ? "Pending Due" : "Paid in Full"}
+                    </span>
+                  </div>
                   <p className="text-xs text-muted-foreground font-mono">
-                    Phone: {selectedCustomer.mobile || "N/A"} | Registered:{" "}
-                    {selectedCustomer.created_at ? format(new Date(selectedCustomer.created_at), "dd MMM yyyy") : "—"}
+                    Phone: {selectedBuyer.mobile || "N/A"} | Registered:{" "}
+                    {selectedBuyer.isRegistered ? "Account Member" : "Direct Buyer"}
                   </p>
                 </div>
               </div>
@@ -550,7 +899,7 @@ function LedgerPage() {
                   <span>Print</span>
                 </button>
                 <button
-                  onClick={() => setSelectedCustomerId(null)}
+                  onClick={() => setSelectedBuyerId(null)}
                   className="h-8 w-8 rounded-lg border border-border hover:bg-muted text-muted-foreground hover:text-foreground text-sm font-mono grid place-items-center cursor-pointer"
                 >
                   ✕
@@ -559,25 +908,27 @@ function LedgerPage() {
             </div>
 
             {/* Financial Overview Cards */}
-            <div className="grid grid-cols-3 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
               <div className="p-3.5 rounded-xl bg-secondary/50 border border-border text-center">
-                <div className="text-[11px] text-muted-foreground font-semibold">Total Invoiced</div>
+                <div className="text-[11px] text-muted-foreground font-semibold">Total Purchases / Invoiced</div>
                 <div className="text-base font-bold font-mono text-foreground mt-0.5">
-                  ₹{(selectedCustomer.total_spent || 0).toLocaleString("en-IN", { minimumFractionDigits: 2 })}
+                  ₹{(selectedBuyer.totalSpent || 0).toLocaleString("en-IN", { minimumFractionDigits: 2 })}
                 </div>
               </div>
               <div className="p-3.5 rounded-xl bg-secondary/50 border border-border text-center">
                 <div className="text-[11px] text-muted-foreground font-semibold">Current Balance Due</div>
-                <div className="text-base font-bold font-mono text-amber-400 mt-0.5">
-                  ₹{(selectedCustomer.balance_due || 0).toLocaleString("en-IN", { minimumFractionDigits: 2 })}
+                <div
+                  className={`text-base font-bold font-mono mt-0.5 ${
+                    selectedBuyer.balanceDue > 0 ? "text-amber-500 font-black" : "text-emerald-500"
+                  }`}
+                >
+                  ₹{(selectedBuyer.balanceDue || 0).toLocaleString("en-IN", { minimumFractionDigits: 2 })}
                 </div>
               </div>
               <div className="p-3.5 rounded-xl bg-secondary/50 border border-border text-center flex flex-col justify-center items-center">
                 <button
-                  onClick={() => {
-                    openPaymentForCustomer(selectedCustomer);
-                  }}
-                  className="h-8 px-3 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs flex items-center gap-1.5 transition shadow-xs cursor-pointer"
+                  onClick={() => openPaymentForBuyer(selectedBuyer)}
+                  className="h-8 px-4 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs flex items-center gap-1.5 transition shadow-xs cursor-pointer"
                 >
                   <Wallet className="h-3.5 w-3.5" />
                   <span>Collect Payment</span>
@@ -585,10 +936,13 @@ function LedgerPage() {
               </div>
             </div>
 
-            {/* Customer Invoices Section */}
+            {/* Invoices History Section */}
             <div className="space-y-2">
-              <h4 className="text-xs font-bold text-muted-foreground uppercase tracking-wider">
-                Invoices History ({selectedCustomerInvoices.length})
+              <h4 className="text-xs font-bold text-muted-foreground uppercase tracking-wider flex items-center justify-between">
+                <span>Invoices History ({selectedBuyer.invoices.length})</span>
+                <span className="text-[11px] font-normal lowercase text-muted-foreground">
+                  Click 'View Bill' to inspect or print receipt
+                </span>
               </h4>
               <div className="rounded-xl border border-border overflow-hidden">
                 <table className="w-full text-left text-xs">
@@ -596,49 +950,92 @@ function LedgerPage() {
                     <tr>
                       <th className="py-2.5 px-3">Invoice #</th>
                       <th className="py-2.5 px-3">Date</th>
+                      <th className="py-2.5 px-3">Type</th>
+                      <th className="py-2.5 px-3">Items Purchased</th>
                       <th className="py-2.5 px-3 text-right">Grand Total</th>
                       <th className="py-2.5 px-3 text-right">Paid</th>
-                      <th className="py-2.5 px-3 text-right">Balance Due</th>
-                      <th className="py-2.5 px-3 text-center">Payment Status</th>
+                      <th className="py-2.5 px-3 text-right">Due</th>
+                      <th className="py-2.5 px-3 text-center">Status</th>
+                      <th className="py-2.5 px-3 text-center">Action</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-border">
-                    {selectedCustomerInvoices.map((inv) => (
-                      <tr key={inv.id} className="hover:bg-muted/20">
-                        <td className="py-2 px-3 font-mono font-bold text-primary">
-                          {inv.invoice_number}
-                        </td>
-                        <td className="py-2 px-3 text-muted-foreground font-mono">
-                          {inv.created_at ? format(new Date(inv.created_at), "dd MMM yyyy") : "—"}
-                        </td>
-                        <td className="py-2 px-3 text-right font-mono font-semibold">
-                          ₹{inv.grand_total?.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
-                        </td>
-                        <td className="py-2 px-3 text-right font-mono text-emerald-400">
-                          ₹{inv.amount_paid?.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
-                        </td>
-                        <td className="py-2 px-3 text-right font-mono text-amber-400 font-bold">
-                          ₹{inv.balance_due?.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
-                        </td>
-                        <td className="py-2 px-3 text-center">
-                          <span
-                            className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
-                              inv.payment_status === "PAID"
-                                ? "bg-emerald-500/15 text-emerald-300 border border-emerald-500/30"
-                                : inv.payment_status === "PARTIAL"
-                                ? "bg-amber-500/15 text-amber-300 border border-amber-500/30"
-                                : "bg-rose-500/15 text-rose-300 border border-rose-500/30"
-                            }`}
-                          >
-                            {inv.payment_status}
-                          </span>
-                        </td>
-                      </tr>
-                    ))}
-                    {selectedCustomerInvoices.length === 0 && (
+                    {selectedBuyer.invoices.map((inv) => {
+                      const isPaid = inv.payment_status === "PAID" || (inv.balance_due || 0) === 0;
+                      const itemsSummary = inv.items && inv.items.length > 0
+                        ? inv.items.map((it: any) => `${it.qty || 1}x ${it.product_name || it.name || "Item"}`).join(", ")
+                        : "—";
+
+                      return (
+                        <tr key={inv.id} className="hover:bg-muted/20 transition">
+                          <td className="py-2 px-3 font-mono font-bold text-primary">
+                            {inv.invoice_number}
+                          </td>
+                          <td className="py-2 px-3 text-muted-foreground font-mono">
+                            {inv.created_at ? format(new Date(inv.created_at), "dd MMM yyyy") : "—"}
+                          </td>
+                          <td className="py-2 px-3">
+                            <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-secondary text-foreground border border-border">
+                              {inv.bill_mode || "RETAIL"}
+                            </span>
+                          </td>
+                          <td className="py-2 px-3 text-muted-foreground max-w-[200px] truncate" title={itemsSummary}>
+                            {itemsSummary}
+                          </td>
+                          <td className="py-2 px-3 text-right font-mono font-semibold text-foreground">
+                            ₹{inv.grand_total?.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
+                          </td>
+                          <td className="py-2 px-3 text-right font-mono text-emerald-600 dark:text-emerald-400">
+                            ₹{inv.amount_paid?.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
+                          </td>
+                          <td className="py-2 px-3 text-right font-mono font-bold">
+                            <span className={(inv.balance_due || 0) > 0 ? "text-amber-500" : "text-muted-foreground"}>
+                              ₹{inv.balance_due?.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
+                            </span>
+                          </td>
+                          <td className="py-2 px-3 text-center">
+                            <span
+                              className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                                isPaid
+                                  ? "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30"
+                                  : "bg-rose-500/15 text-rose-600 dark:text-rose-400 border border-rose-500/30"
+                              }`}
+                            >
+                              {isPaid ? "PAID" : "CREDIT"}
+                            </span>
+                          </td>
+                          <td className="py-2 px-3 text-center">
+                            <div className="flex items-center justify-center gap-1.5">
+                              <button
+                                onClick={() => setViewingInvoice(inv)}
+                                className="h-6 px-2 rounded bg-primary/10 hover:bg-primary/20 text-primary border border-primary/25 text-[10px] font-bold flex items-center gap-1 transition cursor-pointer"
+                                title="View Thermal / A4 Bill"
+                              >
+                                <Eye className="h-2.5 w-2.5" />
+                                <span>View Bill</span>
+                              </button>
+                              {!isPaid && (
+                                <button
+                                  onClick={() =>
+                                    markInvoicePaidMutation.mutate({
+                                      invoiceId: inv.id,
+                                      amount: inv.grand_total,
+                                    })
+                                  }
+                                  className="h-6 px-2 rounded bg-emerald-600 hover:bg-emerald-500 text-white text-[10px] font-bold flex items-center gap-1 transition cursor-pointer shadow-xs"
+                                >
+                                  <span>Pay</span>
+                                </button>
+                              )}
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                    {selectedBuyer.invoices.length === 0 && (
                       <tr>
-                        <td colSpan={6} className="py-6 text-center text-muted-foreground text-xs">
-                          No invoices generated for this customer yet.
+                        <td colSpan={9} className="py-6 text-center text-muted-foreground text-xs">
+                          No invoices generated for this buyer yet.
                         </td>
                       </tr>
                     )}
@@ -650,7 +1047,7 @@ function LedgerPage() {
             {/* Customer Ledger Statement */}
             <div className="space-y-2">
               <h4 className="text-xs font-bold text-muted-foreground uppercase tracking-wider">
-                Ledger Entries & Running Balance ({selectedCustomerLedger.length})
+                Ledger Entries & Running Balance ({selectedBuyerLedger.length})
               </h4>
               <div className="rounded-xl border border-border overflow-hidden">
                 <table className="w-full text-left text-xs">
@@ -665,28 +1062,28 @@ function LedgerPage() {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-border">
-                    {selectedCustomerLedger.map((row) => (
+                    {selectedBuyerLedger.map((row) => (
                       <tr key={row.id} className="hover:bg-muted/20">
                         <td className="py-2 px-3 font-mono text-muted-foreground">
                           {row.date ? format(new Date(row.date), "dd/MM/yyyy") : "—"}
                         </td>
                         <td className="py-2 px-3 font-semibold">
                           {row.type === "DEBIT" ? (
-                            <span className="text-rose-400">Debit (Invoice)</span>
+                            <span className="text-rose-600 dark:text-rose-400">Debit (Invoice)</span>
                           ) : (
-                            <span className="text-emerald-400">Credit (Payment)</span>
+                            <span className="text-emerald-600 dark:text-emerald-400">Credit (Payment)</span>
                           )}
                         </td>
                         <td className="py-2 px-3 text-muted-foreground">
                           <span className="font-mono text-foreground">{row.reference_id}</span>
                           {row.notes && <span className="ml-1 text-[11px]">({row.notes})</span>}
                         </td>
-                        <td className="py-2 px-3 text-right font-mono text-rose-400 font-semibold">
+                        <td className="py-2 px-3 text-right font-mono text-rose-600 dark:text-rose-400 font-semibold">
                           {row.type === "DEBIT"
                             ? `₹${Number(row.amount || 0).toLocaleString("en-IN", { minimumFractionDigits: 2 })}`
                             : "—"}
                         </td>
-                        <td className="py-2 px-3 text-right font-mono text-emerald-400 font-semibold">
+                        <td className="py-2 px-3 text-right font-mono text-emerald-600 dark:text-emerald-400 font-semibold">
                           {row.type === "CREDIT"
                             ? `₹${Number(row.amount || 0).toLocaleString("en-IN", { minimumFractionDigits: 2 })}`
                             : "—"}
@@ -696,10 +1093,10 @@ function LedgerPage() {
                         </td>
                       </tr>
                     ))}
-                    {selectedCustomerLedger.length === 0 && (
+                    {selectedBuyerLedger.length === 0 && (
                       <tr>
                         <td colSpan={6} className="py-6 text-center text-muted-foreground text-xs">
-                          No ledger transactions logged for this customer.
+                          No direct ledger receipts logged for this buyer yet.
                         </td>
                       </tr>
                     )}
@@ -709,6 +1106,15 @@ function LedgerPage() {
             </div>
           </div>
         </div>
+      )}
+
+      {/* MODAL 3: View Bill Modal */}
+      {viewingInvoice && (
+        <BillViewerModal
+          invoice={viewingInvoice}
+          items={viewingInvoice.items}
+          onClose={() => setViewingInvoice(null)}
+        />
       )}
     </div>
   );

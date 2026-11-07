@@ -6,6 +6,7 @@ import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { PageHeader } from "./dashboard";
 import { inr } from "@/lib/format";
+import { BillViewerModal } from "@/components/BillViewerModal";
 import {
   Plus,
   X,
@@ -21,6 +22,7 @@ import {
   ArrowDownLeft,
   ArrowUpRight,
   Landmark,
+  Eye,
 } from "lucide-react";
 import { format } from "date-fns";
 
@@ -34,6 +36,7 @@ function CustomersPage() {
   const [selected, setSelected] = useState<Customer | null>(null);
   const [showNew, setShowNew] = useState(false);
   const [showPaymentModal, setShowPaymentModal] = useState(false);
+  const [viewingInvoice, setViewingInvoice] = useState<Invoice | null>(null);
   const [activeTab, setActiveTab] = useState<"invoices" | "ledger">("invoices");
 
   // Payment form state
@@ -117,7 +120,7 @@ function CustomersPage() {
     }));
     ExcelEngine.exportToExcel(
       data,
-      `Kairos_Customers_${new Date().toISOString().split("T")[0]}`
+      `MSSP_Customers_${new Date().toISOString().split("T")[0]}`
     );
     toast.success("Customer list exported to Excel");
   }
@@ -295,19 +298,22 @@ function CustomersPage() {
                       const isPaid = inv.payment_status === "PAID" || (inv.balance_due || 0) === 0;
                       const isUnpaid = inv.payment_status === "UNPAID" || inv.amount_paid === 0;
                       const isPartial = inv.payment_status === "PARTIAL" || (!isPaid && !isUnpaid);
+                      const itemsSummary = inv.items && inv.items.length > 0
+                        ? inv.items.map((it: any) => `${it.qty || 1}x ${it.product_name || it.name || "Item"}`).join(", ")
+                        : "";
 
                       return (
                         <div
                           key={inv.id}
-                          className="p-3 rounded-xl bg-card border border-border hover:border-primary/40 transition flex flex-col sm:flex-row sm:items-center justify-between gap-3"
+                          className="p-3.5 rounded-xl bg-card border border-border hover:border-primary/40 transition space-y-2.5"
                         >
-                          <div>
-                            <div className="flex items-center gap-2">
+                          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                            <div className="flex flex-wrap items-center gap-2">
                               <span className="font-mono font-bold text-primary text-xs">
                                 {inv.invoice_number}
                               </span>
                               <span
-                                className={`px-2 py-0.2 rounded-full text-[10px] font-bold ${
+                                className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
                                   isPaid
                                     ? "bg-emerald-500/15 text-emerald-300 border border-emerald-500/30"
                                     : isPartial
@@ -317,41 +323,66 @@ function CustomersPage() {
                               >
                                 {isPaid ? "Paid in Full" : isPartial ? "Partially Paid" : "Unpaid / Credit"}
                               </span>
+                              <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-secondary text-foreground border border-border">
+                                {inv.bill_mode || "RETAIL"}
+                              </span>
+                              <span className="text-[10px] font-mono text-muted-foreground uppercase">
+                                {inv.payment_method || "CASH"}
+                              </span>
                             </div>
-                            <div className="text-[11px] font-mono text-muted-foreground mt-0.5">
+
+                            <div className="text-[11px] font-mono text-muted-foreground">
                               {inv.created_at ? format(new Date(inv.created_at), "dd MMM yyyy, hh:mm a") : "—"}
                             </div>
                           </div>
 
-                          <div className="flex items-center justify-between sm:justify-end gap-4">
-                            <div className="text-right">
+                          {itemsSummary && (
+                            <div className="text-xs text-muted-foreground bg-secondary/40 px-2.5 py-1.5 rounded-lg border border-border/50 truncate">
+                              <span className="font-semibold text-foreground mr-1.5">Items:</span>
+                              {itemsSummary}
+                            </div>
+                          )}
+
+                          <div className="flex items-center justify-between gap-4 pt-1 border-t border-border/50">
+                            <div className="flex items-center gap-3">
                               <div className="font-mono font-bold text-foreground text-xs">
                                 Total: ₹{(inv.grand_total || 0).toLocaleString("en-IN", { minimumFractionDigits: 2 })}
                               </div>
-                              <div className="text-[11px] font-mono text-muted-foreground">
+                              <div className="text-[11px] font-mono text-emerald-400">
                                 Paid: ₹{(inv.amount_paid || 0).toLocaleString("en-IN", { minimumFractionDigits: 2 })}
-                                {!isPaid && (
-                                  <span className="text-amber-400 font-bold ml-1.5">
-                                    Due: ₹{(inv.balance_due || 0).toLocaleString("en-IN", { minimumFractionDigits: 2 })}
-                                  </span>
-                                )}
                               </div>
+                              {!isPaid && (
+                                <div className="text-[11px] font-mono text-amber-400 font-bold">
+                                  Due: ₹{(inv.balance_due || 0).toLocaleString("en-IN", { minimumFractionDigits: 2 })}
+                                </div>
+                              )}
                             </div>
 
-                            {!isPaid && (
+                            <div className="flex items-center gap-2">
                               <button
-                                onClick={() =>
-                                  markInvoicePaidMutation.mutate({
-                                    invoiceId: inv.id,
-                                    amount: inv.grand_total,
-                                  })
-                                }
-                                className="h-7 px-2.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-[11px] font-bold flex items-center gap-1 transition cursor-pointer shadow-xs shrink-0"
+                                onClick={() => setViewingInvoice(inv)}
+                                className="h-7 px-2.5 rounded-lg bg-primary/15 hover:bg-primary/25 text-primary border border-primary/30 text-[11px] font-bold flex items-center gap-1 transition cursor-pointer shrink-0"
+                                title="View & Print Bill"
                               >
-                                <CheckCircle2 className="h-3 w-3" />
-                                <span>Mark Paid</span>
+                                <Eye className="h-3 w-3" />
+                                <span>View Bill</span>
                               </button>
-                            )}
+
+                              {!isPaid && (
+                                <button
+                                  onClick={() =>
+                                    markInvoicePaidMutation.mutate({
+                                      invoiceId: inv.id,
+                                      amount: inv.grand_total,
+                                    })
+                                  }
+                                  className="h-7 px-2.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-[11px] font-bold flex items-center gap-1 transition cursor-pointer shadow-xs shrink-0"
+                                >
+                                  <CheckCircle2 className="h-3 w-3" />
+                                  <span>Mark Paid</span>
+                                </button>
+                              )}
+                            </div>
                           </div>
                         </div>
                       );
@@ -540,6 +571,15 @@ function CustomersPage() {
             qc.invalidateQueries({ queryKey: ["customers"] });
             setShowNew(false);
           }}
+        />
+      )}
+
+      {/* MODAL: View Bill Receipt */}
+      {viewingInvoice && (
+        <BillViewerModal
+          invoice={viewingInvoice}
+          items={viewingInvoice.items}
+          onClose={() => setViewingInvoice(null)}
         />
       )}
     </div>

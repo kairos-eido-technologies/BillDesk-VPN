@@ -621,13 +621,31 @@ class BillDeskDB {
     return true;
   }
 
-  public getCustomerInvoices(customerId: string): Invoice[] {
-    return this.store.invoices.filter((inv) => inv.customer_id === customerId);
+  public getCustomerInvoices(customerId: string, fallbackName?: string, fallbackMobile?: string): Invoice[] {
+    const cust = this.getCustomer(customerId);
+    const cleanName = (cust?.name || fallbackName)?.trim().toLowerCase();
+    const cleanMobile = (cust?.mobile || fallbackMobile)?.trim();
+
+    return this.getInvoices().filter((inv) => {
+      if (customerId && inv.customer_id === customerId) return true;
+      if (cleanMobile && inv.customer_mobile && inv.customer_mobile.trim() === cleanMobile) return true;
+      if (cleanName && inv.customer_name && inv.customer_name.trim().toLowerCase() === cleanName) return true;
+      return false;
+    });
   }
 
-  public getCustomerLedger(customerId: string): LedgerEntry[] {
+  public getCustomerLedger(customerId: string, fallbackName?: string, fallbackMobile?: string): LedgerEntry[] {
+    const cust = this.getCustomer(customerId);
+    const cleanName = (cust?.name || fallbackName)?.trim().toLowerCase();
+    const cleanMobile = (cust?.mobile || fallbackMobile)?.trim();
+
     return this.store.ledger
-      .filter((l) => l.customer_id === customerId)
+      .filter((l) => {
+        if (customerId && l.customer_id === customerId) return true;
+        if (cleanMobile && l.customer_mobile && l.customer_mobile.trim() === cleanMobile) return true;
+        if (cleanName && l.customer_name && l.customer_name.trim().toLowerCase() === cleanName) return true;
+        return false;
+      })
       .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
   }
 
@@ -636,13 +654,25 @@ class BillDeskDB {
   // ==========================================
 
   public getInvoices(): Invoice[] {
-    return [...this.store.invoices].sort(
-      (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
-    );
+    return [...this.store.invoices]
+      .map((inv) => ({
+        ...inv,
+        items: inv.items && inv.items.length > 0
+          ? inv.items
+          : this.store.invoice_items.filter((it) => it.invoice_id === inv.id),
+      }))
+      .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
   }
 
   public getInvoice(id: string): Invoice | undefined {
-    return this.store.invoices.find((inv) => inv.id === id);
+    const inv = this.store.invoices.find((i) => i.id === id);
+    if (!inv) return undefined;
+    return {
+      ...inv,
+      items: inv.items && inv.items.length > 0
+        ? inv.items
+        : this.store.invoice_items.filter((it) => it.invoice_id === inv.id),
+    };
   }
 
   public async createInvoice(saleData: {
