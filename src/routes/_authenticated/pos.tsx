@@ -5,7 +5,7 @@ import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { useCart, computeTotals } from "@/lib/cart-store";
 import { inr, qty } from "@/lib/format";
-import { Trash2, ScanBarcode, UserPlus, Search, Printer, ChevronDown, Percent, RotateCcw, Bookmark, X } from "lucide-react";
+import { Trash2, ScanBarcode, UserPlus, Search, Printer, ChevronDown, Percent, RotateCcw, Bookmark, X, Plus } from "lucide-react";
 import { BillViewerModal } from "@/components/BillViewerModal";
 import { useT } from "@/lib/lang/lang-context";
 
@@ -25,6 +25,11 @@ function POSPage() {
   const [partialAmountPaid, setPartialAmountPaid] = useState<string>("");
   const [billMode, setBillMode] = useState<'RETAIL' | 'WHOLESALE'>('RETAIL');
   const [globalGstRate, setGlobalGstRate] = useState<string>('');
+  const [showCustomModal, setShowCustomModal] = useState(false);
+  const [customName, setCustomName] = useState("");
+  const [customPrice, setCustomPrice] = useState("");
+  const [customQty, setCustomQty] = useState("1");
+  const [customGst, setCustomGst] = useState("0");
   const scanRef = useRef<HTMLInputElement>(null);
   const qc = useQueryClient();
 
@@ -142,6 +147,43 @@ function POSPage() {
     },
   });
 
+  function handleAddCustomProduct(e?: React.FormEvent) {
+    if (e) e.preventDefault();
+    if (!customName.trim()) {
+      toast.error("Please enter a product name");
+      return;
+    }
+    const priceNum = parseFloat(customPrice);
+    if (isNaN(priceNum) || priceNum < 0) {
+      toast.error("Please enter a valid price");
+      return;
+    }
+    const qtyNum = parseFloat(customQty) || 1;
+    const gstRateNum = cart.gstEnabled
+      ? (globalGstRate !== '' ? (parseFloat(globalGstRate) || 0) : (parseFloat(customGst) || 0))
+      : 0;
+
+    const customId = `custom-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
+
+    cart.addOrIncrement({
+      product_id: customId,
+      name: customName.trim(),
+      barcode: "CUSTOM",
+      price: priceNum,
+      mrp: priceNum,
+      gst_rate: gstRateNum,
+      stock_qty: 9999,
+      qty: qtyNum,
+    });
+
+    toast.success(`Added custom item: ${customName.trim()} (₹${priceNum})`);
+    setShowCustomModal(false);
+    setCustomName("");
+    setCustomPrice("");
+    setCustomQty("1");
+    setCustomGst("0");
+  }
+
   function handleScan(code: string) {
     if (!code.trim()) return;
     const item = db.getProductByBarcode(code.trim());
@@ -152,25 +194,6 @@ function POSPage() {
     }
 
     const shopQty = Number(item.stock_qty || 0);
-    const godownQty = Number(item.godown_qty || 0);
-
-    if (shopQty <= 0) {
-      if (godownQty > 0) {
-        toast.error(`Stock is in Godown (${godownQty} ${item.unit || 'pcs'} available). Transfer to Shop Stock before billing!`);
-      } else {
-        toast.error(`Out of stock in Shop & Godown for: ${item.name}`);
-      }
-      setScan("");
-      return;
-    }
-
-    const existingLine = cart.lines.find((l) => l.product_id === item.id);
-    const currentCartQty = existingLine ? existingLine.qty : 0;
-    if (currentCartQty + 1 > shopQty) {
-      toast.error(`Cannot add more! Only ${shopQty} ${item.unit || 'pcs'} available in Shop Stock. Transfer from Godown to bill more!`);
-      setScan("");
-      return;
-    }
 
     const itemPrice = billMode === 'WHOLESALE' && (item as any).wholesale_price && (item as any).wholesale_price > 0
       ? Number((item as any).wholesale_price)
@@ -195,19 +218,6 @@ function POSPage() {
 
   function handleProductClick(p: InventoryItem) {
     const shopQty = Number(p.stock_qty || 0);
-
-    if (shopQty <= 0) {
-      toast.error(`${p.name} is currently out of stock!`);
-      return;
-    }
-
-    const existingLine = cart.lines.find((l) => l.product_id === p.id);
-    const currentQtyInCart = existingLine ? existingLine.qty : 0;
-
-    if (currentQtyInCart + 1 > shopQty) {
-      toast.error(`Cannot add more! Only ${shopQty} ${p.unit || 'pcs'} in Shop Stock.`);
-      return;
-    }
 
     const itemPrice = billMode === 'WHOLESALE' && (p as any).wholesale_price && (p as any).wholesale_price > 0
       ? Number((p as any).wholesale_price)
@@ -349,9 +359,9 @@ function POSPage() {
           </div>
         </div>
 
-        {/* Top Barcode & Search Controls */}
-        <div className="card-surface p-3 grid grid-cols-2 gap-3">
-          <div className="relative">
+        {/* Top Barcode, Search & Custom Item Controls */}
+        <div className="card-surface p-3 flex flex-col sm:flex-row items-center gap-2.5">
+          <div className="relative flex-1 w-full">
             <ScanBarcode className="absolute left-3 top-2.5 h-4 w-4 text-primary" />
             <input
               ref={scanRef}
@@ -363,7 +373,7 @@ function POSPage() {
             />
           </div>
 
-          <div className="relative">
+          <div className="relative flex-1 w-full">
             <Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
             <input
               value={search}
@@ -372,15 +382,36 @@ function POSPage() {
               className="w-full h-9 pl-9 pr-3 rounded bg-input border border-border text-xs font-mono text-foreground"
             />
           </div>
+
+          <button
+            type="button"
+            onClick={() => setShowCustomModal(true)}
+            className="h-9 px-3.5 rounded-xl bg-primary text-primary-foreground font-bold text-xs flex items-center justify-center gap-1.5 hover:opacity-90 transition shadow-xs cursor-pointer shrink-0 w-full sm:w-auto"
+            title="Add customized product and price to bill"
+          >
+            <Plus className="h-4 w-4" />
+            <span>+ Custom Item</span>
+          </button>
         </div>
 
         {/* Cart Line Items Table */}
         <div className="card-surface flex-1 flex flex-col overflow-hidden">
           <div className="p-3 border-b border-border flex justify-between items-center bg-card">
-            <span className="text-xs font-bold uppercase tracking-wider text-foreground">
-              {t("pos.cartTitle")} ({cart.lines.length} {t("pos.lineItems")})
-            </span>
-            <button onClick={() => cart.clear()} className="text-xs text-muted-foreground hover:text-destructive transition">
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-bold uppercase tracking-wider text-foreground">
+                {t("pos.cartTitle")} ({cart.lines.length} {t("pos.lineItems")})
+              </span>
+              <button
+                type="button"
+                onClick={() => setShowCustomModal(true)}
+                className="h-6 px-2 rounded-lg bg-primary/10 hover:bg-primary/20 text-primary border border-primary/25 text-[11px] font-bold flex items-center gap-1 transition cursor-pointer"
+                title="Add customized product and price"
+              >
+                <Plus className="h-3 w-3" />
+                <span>Custom Item</span>
+              </button>
+            </div>
+            <button onClick={() => cart.clear()} className="text-xs text-muted-foreground hover:text-destructive transition cursor-pointer">
               {t("pos.clearCart")}
             </button>
           </div>
@@ -433,19 +464,14 @@ function POSPage() {
                     <td className="px-3 py-2 text-center">
                       <input
                         type="number"
-                        min={1}
-                        max={l.stock_qty}
+                        min={0.1}
+                        step="any"
                         value={l.qty}
                         onChange={(e) => {
                           const val = parseFloat(e.target.value) || 0;
-                          if (val > l.stock_qty) {
-                            toast.error(`Cannot set higher than Shop Stock (${l.stock_qty} available)!`);
-                            cart.setQty(l.product_id, l.stock_qty);
-                          } else {
-                            cart.setQty(l.product_id, val);
-                          }
+                          cart.setQty(l.product_id, val);
                         }}
-                        className="w-16 h-8 rounded bg-input border border-border text-center font-mono text-sm focus:border-primary text-foreground"
+                        className="w-16 h-8 rounded bg-input border border-border text-center font-mono text-sm focus:border-primary text-foreground font-bold"
                       />
                     </td>
                     <td className="px-3 py-2 text-right">
@@ -495,17 +521,17 @@ function POSPage() {
                 <button
                   key={p.id}
                   onClick={() => handleProductClick(p)}
-                  className={`text-left p-2.5 rounded-md border transition group relative ${
+                  className={`text-left p-2.5 rounded-md border transition group relative cursor-pointer ${
                     isOutOfStock
-                      ? "bg-secondary/20 border-rose-500/40 opacity-75 cursor-not-allowed"
-                      : "border-border hover:border-primary/50 hover:bg-secondary/60 cursor-pointer"
+                      ? "bg-rose-500/5 border-rose-500/30 hover:border-rose-500/60"
+                      : "border-border hover:border-primary/50 hover:bg-secondary/60"
                   }`}
                 >
                   <div className="text-xs font-semibold truncate group-hover:text-primary flex justify-between items-center">
                     <span className="truncate">{p.name}</span>
                   </div>
                   <div className="text-[10px] font-mono text-muted-foreground flex justify-between items-center mt-1">
-                    <span className={isOutOfStock ? "text-rose-400 font-bold" : "text-foreground"}>
+                    <span className={isOutOfStock ? "text-rose-500 font-bold" : "text-foreground"}>
                       Stock: {qty(shopQty)}
                     </span>
                     <div className="flex items-center gap-1.5">
@@ -653,37 +679,6 @@ function POSPage() {
               <div className="flex justify-between text-xs font-mono text-primary">
                 <span>{t("pos.breakdown.loyaltyDiscount")}</span>
                 <span>-{inr(cart.loyaltyRedeem)}</span>
-              </div>
-            )}
-
-            {/* Exchange Section */}
-            <div className="border-t border-dashed border-border/60 my-2 pt-2 space-y-1.5">
-              <div className="flex justify-between items-center text-xs font-mono">
-                <span className="text-amber-500 font-bold">{t("pos.exchange.value")}</span>
-                <input
-                  type="number"
-                  value={cart.exchangeAmount || ""}
-                  onChange={(e) => cart.setExchange(parseFloat(e.target.value) || 0, cart.exchangeNotes)}
-                  placeholder="0"
-                  className="w-20 h-7 rounded bg-input border border-border text-right px-2 font-bold text-amber-500 focus:outline-none focus:border-amber-500"
-                />
-              </div>
-              <div className="flex justify-between items-center text-xs font-mono">
-                <span className="text-muted-foreground">{t("pos.exchange.notes")}</span>
-                <input
-                  type="text"
-                  value={cart.exchangeNotes}
-                  onChange={(e) => cart.setExchange(cart.exchangeAmount, e.target.value)}
-                  placeholder={t("pos.exchange.placeholder")}
-                  className="w-36 h-7 rounded bg-input border border-border text-right px-2 text-foreground text-[10px]"
-                />
-              </div>
-            </div>
-
-            {cart.exchangeAmount > 0 && (
-              <div className="flex justify-between text-xs font-mono text-amber-500 font-semibold">
-                <span>{t("pos.exchange.oldItem")} ({cart.exchangeNotes || t("pos.exchange.placeholder")}):</span>
-                <span>-{inr(cart.exchangeAmount)}</span>
               </div>
             )}
 
@@ -919,6 +914,144 @@ function POSPage() {
                 })
               )}
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL: Add Customized Product & Price */}
+      {showCustomModal && (
+        <div
+          className="fixed inset-0 z-[100] bg-black/75 backdrop-blur-sm flex justify-center items-center overflow-y-auto p-4 sm:p-6"
+          onClick={() => setShowCustomModal(false)}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className="w-full max-w-md rounded-2xl bg-card border border-border p-5 sm:p-6 shadow-2xl space-y-4 my-auto"
+          >
+            <div className="flex justify-between items-center pb-3 border-b border-border">
+              <div className="flex items-center gap-2">
+                <div className="h-8 w-8 rounded-lg bg-primary/15 text-primary grid place-items-center font-bold">
+                  <Plus className="h-4 w-4" />
+                </div>
+                <div>
+                  <h3 className="font-bold text-base text-foreground">Add Custom Item to Bill</h3>
+                  <p className="text-[11px] text-muted-foreground">Add customized product and price directly</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowCustomModal(false)}
+                className="h-7 w-7 rounded-lg hover:bg-muted text-muted-foreground hover:text-foreground grid place-items-center cursor-pointer text-sm font-mono"
+              >
+                ✕
+              </button>
+            </div>
+
+            <form onSubmit={handleAddCustomProduct} className="space-y-3.5">
+              <div>
+                <label className="text-xs font-semibold text-muted-foreground block mb-1">
+                  Product / Item Name *
+                </label>
+                <input
+                  required
+                  autoFocus
+                  value={customName}
+                  onChange={(e) => setCustomName(e.target.value)}
+                  placeholder="e.g. Special Silk Saree, Tailoring, Custom Box"
+                  className="w-full h-10 px-3 rounded-xl bg-input border border-border text-xs text-foreground font-semibold focus:outline-none focus:ring-1 focus:ring-primary"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="text-xs font-semibold text-muted-foreground block mb-1">
+                    Price / Rate (₹) *
+                  </label>
+                  <div className="relative">
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 font-bold text-muted-foreground text-xs">
+                      ₹
+                    </span>
+                    <input
+                      type="number"
+                      step="any"
+                      min={0}
+                      required
+                      value={customPrice}
+                      onChange={(e) => setCustomPrice(e.target.value)}
+                      placeholder="0.00"
+                      className="w-full h-10 pl-7 pr-3 rounded-xl bg-input border border-border text-sm font-mono font-bold text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="text-xs font-semibold text-muted-foreground block mb-1">
+                    Quantity
+                  </label>
+                  <input
+                    type="number"
+                    step="any"
+                    min={0.1}
+                    value={customQty}
+                    onChange={(e) => setCustomQty(e.target.value)}
+                    placeholder="1"
+                    className="w-full h-10 px-3 rounded-xl bg-input border border-border text-sm font-mono font-bold text-center text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+                  />
+                </div>
+              </div>
+
+              {/* Quick Price Buttons */}
+              <div className="flex flex-wrap items-center gap-1.5 pt-0.5">
+                <span className="text-[10px] text-muted-foreground font-semibold">Quick Price:</span>
+                {[50, 100, 250, 500, 1000].map((amt) => (
+                  <button
+                    key={amt}
+                    type="button"
+                    onClick={() => setCustomPrice(String(amt))}
+                    className="h-6 px-2 rounded-md bg-secondary hover:bg-muted text-[11px] font-mono font-semibold text-foreground border border-border transition cursor-pointer"
+                  >
+                    ₹{amt}
+                  </button>
+                ))}
+              </div>
+
+              {cart.gstEnabled && (
+                <div>
+                  <label className="text-xs font-semibold text-muted-foreground block mb-1">
+                    GST Rate % (Tax)
+                  </label>
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="number"
+                      step="0.5"
+                      min={0}
+                      max={100}
+                      value={globalGstRate !== "" ? globalGstRate : customGst}
+                      onChange={(e) => setCustomGst(e.target.value)}
+                      className="w-24 h-9 px-3 rounded-xl bg-input border border-border text-xs font-mono font-bold text-center text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+                    />
+                    <span className="text-xs font-mono text-muted-foreground">%</span>
+                  </div>
+                </div>
+              )}
+
+              <div className="flex items-center justify-end gap-2 pt-3 border-t border-border mt-2">
+                <button
+                  type="button"
+                  onClick={() => setShowCustomModal(false)}
+                  className="h-9 px-4 rounded-xl border border-border bg-secondary hover:bg-muted text-xs font-semibold transition cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="h-9 px-5 rounded-xl bg-primary text-primary-foreground font-bold text-xs flex items-center gap-1.5 hover:opacity-90 transition shadow-xs cursor-pointer"
+                >
+                  <Plus className="h-4 w-4" />
+                  <span>Add to Bill</span>
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}

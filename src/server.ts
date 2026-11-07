@@ -273,10 +273,10 @@ export default {
               invoice_id: invoice.id,
             });
 
-            // Auto deduct stock if product_id is matched
+            // Auto deduct stock if product_id is matched (allows negative inventory)
             if (item.product_id) {
               await db.run(
-                `UPDATE inventory SET stock_qty = MAX(0, stock_qty - ?) WHERE id = ?`,
+                `UPDATE inventory SET stock_qty = stock_qty - ? WHERE id = ?`,
                 [Number(item.qty || 1), item.product_id]
               );
             }

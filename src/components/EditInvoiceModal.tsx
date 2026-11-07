@@ -22,8 +22,6 @@ export function EditInvoiceModal({
   const [invoiceType, setInvoiceType] = useState<"GST" | "NON_GST" | "MIXED">(invoice.invoice_type);
   const [paymentMethod, setPaymentMethod] = useState<"CASH" | "UPI" | "CARD" | "CREDIT" | "SPLIT">(invoice.payment_method);
   const [discountAmount, setDiscountAmount] = useState(invoice.discount_amount);
-  const [exchangeAmount, setExchangeAmount] = useState(invoice.exchange_amount || 0);
-  const [exchangeNotes, setExchangeNotes] = useState(invoice.exchange_notes || "");
 
   // Custom items list in edit state
   const [editLines, setEditLines] = useState<any[]>(
@@ -125,7 +123,7 @@ export function EditInvoiceModal({
       liveTax += (gross * l.tax_rate) / 100;
     }
   });
-  const liveGrandTotal = Math.max(0, liveSubtotal + liveTax - discountAmount - exchangeAmount);
+  const liveGrandTotal = Math.max(0, liveSubtotal + liveTax - discountAmount);
 
   async function handleSave() {
     if (editLines.length === 0) {
@@ -139,8 +137,8 @@ export function EditInvoiceModal({
         customer_mobile: customerMobile,
         invoice_type: invoiceType,
         discount_amount: Number(discountAmount) || 0,
-        exchange_amount: Number(exchangeAmount) || 0,
-        exchange_notes: exchangeNotes,
+        exchange_amount: 0,
+        exchange_notes: "",
         payment_method: paymentMethod,
         items: editLines.map((l) => ({
           id: l.id,
@@ -371,31 +369,6 @@ export function EditInvoiceModal({
                     className="w-full h-9 rounded bg-input border border-border px-3 text-xs text-foreground font-mono font-bold"
                   />
                 </div>
-                <div>
-                  <label className="text-[10px] uppercase font-bold text-amber-500 block mb-1">
-                    Exchange Value (₹)
-                  </label>
-                  <input
-                    type="number"
-                    min={0}
-                    value={exchangeAmount || ""}
-                    onChange={(e) => setExchangeAmount(parseFloat(e.target.value) || 0)}
-                    className="w-full h-9 rounded bg-input border border-border px-3 text-xs text-amber-500 font-mono font-bold"
-                    placeholder="0"
-                  />
-                </div>
-                <div>
-                  <label className="text-[10px] uppercase font-bold text-muted-foreground block mb-1">
-                    Exchange Notes
-                  </label>
-                  <input
-                    type="text"
-                    value={exchangeNotes}
-                    onChange={(e) => setExchangeNotes(e.target.value)}
-                    className="w-full h-9 rounded bg-input border border-border px-3 text-xs text-foreground"
-                    placeholder="e.g. Old Prestige Cooker"
-                  />
-                </div>
               </div>
             </div>
 
@@ -422,12 +395,6 @@ export function EditInvoiceModal({
                 <div className="flex justify-between text-rose-400">
                   <span>Discount:</span>
                   <span>-₹{discountAmount.toFixed(2)}</span>
-                </div>
-              )}
-              {exchangeAmount > 0 && (
-                <div className="flex justify-between text-amber-500">
-                  <span>Exchange ({exchangeNotes || "Old Item"}):</span>
-                  <span>-₹{exchangeAmount.toFixed(2)}</span>
                 </div>
               )}
               <div className="flex justify-between border-t border-border pt-2 text-sm font-bold text-primary">

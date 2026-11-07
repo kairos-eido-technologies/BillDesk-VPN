@@ -781,7 +781,7 @@ class BillDeskDB {
         (x) => (it.product_id && x.id === it.product_id) || (it.barcode && x.barcode === it.barcode)
       );
       if (p) {
-        p.stock_qty = Math.max(0, p.stock_qty - it.qty);
+        p.stock_qty = Number(p.stock_qty || 0) - Number(it.qty || 0);
         this.syncToServer('upsert', { table: 'inventory', data: p });
       }
     });

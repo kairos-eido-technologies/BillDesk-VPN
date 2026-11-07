@@ -349,7 +349,7 @@ function InventoryPage() {
                       </div>
                     </td>
 
-                    <td className={`px-2 py-2 text-right font-mono ${shopQty === 0 ? "text-destructive font-bold" : low ? "text-amber-400 font-bold" : "text-foreground font-bold"}`}>
+                    <td className={`px-2 py-2 text-right font-mono ${shopQty < 0 ? "text-rose-500 font-black bg-rose-500/10 rounded" : shopQty === 0 ? "text-destructive font-bold" : low ? "text-amber-400 font-bold" : "text-foreground font-bold"}`}>
                       {qty(shopQty)} <span className="text-[10px] font-normal text-muted-foreground">{unitLabel}</span>
                     </td>
 
