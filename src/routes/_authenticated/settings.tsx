@@ -758,68 +758,6 @@ function SettingsPage() {
             )}
           </div>
         </div>
-
-        {/* Staff PIN & Access Control */}
-        <div className="card-surface p-5 border-l-4 border-l-amber-500 space-y-4">
-          <div className="flex justify-between items-center border-b border-border pb-2">
-            <div className="text-sm font-bold text-foreground flex items-center gap-2">
-              <Key className="h-4 w-4 text-amber-400" /> {t("settings.staffPIN")}
-            </div>
-            <button
-              onClick={handleOpenAddStaff}
-              className="h-7 px-2.5 rounded bg-primary/15 border border-primary/30 text-primary hover:bg-primary/25 text-xs font-bold flex items-center gap-1.5 transition shadow-xs"
-            >
-              <UserPlus className="h-3.5 w-3.5" /> {t("settings.staff.add")}
-            </button>
-          </div>
-
-          <div className="space-y-2">
-            {users.data?.map((u) => (
-              <div key={u.id} className="p-3 bg-card border border-border rounded-lg flex justify-between items-center text-xs">
-                <div className="flex items-center gap-2.5">
-                  <div className="h-7 w-7 rounded-md bg-secondary grid place-items-center text-primary font-bold">
-                    <UserIcon className="h-3.5 w-3.5" />
-                  </div>
-                  <div>
-                    <div className="font-bold text-foreground capitalize flex items-center gap-1.5">
-                      <span>{u.username}</span>
-                      <span className={`text-[10px] px-1.5 py-0.2 rounded font-mono font-bold border ${
-                        u.role === "Admin"
-                          ? "bg-purple-500/15 text-purple-300 border-purple-500/30"
-                          : "bg-emerald-500/15 text-emerald-300 border-emerald-500/30"
-                      }`}>
-                        {u.role}
-                      </span>
-                    </div>
-                    <div className="text-[10px] text-muted-foreground font-mono">
-                      {u.role === "Cashier" ? "POS Billing & Service Desk" : "Full access to all 12 modules"}
-                    </div>
-                  </div>
-                </div>
-
-                <div className="flex items-center gap-2">
-                  <span className="font-mono bg-secondary px-2.5 py-1 rounded text-amber-400 font-bold text-xs border border-border">
-                    PIN: {u.pin}
-                  </span>
-                  <button
-                    onClick={() => handleOpenEditStaff(u)}
-                    title={t("settings.staff.edit")}
-                    className="h-7 w-7 rounded bg-secondary hover:bg-muted grid place-items-center text-muted-foreground hover:text-foreground transition border border-border"
-                  >
-                    <Edit3 className="h-3.5 w-3.5" />
-                  </button>
-                  <button
-                    onClick={() => handleDeleteStaff(u)}
-                    title={t("settings.staff.delete")}
-                    className="h-7 w-7 rounded bg-destructive/15 hover:bg-destructive/25 grid place-items-center text-destructive transition border border-destructive/30"
-                  >
-                    <Trash2 className="h-3.5 w-3.5" />
-                  </button>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
       </div>
 
       {/* Database Backup & Restore Section */}

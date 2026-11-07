@@ -706,14 +706,14 @@ function ProductPnlModal({ product, invoices, onClose }: { product: InventoryIte
   );
 }
 
-function generatePmaBarcode() {
+function generateMsspBarcode() {
   return "MSSP" + Math.floor(100000 + Math.random() * 900000);
 }
 
 function ProductModal({ product, onClose, onSaved }: { product: InventoryItem | null; onClose: () => void; onSaved: () => void }) {
   const [f, setF] = useState<Partial<InventoryItem>>({
     name: product?.name ?? "",
-    barcode: product?.barcode ?? generatePmaBarcode(),
+    barcode: product?.barcode ?? generateMsspBarcode(),
     category: product?.category ?? "",
     unit: product?.unit ?? "Piece (Pcs)",
     cost_price: product?.cost_price,
@@ -820,8 +820,8 @@ function ProductModal({ product, onClose, onSaved }: { product: InventoryItem | 
       min_stock_alert: 0,
       gst_rate: 0,
       id: product?.id,
-      barcode: f.barcode || generatePmaBarcode(),
-      sku_code: f.sku_code || f.barcode || generatePmaBarcode(),
+      barcode: f.barcode || generateMsspBarcode(),
+      sku_code: f.sku_code || f.barcode || generateMsspBarcode(),
     } as any);
     toast.success(product ? "Product updated" : "Product created with MSSP Barcode");
     onSaved();
@@ -873,7 +873,7 @@ function ProductModal({ product, onClose, onSaved }: { product: InventoryItem | 
                   <button
                     type="button"
                     onClick={() => {
-                      const newCode = generatePmaBarcode();
+                      const newCode = generateMsspBarcode();
                       setF({ ...f, barcode: newCode, sku_code: newCode });
                     }}
                     className="text-primary hover:underline text-[9px]"
@@ -1067,7 +1067,7 @@ function BarcodePrintModal({ product, onClose }: { product: InventoryItem; onClo
   const [sheetCount, setSheetCount] = useState<number>(1);
   const [isPrinting, setIsPrinting] = useState<boolean>(false);
 
-  const barcodeCode = product.barcode || product.sku_code || generatePmaBarcode();
+  const barcodeCode = product.barcode || product.sku_code || generateMsspBarcode();
   const skuCode = product.sku_code || product.barcode || barcodeCode;
   const mrpVal = product.mrp && product.mrp > 0 ? product.mrp : product.selling_price;
   const stickersPerRow = labelFormat === "34x20" ? 3 : 2;
@@ -1460,21 +1460,29 @@ function ExcelImportModal({ onClose, onImported }: { onClose: () => void; onImpo
     setLoading(true);
     try {
       const rows = await ExcelEngine.parseExcelFile(file);
-      const mapped = rows.map((r: any) => ({
-        name: r['Name'] || r['name'] || '',
-        barcode: r['Barcode'] || r['barcode'] || generatePmaBarcode(),
-        category: r['Category'] || r['category'] || 'General',
-        unit: r['Unit'] || r['unit'] || 'Piece (Pcs)',
-        cost_price: Number(r['Cost Price'] || r['cost_price']) || 0,
-        mrp: Number(r['MRP'] || r['mrp'] || r['Max Retail Price']) || undefined,
-        selling_price: Number(r['Selling Price'] || r['selling_price']) || 0,
-        stock_qty: Number(r['Stock Qty'] || r['stock_qty']) || 0,
-        godown_qty: Number(r['Godown Qty'] || r['godown_qty']) || 0,
-        moq: Number(r['MOQ'] || r['moq']) || 5,
-        min_stock_alert: Number(r['Min Stock Alert'] || r['min_stock_alert']) || 10,
-        sku_code: r['SKU Code'] || r['sku_code'] || generatePmaBarcode(),
-        gst_rate: Number(r['GST Rate (%)'] || r['gst_rate']) || 18,
-      }));
+      const mapped = rows.map((r: any) => {
+        const retailPrice = Number(r['Retail Price'] || r['retail_price'] || r['Selling Price'] || r['selling_price']) || 0;
+        const wholesalePrice = Number(r['Wholesale Price'] || r['wholesale_price'] || r['Wholesale Rate']) || retailPrice;
+        const costPrice = Number(r['Cost Price'] || r['cost_price']) || 0;
+        const stockQty = Number(r['Stock Qty'] || r['stock_qty'] || r['Stock'] || r['Qty']) || 0;
+        const rawBarcode = r['Barcode'] || r['barcode'] || '';
+        const barcode = rawBarcode ? String(rawBarcode).trim() : generateMsspBarcode();
+        return {
+          name: String(r['Name'] || r['name'] || '').trim(),
+          barcode,
+          category: String(r['Category'] || r['category'] || 'General').trim(),
+          unit: String(r['Unit'] || r['unit'] || 'Piece (Pcs)').trim(),
+          cost_price: costPrice,
+          selling_price: retailPrice,
+          wholesale_price: wholesalePrice,
+          stock_qty: stockQty,
+          godown_qty: 0,
+          moq: 1,
+          min_stock_alert: 5,
+          sku_code: barcode,
+          gst_rate: 0,
+        };
+      });
       setParsedRows(mapped);
     } catch (err: any) {
       toast.error("Failed to parse Excel file: " + err.message);
@@ -1543,9 +1551,10 @@ function ExcelImportModal({ onClose, onImported }: { onClose: () => void; onImpo
                   <tr className="border-b border-border">
                     <th className="px-2 py-1.5 text-left">Barcode</th>
                     <th className="px-2 py-1.5 text-left">Name</th>
+                    <th className="px-2 py-1.5 text-left">Category</th>
                     <th className="px-2 py-1.5 text-right">Cost</th>
-                    <th className="px-2 py-1.5 text-right">MRP</th>
-                    <th className="px-2 py-1.5 text-right">Selling Price</th>
+                    <th className="px-2 py-1.5 text-right">Retail Rate</th>
+                    <th className="px-2 py-1.5 text-right">Wholesale Rate</th>
                     <th className="px-2 py-1.5 text-right">Stock</th>
                   </tr>
                 </thead>
@@ -1554,9 +1563,10 @@ function ExcelImportModal({ onClose, onImported }: { onClose: () => void; onImpo
                     <tr key={i}>
                       <td className="px-2 py-1.5 font-mono text-muted-foreground">{r.barcode || 'Auto'}</td>
                       <td className="px-2 py-1.5 font-medium">{r.name}</td>
+                      <td className="px-2 py-1.5 text-muted-foreground">{r.category}</td>
                       <td className="px-2 py-1.5 text-right font-mono">{inr(r.cost_price)}</td>
-                      <td className="px-2 py-1.5 text-right font-mono text-muted-foreground">{inr(r.mrp || r.selling_price)}</td>
                       <td className="px-2 py-1.5 text-right font-mono font-bold text-primary">{inr(r.selling_price)}</td>
+                      <td className="px-2 py-1.5 text-right font-mono font-bold text-destructive">{inr(r.wholesale_price)}</td>
                       <td className="px-2 py-1.5 text-right font-mono">{r.stock_qty}</td>
                     </tr>
                   ))}

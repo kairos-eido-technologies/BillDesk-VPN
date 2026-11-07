@@ -51,12 +51,12 @@ function Shell() {
 
   return (
     <div className="min-h-screen flex flex-col bg-[#F8FAFC] text-[#0F172A] relative">
-      {/* ── Light Transparent Store Name Watermark in Background ── */}
+      {/* ── Light Transparent Store Name Watermark in Background (Straight) ── */}
       <div
         className="pointer-events-none select-none fixed inset-0 flex flex-col items-center justify-center z-0 overflow-hidden"
         aria-hidden="true"
       >
-        <div className="text-center flex flex-col items-center gap-2 opacity-[0.08] -rotate-6">
+        <div className="text-center flex flex-col items-center gap-2.5 opacity-[0.09]">
           <div
             className="font-black uppercase text-[#1B2D6B]"
             style={{ fontSize: "clamp(42px, 8vw, 110px)", letterSpacing: "0.18em", lineHeight: 1.05 }}
@@ -80,7 +80,7 @@ function Shell() {
 
       {/* TOP HEADER — Clean White Theme with Navy & Red Palette */}
       <header className="h-16 border-b border-[#E2E8F0] bg-white/95 backdrop-blur-md flex items-center justify-between gap-3 px-4 shrink-0 sticky top-0 z-30 shadow-xs print:hidden">
-        {/* Left: Brand with Official Logo */}
+        {/* Left: Brand with Official Logo (Clean, no second line) */}
         <Link to="/apps" className="flex items-center gap-3 group">
           <div className="h-11 w-11 rounded-xl bg-white border border-[#CBD5E1] p-1 grid place-items-center group-hover:scale-105 transition shadow-xs overflow-hidden shrink-0">
             <img
@@ -89,16 +89,11 @@ function Shell() {
               className="h-full w-full object-contain"
             />
           </div>
-          <div>
-            <div className="text-sm font-black text-[#1B2D6B] tracking-tight flex items-center gap-2">
-              <span>{shopName}</span>
-              <span className="text-[10px] font-black px-2 py-0.5 rounded-full bg-[#E8151B] text-white shadow-xs">
-                WHOLESALE
-              </span>
-            </div>
-            <div className="text-[10px] font-mono text-[#64748B] tracking-wider">
-              Offline POS · Direct Desk
-            </div>
+          <div className="text-base font-black text-[#1B2D6B] tracking-tight flex items-center gap-2">
+            <span>{shopName}</span>
+            <span className="text-[10px] font-black px-2 py-0.5 rounded-full bg-[#E8151B] text-white shadow-xs">
+              WHOLESALE
+            </span>
           </div>
         </Link>
 
@@ -128,16 +123,6 @@ function Shell() {
           >
             <SettingsIcon className="h-4 w-4" />
           </Link>
-
-          {/* Admin Tag */}
-          <div className="h-9 px-2.5 rounded-lg border border-[#E2E8F0] bg-[#F8FAFC] flex items-center gap-2 text-xs">
-            <div className="h-5 w-5 rounded-full bg-[#1B2D6B] grid place-items-center text-[10px] font-bold text-white">
-              A
-            </div>
-            <span className="font-bold text-[#1B2D6B] text-xs hidden sm:inline">
-              Admin
-            </span>
-          </div>
         </div>
       </header>
 

@@ -18,21 +18,16 @@ export class ExcelEngine {
 
     if (type === 'products') {
       filename = 'MSSP_Products_Import_Template.xlsx';
-      headers = ['Barcode', 'Name', 'Category', 'Unit', 'Cost Price', 'MRP', 'Selling Price', 'Stock Qty', 'Godown Qty', 'MOQ', 'Min Stock Alert', 'SKU Code', 'GST Rate (%)'];
+      headers = ['Barcode', 'Name', 'Category', 'Unit', 'Cost Price', 'Retail Price', 'Wholesale Price', 'Stock Qty'];
       sampleRow = {
         'Barcode': 'MSSP100001',
         'Name': 'Havells 2.5 sqmm Wire (100m Blue)',
         'Category': 'Electricals',
         'Unit': 'Roll',
         'Cost Price': 2100,
-        'MRP': 2950,
-        'Selling Price': 2650,
-        'Stock Qty': 30,
-        'Godown Qty': 100,
-        'MOQ': 5,
-        'Min Stock Alert': 10,
-        'SKU Code': 'SKU-MSSP1001',
-        'GST Rate (%)': 18,
+        'Retail Price': 2650,
+        'Wholesale Price': 2400,
+        'Stock Qty': 50,
       };
     } else if (type === 'customers') {
       filename = 'MSSP_Customers_Import_Template.xlsx';
