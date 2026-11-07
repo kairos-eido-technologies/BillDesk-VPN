@@ -43,12 +43,32 @@ function waitForServer(url: string, retries = 60, delay = 50): Promise<void> {
   });
 }
 
+function checkServerOnline(url: string): Promise<boolean> {
+  return new Promise((resolve) => {
+    const req = http.get(url, (res) => {
+      resolve(Boolean(res.statusCode));
+    });
+    req.on('error', () => resolve(false));
+    req.setTimeout(500, () => {
+      req.destroy();
+      resolve(false);
+    });
+  });
+}
+
 function startServerProcess(): Promise<string> {
   return new Promise(async (resolve) => {
     const devServerUrl = process.env.VITE_DEV_SERVER_URL;
     if (devServerUrl) {
       await waitForServer(devServerUrl);
       resolve(devServerUrl);
+      return;
+    }
+
+    const alreadyRunning = await checkServerOnline('http://127.0.0.1:3000');
+    if (alreadyRunning) {
+      console.log('Host server already active on port 3000. Connecting directly.');
+      resolve('http://127.0.0.1:3000');
       return;
     }
 
@@ -84,12 +104,12 @@ function startServerProcess(): Promise<string> {
 
 async function createWindow() {
   const iconCandidates = [
+    path.join(app.getAppPath(), 'public', 'mss-logo.ico'),
     path.join(app.getAppPath(), 'public', 'mss-logo.png'),
-    path.join(app.getAppPath(), 'dist', 'mss-logo.png'),
+    path.join(__dirname, '..', 'public', 'mss-logo.ico'),
     path.join(__dirname, '..', 'public', 'mss-logo.png'),
-    path.join(__dirname, '..', 'dist', 'mss-logo.png'),
+    path.join(process.resourcesPath || '', 'public', 'mss-logo.ico'),
     path.join(process.resourcesPath || '', 'public', 'mss-logo.png'),
-    path.join(app.getAppPath(), 'public', 'ponmani-logo-icon.ico'),
   ];
   const iconPath = iconCandidates.find((p) => fs.existsSync(p));
 

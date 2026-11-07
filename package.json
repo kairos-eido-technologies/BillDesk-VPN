@@ -14,7 +14,9 @@
     "build:dev": "vite build --mode development",
     "preview": "vite preview",
     "build:electron": "tsc electron/main.ts electron/preload.ts --outDir electron/dist --module NodeNext --target ES2022 --skipLibCheck",
-    "dist": "npm run build && npm run build:electron && electron-packager . \"MSS Ponkumar Store\" --platform=win32 --arch=x64 --out=release-desktop --overwrite",
+    "build:desktop": "npm run build:electron && electron-packager . \"MSS Ponkumar Store\" --platform=win32 --arch=x64 --icon=public/mss-logo.ico --out=release-desktop --overwrite",
+    "dist": "npm run build:desktop",
+    "build:installer": "npm run build:electron && electron-builder --win",
     "build:apk": "powershell -ExecutionPolicy Bypass -File scripts/build-apk.ps1",
     "lint": "eslint .",
     "format": "prettier --write ."
@@ -33,6 +35,7 @@
       "package.json"
     ],
     "win": {
+      "icon": "public/mss-logo.ico",
       "target": [
         {
           "target": "nsis",
