@@ -199,8 +199,9 @@ export class SQLiteDatabaseManager {
         email TEXT,
         address TEXT,
         gst_number TEXT,
-        loyalty_points REAL,
-        total_spent REAL,
+        balance_due REAL DEFAULT 0,
+        loyalty_points REAL DEFAULT 0,
+        total_spent REAL DEFAULT 0,
         created_at TEXT
       );
       CREATE TABLE IF NOT EXISTS loyalty_ledger (

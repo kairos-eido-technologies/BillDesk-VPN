@@ -5,9 +5,10 @@ import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { useCart, computeTotals } from "@/lib/cart-store";
 import { inr, qty } from "@/lib/format";
-import { Trash2, ScanBarcode, UserPlus, Search, Printer, ChevronDown, Percent, RotateCcw, Bookmark, X, Plus } from "lucide-react";
+import { Trash2, ScanBarcode, UserPlus, Search, Printer, ChevronDown, Percent, RotateCcw, Bookmark, X, Plus, Check, Phone, User, AlertCircle } from "lucide-react";
 import { BillViewerModal } from "@/components/BillViewerModal";
 import { useT } from "@/lib/lang/lang-context";
+import { Customer } from "@/lib/db/db";
 
 export const Route = createFileRoute("/_authenticated/pos")({ component: POSPage });
 
@@ -17,6 +18,10 @@ function POSPage() {
   const totals = computeTotals(cart as any);
   const [scan, setScan] = useState("");
   const [search, setSearch] = useState("");
+  const [searchFocused, setSearchFocused] = useState(false);
+  const [activeSearchIndex, setActiveSearchIndex] = useState(0);
+  const [customerSearch, setCustomerSearch] = useState("");
+  const [customerDropdownOpen, setCustomerDropdownOpen] = useState(false);
   const [selectedPrinter, setSelectedPrinter] = useState<string>("thermal");
   const [printedInvoiceData, setPrintedInvoiceData] = useState<{ invoice: any; items: any[] } | null>(null);
   const [showHeldBillsModal, setShowHeldBillsModal] = useState(false);
@@ -32,6 +37,15 @@ function POSPage() {
   const [customGst, setCustomGst] = useState("0");
   const scanRef = useRef<HTMLInputElement>(null);
   const qc = useQueryClient();
+
+  const customersQuery = useQuery({
+    queryKey: ["pos-customers"],
+    queryFn: async () => {
+      await db.loadPromise;
+      return db.getCustomers();
+    },
+  });
+  const allCustomers = customersQuery.data || [];
 
   function handleModeChange(mode: 'RETAIL' | 'WHOLESALE') {
     setBillMode(mode);
@@ -136,14 +150,18 @@ function POSPage() {
 
   const products = useQuery({
     queryKey: ["pos-local-products", search],
-    staleTime: 60_000,
     queryFn: async () => {
+      await db.loadPromise;
       const all = db.getInventory();
       if (!search.trim()) return all.slice(0, 30);
-      const clean = search.toLowerCase();
-      return all.filter(
-        (p) => p.name.toLowerCase().includes(clean) || p.barcode.includes(clean) || p.category.toLowerCase().includes(clean)
-      ).slice(0, 30);
+      const clean = search.toLowerCase().trim();
+      return all.filter((p) => {
+        const nameMatch = (p.name || "").toLowerCase().includes(clean);
+        const barcodeMatch = (p.barcode || "").toLowerCase().includes(clean);
+        const catMatch = (p.category || "").toLowerCase().includes(clean);
+        const skuMatch = (p.sku_code || "").toLowerCase().includes(clean);
+        return nameMatch || barcodeMatch || catMatch || skuMatch;
+      });
     },
   });
 
@@ -238,14 +256,33 @@ function POSPage() {
     });
   }
 
+  function selectCustomer(cust: Customer) {
+    cart.setCustomer({
+      id: cust.id,
+      mobile: cust.mobile || "",
+      name: cust.name || "Customer",
+      loyalty: Number(cust.loyalty_points || 0),
+    });
+    setCustomerSearch("");
+    setCustomerDropdownOpen(false);
+    toast.success(`Attached customer: ${cust.name}`);
+  }
+
+  function clearCustomer() {
+    cart.setCustomer({ id: null, mobile: "", name: "", loyalty: 0 });
+    setCustomerSearch("");
+    setCustomerDropdownOpen(false);
+    toast.info("Switched to Walk-in Customer");
+  }
+
   function lookupCustomer(mobile: string) {
     if (!mobile.trim()) return;
-    const cust = db.getCustomerByMobile(mobile);
+    const cleanDigits = mobile.replace(/\D/g, "");
+    const cust = allCustomers.find((c) => c.mobile && c.mobile.replace(/\D/g, "").includes(cleanDigits)) || db.getCustomerByMobile(mobile);
     if (cust) {
-      cart.setCustomer({ id: cust.id, mobile: cust.mobile, name: cust.name, loyalty: Number(cust.loyalty_points) });
-      toast.success(`Found Customer: ${cust.name} (${cust.loyalty_points} Loyalty Pts)`);
+      selectCustomer(cust);
     } else {
-      cart.setCustomer({ id: null, mobile, name: "", loyalty: 0 });
+      cart.setCustomer({ id: null, mobile, name: cart.customerName || "", loyalty: 0 });
     }
   }
 
@@ -261,10 +298,27 @@ function POSPage() {
           : Number(partialAmountPaid || 0);
       const balanceDue = Math.max(0, totals.total - amountPaid);
 
+      let effectiveCustomerId = cart.customerId || undefined;
+      const effectiveName = cart.customerName?.trim() || "Walk-in Customer";
+      const effectiveMobile = cart.customerMobile?.trim() || "";
+
+      // If customer is not yet linked by ID, search existing customers by mobile or name
+      if (!effectiveCustomerId) {
+        if (effectiveMobile) {
+          const clean = effectiveMobile.replace(/\D/g, "");
+          const matched = allCustomers.find((c) => c.mobile && c.mobile.replace(/\D/g, "").includes(clean));
+          if (matched) effectiveCustomerId = matched.id;
+        }
+        if (!effectiveCustomerId && effectiveName && effectiveName.toLowerCase() !== "walk-in customer") {
+          const matched = allCustomers.find((c) => c.name && c.name.toLowerCase().trim() === effectiveName.toLowerCase());
+          if (matched) effectiveCustomerId = matched.id;
+        }
+      }
+
       const saleData = {
-        customer_id: cart.customerId || undefined,
-        customer_name: cart.customerName || "Walk-in Customer",
-        customer_mobile: cart.customerMobile || "",
+        customer_id: effectiveCustomerId,
+        customer_name: effectiveName,
+        customer_mobile: effectiveMobile,
         invoice_type: (cart.gstEnabled ? "GST" : "NON_GST") as any,
         bill_mode: billMode,
         subtotal: totals.subtotal,
@@ -310,6 +364,10 @@ function POSPage() {
       }));
       setPrintedInvoiceData({ invoice: inv, items: invItems });
       cart.clear();
+      qc.invalidateQueries({ queryKey: ["customers"] });
+      qc.invalidateQueries({ queryKey: ["pos-customers"] });
+      qc.invalidateQueries({ queryKey: ["invoices"] });
+      qc.invalidateQueries({ queryKey: ["ledger"] });
       qc.invalidateQueries();
     },
     onError: (e: any) => toast.error(e.message),
@@ -374,13 +432,128 @@ function POSPage() {
           </div>
 
           <div className="relative flex-1 w-full">
-            <Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
+            <Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground pointer-events-none" />
             <input
               value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              placeholder={t("pos.searchProduct")}
-              className="w-full h-9 pl-9 pr-3 rounded bg-input border border-border text-xs font-mono text-foreground"
+              onChange={(e) => {
+                setSearch(e.target.value);
+                setActiveSearchIndex(0);
+              }}
+              onFocus={() => setSearchFocused(true)}
+              onBlur={() => {
+                setTimeout(() => setSearchFocused(false), 250);
+              }}
+              onKeyDown={(e) => {
+                const results = products.data || [];
+                if (e.key === "ArrowDown") {
+                  e.preventDefault();
+                  setActiveSearchIndex((prev) => Math.min(prev + 1, Math.max(0, results.length - 1)));
+                } else if (e.key === "ArrowUp") {
+                  e.preventDefault();
+                  setActiveSearchIndex((prev) => Math.max(0, prev - 1));
+                } else if (e.key === "Enter") {
+                  e.preventDefault();
+                  if (results.length > 0) {
+                    const itemToAdd = results[activeSearchIndex] || results[0];
+                    handleProductClick(itemToAdd);
+                    toast.success(`Added ${itemToAdd.name} to bill`);
+                    setSearch("");
+                    setActiveSearchIndex(0);
+                  }
+                } else if (e.key === "Escape") {
+                  setSearch("");
+                  setSearchFocused(false);
+                }
+              }}
+              placeholder={t("pos.searchProduct") + " (Search item name, barcode, category)..."}
+              className="w-full h-9 pl-9 pr-8 rounded bg-input border border-border text-xs font-mono text-foreground focus:border-primary focus:outline-none"
             />
+            {search && (
+              <button
+                type="button"
+                onClick={() => {
+                  setSearch("");
+                  setActiveSearchIndex(0);
+                }}
+                className="absolute right-2.5 top-2.5 text-muted-foreground hover:text-foreground cursor-pointer"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            )}
+
+            {/* Floating Live Product Search Results Dropdown */}
+            {search.trim().length > 0 && searchFocused && (
+              <div className="absolute left-0 right-0 top-full mt-1.5 bg-card border-2 border-primary/40 rounded-xl shadow-2xl z-50 max-h-80 overflow-y-auto divide-y divide-border">
+                {products.data && products.data.length > 0 ? (
+                  products.data.map((p, idx) => {
+                    const shopQty = Number(p.stock_qty || 0);
+                    const isOutOfStock = shopQty <= 0;
+                    const price = billMode === 'WHOLESALE' && (p as any).wholesale_price && (p as any).wholesale_price > 0
+                      ? Number((p as any).wholesale_price)
+                      : Number(p.selling_price);
+                    const isSelected = idx === activeSearchIndex;
+
+                    return (
+                      <div
+                        key={p.id}
+                        onMouseDown={() => {
+                          handleProductClick(p);
+                          toast.success(`Added ${p.name} to bill`);
+                          setSearch("");
+                          setActiveSearchIndex(0);
+                        }}
+                        className={`p-2.5 flex items-center justify-between gap-3 cursor-pointer transition ${
+                          isSelected ? "bg-primary/15 border-l-4 border-l-primary" : "hover:bg-secondary/60"
+                        }`}
+                      >
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center gap-2">
+                            <span className="font-bold text-xs text-foreground truncate">{p.name}</span>
+                            {p.category && (
+                              <span className="text-[10px] px-1.5 py-0.5 rounded bg-secondary text-muted-foreground">
+                                {p.category}
+                              </span>
+                            )}
+                          </div>
+                          <div className="flex items-center gap-3 text-[10px] font-mono text-muted-foreground mt-0.5">
+                            {p.barcode && <span>Barcode: {p.barcode}</span>}
+                            <span className={isOutOfStock ? "text-rose-500 font-bold" : "text-emerald-500 font-medium"}>
+                              {isOutOfStock ? "Out of Stock" : `Stock: ${qty(shopQty)}`}
+                            </span>
+                          </div>
+                        </div>
+
+                        <div className="text-right shrink-0">
+                          <div className="text-xs font-black font-mono text-primary">
+                            ₹{price.toFixed(2)}
+                          </div>
+                          {p.mrp && p.mrp > price ? (
+                            <div className="text-[10px] text-muted-foreground line-through">
+                              MRP: ₹{Number(p.mrp).toFixed(2)}
+                            </div>
+                          ) : null}
+                        </div>
+                      </div>
+                    );
+                  })
+                ) : (
+                  <div className="p-4 text-center text-xs text-muted-foreground space-y-2">
+                    <p>No products matching &ldquo;{search}&rdquo;</p>
+                    <button
+                      type="button"
+                      onMouseDown={() => {
+                        setCustomName(search);
+                        setShowCustomModal(true);
+                        setSearch("");
+                      }}
+                      className="px-3 py-1.5 rounded-lg bg-primary text-primary-foreground font-bold text-xs inline-flex items-center gap-1 cursor-pointer"
+                    >
+                      <Plus className="h-3.5 w-3.5" /> Add &ldquo;{search}&rdquo; as Custom Item
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
 
           <button
@@ -552,32 +725,148 @@ function POSPage() {
       <div className="col-span-4 space-y-3 flex flex-col">
         {/* Customer Selector Card */}
         <div className="card-surface p-4 space-y-3">
-          <div className="text-xs font-bold uppercase tracking-wider text-foreground flex items-center gap-1.5">
-            <UserPlus className="h-4 w-4 text-primary" /> {t("pos.customer.title")}
+          <div className="flex items-center justify-between">
+            <div className="text-xs font-bold uppercase tracking-wider text-foreground flex items-center gap-1.5">
+              <UserPlus className="h-4 w-4 text-primary" /> {t("pos.customer.title")}
+            </div>
+            {cart.customerId && (
+              <span className="text-[10px] px-2 py-0.5 rounded-full font-bold bg-emerald-500/15 text-emerald-400 border border-emerald-500/30">
+                Linked Customer
+              </span>
+            )}
           </div>
 
-          <div className="flex gap-2">
-            <input
-              value={cart.customerMobile}
-              onChange={(e) => {
-                const val = e.target.value;
-                cart.setCustomer({ id: cart.customerId, mobile: val, name: cart.customerName, loyalty: cart.loyaltyAvailable });
-                if (val.replace(/\D/g, "").length === 10) {
-                  lookupCustomer(val);
-                }
-              }}
-              onBlur={(e) => lookupCustomer(e.target.value)}
-              placeholder={t("pos.customer.mobile")}
-              className="flex-1 h-9 px-3 rounded bg-input border border-border text-xs font-mono focus:border-primary text-foreground"
-            />
-          </div>
+          {/* If customer is attached */}
+          {cart.customerId ? (
+            (() => {
+              const cust = allCustomers.find((c) => c.id === cart.customerId);
+              const due = Number(cust?.balance_due || 0);
 
-          <input
-            value={cart.customerName}
-            onChange={(e) => cart.setCustomer({ id: cart.customerId, mobile: cart.customerMobile, name: e.target.value, loyalty: cart.loyaltyAvailable })}
-            placeholder={t("pos.customer.name")}
-            className="w-full h-9 px-3 rounded bg-input border border-border text-xs font-mono text-foreground"
-          />
+              return (
+                <div className="p-3 rounded-xl bg-secondary/60 border border-primary/30 space-y-2">
+                  <div className="flex items-start justify-between">
+                    <div>
+                      <div className="font-bold text-sm text-foreground flex items-center gap-1.5">
+                        <User className="h-4 w-4 text-primary" />
+                        <span>{cart.customerName}</span>
+                      </div>
+                      <div className="text-xs font-mono text-muted-foreground flex items-center gap-1.5 mt-0.5">
+                        <Phone className="h-3 w-3" />
+                        <span>{cart.customerMobile || "No mobile"}</span>
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={clearCustomer}
+                      className="p-1 rounded hover:bg-muted text-muted-foreground hover:text-foreground cursor-pointer"
+                      title="Clear / Switch customer"
+                    >
+                      <X className="h-4 w-4" />
+                    </button>
+                  </div>
+
+                  <div className="pt-2 border-t border-border/60 flex items-center justify-between text-xs font-mono">
+                    <span className="text-muted-foreground">Khata Due Balance:</span>
+                    <span className={`font-bold ${due > 0 ? "text-amber-400" : "text-emerald-400"}`}>
+                      ₹{due.toFixed(2)}
+                    </span>
+                  </div>
+                </div>
+              );
+            })()
+          ) : (
+            /* If no customer attached yet: Search or Add Customer */
+            <div className="space-y-2">
+              <div className="relative">
+                <Search className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-muted-foreground" />
+                <input
+                  value={customerSearch}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    setCustomerSearch(val);
+                    setCustomerDropdownOpen(true);
+                  }}
+                  onFocus={() => setCustomerDropdownOpen(true)}
+                  onBlur={() => setTimeout(() => setCustomerDropdownOpen(false), 250)}
+                  placeholder="Search existing customer (name or phone)..."
+                  className="w-full h-8 pl-8 pr-3 rounded bg-input border border-border text-xs font-mono focus:border-primary text-foreground"
+                />
+
+                {customerDropdownOpen && customerSearch.trim() && (
+                  <div className="absolute left-0 right-0 top-full mt-1 bg-card border-2 border-primary/40 rounded-xl shadow-xl z-50 max-h-48 overflow-y-auto divide-y divide-border">
+                    {allCustomers.filter((c) =>
+                      (c.name || "").toLowerCase().includes(customerSearch.toLowerCase()) ||
+                      (c.mobile || "").includes(customerSearch)
+                    ).length > 0 ? (
+                      allCustomers
+                        .filter((c) =>
+                          (c.name || "").toLowerCase().includes(customerSearch.toLowerCase()) ||
+                          (c.mobile || "").includes(customerSearch)
+                        )
+                        .map((c) => (
+                          <div
+                            key={c.id}
+                            onMouseDown={() => selectCustomer(c)}
+                            className="p-2.5 hover:bg-secondary/60 cursor-pointer transition flex items-center justify-between text-xs"
+                          >
+                            <div>
+                              <div className="font-bold text-foreground">{c.name}</div>
+                              <div className="text-[10px] font-mono text-muted-foreground">{c.mobile || "No phone"}</div>
+                            </div>
+                            <div className="text-right">
+                              <span className={`text-[11px] font-mono font-bold ${Number(c.balance_due || 0) > 0 ? "text-amber-400" : "text-emerald-400"}`}>
+                                Due: ₹{Number(c.balance_due || 0).toFixed(2)}
+                              </span>
+                            </div>
+                          </div>
+                        ))
+                    ) : (
+                      <div className="p-2.5 text-center text-xs text-muted-foreground">
+                        No customer found. Enter details below to add.
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+
+              <div className="text-[10px] uppercase font-bold text-muted-foreground tracking-wider pt-1">
+                Or Enter Customer Details
+              </div>
+
+              <div className="flex gap-2">
+                <input
+                  value={cart.customerMobile}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    cart.setCustomer({ id: cart.customerId, mobile: val, name: cart.customerName, loyalty: cart.loyaltyAvailable });
+                    if (val.replace(/\D/g, "").length === 10) {
+                      lookupCustomer(val);
+                    }
+                  }}
+                  onBlur={(e) => lookupCustomer(e.target.value)}
+                  placeholder="Mobile / Phone"
+                  className="flex-1 h-8 px-3 rounded bg-input border border-border text-xs font-mono focus:border-primary text-foreground"
+                />
+              </div>
+
+              <input
+                value={cart.customerName}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  cart.setCustomer({ id: cart.customerId, mobile: cart.customerMobile, name: val, loyalty: cart.loyaltyAvailable });
+                }}
+                placeholder="Customer Name"
+                className="w-full h-8 px-3 rounded bg-input border border-border text-xs font-mono text-foreground focus:border-primary"
+              />
+
+              {cart.customerName && (
+                <div className="text-[10px] text-primary flex items-center gap-1 font-medium">
+                  <Check className="h-3 w-3" />
+                  <span>Will be saved automatically with bill</span>
+                </div>
+              )}
+            </div>
+          )}
 
           {cart.loyaltyAvailable > 0 && (
             <div className="p-2.5 bg-primary/10 border border-primary/30 rounded flex justify-between items-center text-xs">

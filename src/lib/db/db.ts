@@ -465,6 +465,7 @@ class BillDeskDB {
           this.store.settings.legal_name = 'MSS Ponkumar Store - Wholesale Shop';
         }
 
+        this.reconcileCustomersAndInvoices();
         this.persistLocal();
         return true;
       }
@@ -636,31 +637,112 @@ class BillDeskDB {
   }
 
   public getCustomerInvoices(customerId: string, fallbackName?: string, fallbackMobile?: string): Invoice[] {
-    const cust = this.getCustomer(customerId);
+    const cust = customerId ? this.getCustomer(customerId) : undefined;
     const cleanName = (cust?.name || fallbackName)?.trim().toLowerCase();
-    const cleanMobile = (cust?.mobile || fallbackMobile)?.trim();
+    const rawMobile = (cust?.mobile || fallbackMobile)?.trim() || '';
+    const cleanMobile = rawMobile.replace(/\D/g, '');
 
     return this.getInvoices().filter((inv) => {
       if (customerId && inv.customer_id === customerId) return true;
-      if (cleanMobile && inv.customer_mobile && inv.customer_mobile.trim() === cleanMobile) return true;
-      if (cleanName && inv.customer_name && inv.customer_name.trim().toLowerCase() === cleanName) return true;
+      if (cleanMobile && cleanMobile.length >= 7 && inv.customer_mobile && inv.customer_mobile.replace(/\D/g, '').includes(cleanMobile)) {
+        return true;
+      }
+      if (cleanName && cleanName !== 'walk-in customer' && inv.customer_name && inv.customer_name.trim().toLowerCase() === cleanName) {
+        return true;
+      }
       return false;
+    }).map((inv) => {
+      if (!inv.items || inv.items.length === 0) {
+        const lineItems = this.store.invoice_items.filter((it) => it.invoice_id === inv.id || it.invoice_id === inv.invoice_number);
+        return { ...inv, items: lineItems };
+      }
+      return inv;
     });
   }
 
   public getCustomerLedger(customerId: string, fallbackName?: string, fallbackMobile?: string): LedgerEntry[] {
-    const cust = this.getCustomer(customerId);
+    const cust = customerId ? this.getCustomer(customerId) : undefined;
     const cleanName = (cust?.name || fallbackName)?.trim().toLowerCase();
-    const cleanMobile = (cust?.mobile || fallbackMobile)?.trim();
+    const rawMobile = (cust?.mobile || fallbackMobile)?.trim() || '';
+    const cleanMobile = rawMobile.replace(/\D/g, '');
 
     return this.store.ledger
       .filter((l) => {
         if (customerId && l.customer_id === customerId) return true;
-        if (cleanMobile && l.customer_mobile && l.customer_mobile.trim() === cleanMobile) return true;
-        if (cleanName && l.customer_name && l.customer_name.trim().toLowerCase() === cleanName) return true;
+        if (cleanMobile && cleanMobile.length >= 7 && l.customer_mobile && l.customer_mobile.replace(/\D/g, '').includes(cleanMobile)) {
+          return true;
+        }
+        if (cleanName && cleanName !== 'walk-in customer' && l.customer_name && l.customer_name.trim().toLowerCase() === cleanName) {
+          return true;
+        }
         return false;
       })
       .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+  }
+
+  public reconcileCustomersAndInvoices(): void {
+    let changed = false;
+
+    // 1. Link orphan invoices to existing or new customers
+    for (const inv of this.store.invoices) {
+      const rawName = (inv.customer_name || '').trim();
+      const rawMobile = (inv.customer_mobile || '').trim();
+      const cleanDigits = rawMobile.replace(/\D/g, '');
+      const isWalkIn = !rawName || rawName.toLowerCase() === 'walk-in customer';
+
+      if (isWalkIn && cleanDigits.length < 7) continue;
+
+      let cust = inv.customer_id ? this.store.customers.find((c) => c.id === inv.customer_id) : undefined;
+      if (!cust && cleanDigits.length >= 7) {
+        cust = this.store.customers.find((c) => c.mobile && c.mobile.replace(/\D/g, '').includes(cleanDigits));
+      }
+      if (!cust && !isWalkIn) {
+        cust = this.store.customers.find((c) => c.name && c.name.toLowerCase().trim() === rawName.toLowerCase());
+      }
+
+      if (!cust && (!isWalkIn || cleanDigits.length >= 7)) {
+        cust = {
+          id: `cust-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}`,
+          name: !isWalkIn ? rawName : `Customer ${rawMobile}`,
+          mobile: rawMobile,
+          email: '',
+          address: inv.customer_address || '',
+          gst_number: inv.customer_gstin || '',
+          balance_due: 0,
+          loyalty_points: 0,
+          total_spent: 0,
+          created_at: inv.created_at || new Date().toISOString(),
+        };
+        this.store.customers.unshift(cust);
+        this.syncToServer('upsert', { table: 'customers', data: cust });
+        changed = true;
+      }
+
+      if (cust && inv.customer_id !== cust.id) {
+        inv.customer_id = cust.id;
+        inv.customer_name = cust.name;
+        this.syncToServer('upsert', { table: 'invoices', data: inv });
+        changed = true;
+      }
+    }
+
+    // 2. Re-compute each customer's balance_due and total_spent from invoices
+    for (const cust of this.store.customers) {
+      const invoices = this.getCustomerInvoices(cust.id, cust.name, cust.mobile);
+      const totalSpent = invoices.reduce((s, i) => s + Number(i.grand_total || 0), 0);
+      const totalInvoiceDue = invoices.reduce((s, i) => s + Number(i.balance_due || 0), 0);
+
+      if (Number(cust.total_spent || 0) !== totalSpent || Number(cust.balance_due || 0) !== totalInvoiceDue) {
+        cust.total_spent = totalSpent;
+        cust.balance_due = totalInvoiceDue;
+        this.syncToServer('upsert', { table: 'customers', data: cust });
+        changed = true;
+      }
+    }
+
+    if (changed) {
+      this.persistLocal();
+    }
   }
 
   // ==========================================
@@ -800,54 +882,100 @@ class BillDeskDB {
       }
     });
 
-    // 3. Update customer balance and Ledger if customer attached
+    // 3. Resolve, create or update customer, update balance, and record Ledger
+    let cust: Customer | undefined;
     if (saleData.customer_id) {
-      const cust = this.store.customers.find((c) => c.id === saleData.customer_id);
-      if (cust) {
-        const prevBal = cust.balance_due || 0;
-        cust.balance_due = prevBal + balanceDue;
-        cust.total_spent = (cust.total_spent || 0) + grandTotal;
-        this.syncToServer('upsert', { table: 'customers', data: cust });
+      cust = this.store.customers.find((c) => c.id === saleData.customer_id);
+    }
 
-        // Ledger Entry 1: Invoice Debit
-        const debitEntry: LedgerEntry = {
-          id: `ledg_${Date.now().toString(36)}_d`,
+    const rawMobile = (saleData.customer_mobile || '').trim();
+    const cleanDigits = rawMobile.replace(/\D/g, '');
+    const rawName = (saleData.customer_name || '').trim();
+    const isWalkIn = !rawName || rawName.toLowerCase() === 'walk-in customer';
+
+    // Fallback 1: match by mobile
+    if (!cust && cleanDigits.length >= 7) {
+      cust = this.store.customers.find(
+        (c) => c.mobile && c.mobile.replace(/\D/g, '').includes(cleanDigits)
+      );
+    }
+
+    // Fallback 2: match by name
+    if (!cust && !isWalkIn) {
+      cust = this.store.customers.find(
+        (c) => c.name && c.name.toLowerCase().trim() === rawName.toLowerCase()
+      );
+    }
+
+    // Fallback 3: Auto-create customer if name or mobile provided
+    if (!cust && (!isWalkIn || cleanDigits.length >= 7)) {
+      const newCustName = !isWalkIn ? rawName : `Customer ${rawMobile}`;
+      cust = {
+        id: `cust-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}`,
+        name: newCustName,
+        mobile: rawMobile,
+        email: '',
+        address: saleData.customer_address || '',
+        gst_number: saleData.customer_gstin || '',
+        balance_due: 0,
+        loyalty_points: 0,
+        total_spent: 0,
+        created_at: now,
+      };
+      this.store.customers.unshift(cust);
+    }
+
+    if (cust) {
+      newInvoice.customer_id = cust.id;
+      newInvoice.customer_name = cust.name;
+      if (!cust.mobile && rawMobile) cust.mobile = rawMobile;
+      if (!cust.address && saleData.customer_address) cust.address = saleData.customer_address;
+      if (!cust.gst_number && saleData.customer_gstin) cust.gst_number = saleData.customer_gstin;
+
+      const prevBal = Number(cust.balance_due || 0);
+      cust.balance_due = Math.max(0, prevBal + balanceDue);
+      cust.total_spent = Number(cust.total_spent || 0) + grandTotal;
+
+      this.syncToServer('upsert', { table: 'customers', data: cust });
+
+      // Ledger Entry 1: Invoice Debit
+      const debitEntry: LedgerEntry = {
+        id: `ledg_${Date.now().toString(36)}_d`,
+        customer_id: cust.id,
+        customer_name: cust.name,
+        customer_mobile: cust.mobile,
+        date: now,
+        type: 'DEBIT',
+        amount: grandTotal,
+        balance_after: prevBal + grandTotal,
+        reference_type: 'INVOICE',
+        reference_id: invNumber,
+        payment_mode: saleData.payment_method,
+        notes: `Invoice billed #${invNumber}`,
+        created_at: now,
+      };
+      this.store.ledger.unshift(debitEntry);
+      this.syncToServer('upsert', { table: 'ledger', data: debitEntry });
+
+      // Ledger Entry 2: Payment Credit if paid at invoice creation
+      if (amountPaid > 0) {
+        const creditEntry: LedgerEntry = {
+          id: `ledg_${Date.now().toString(36)}_c`,
           customer_id: cust.id,
           customer_name: cust.name,
           customer_mobile: cust.mobile,
           date: now,
-          type: 'DEBIT',
-          amount: grandTotal,
-          balance_after: prevBal + grandTotal,
-          reference_type: 'INVOICE',
+          type: 'CREDIT',
+          amount: amountPaid,
+          balance_after: cust.balance_due,
+          reference_type: 'PAYMENT',
           reference_id: invNumber,
           payment_mode: saleData.payment_method,
-          notes: `Invoice billed #${invNumber}`,
+          notes: `Payment received for bill #${invNumber}`,
           created_at: now,
         };
-        this.store.ledger.unshift(debitEntry);
-        this.syncToServer('upsert', { table: 'ledger', data: debitEntry });
-
-        // Ledger Entry 2: Payment Credit if paid at invoice creation
-        if (amountPaid > 0) {
-          const creditEntry: LedgerEntry = {
-            id: `ledg_${Date.now().toString(36)}_c`,
-            customer_id: cust.id,
-            customer_name: cust.name,
-            customer_mobile: cust.mobile,
-            date: now,
-            type: 'CREDIT',
-            amount: amountPaid,
-            balance_after: prevBal + balanceDue,
-            reference_type: 'PAYMENT',
-            reference_id: invNumber,
-            payment_mode: saleData.payment_method,
-            notes: `Payment received for bill #${invNumber}`,
-            created_at: now,
-          };
-          this.store.ledger.unshift(creditEntry);
-          this.syncToServer('upsert', { table: 'ledger', data: creditEntry });
-        }
+        this.store.ledger.unshift(creditEntry);
+        this.syncToServer('upsert', { table: 'ledger', data: creditEntry });
       }
     }
 

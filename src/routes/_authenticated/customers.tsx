@@ -73,10 +73,22 @@ function CustomersPage() {
     }
   }, [allCust]);
 
-  // Customer Invoices
-  const customerInvoices = selected ? db.getCustomerInvoices(selected.id) : [];
+  const invoicesQuery = useQuery({
+    queryKey: ["invoices"],
+    queryFn: async () => {
+      await db.loadPromise;
+      return db.getInvoices();
+    },
+  });
+
+  // Customer Invoices (robust matching by ID, name, or phone)
+  const customerInvoices = selected
+    ? db.getCustomerInvoices(selected.id, selected.name, selected.mobile)
+    : [];
   // Customer Ledger
-  const customerLedger = selected ? db.getCustomerLedger(selected.id) : [];
+  const customerLedger = selected
+    ? db.getCustomerLedger(selected.id, selected.name, selected.mobile)
+    : [];
 
   // Reset pagination when search query or selected customer changes
   useEffect(() => {
@@ -291,6 +303,32 @@ function CustomersPage() {
                       <Wallet className="h-3.5 w-3.5" />
                       <span>Collect Payment</span>
                     </button>
+                  </div>
+                </div>
+              </div>
+
+              {/* Quick Customer Stats Strip */}
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+                <div className="p-2.5 rounded-xl bg-secondary/40 border border-border">
+                  <div className="text-[10px] text-muted-foreground uppercase font-semibold">Total Invoices</div>
+                  <div className="text-base font-black font-mono text-foreground mt-0.5">{customerInvoices.length}</div>
+                </div>
+                <div className="p-2.5 rounded-xl bg-secondary/40 border border-border">
+                  <div className="text-[10px] text-muted-foreground uppercase font-semibold">Total Billed</div>
+                  <div className="text-base font-black font-mono text-primary mt-0.5">
+                    ₹{(selected.total_spent || 0).toLocaleString("en-IN", { minimumFractionDigits: 2 })}
+                  </div>
+                </div>
+                <div className="p-2.5 rounded-xl bg-secondary/40 border border-border">
+                  <div className="text-[10px] text-muted-foreground uppercase font-semibold">Pending Due Bills</div>
+                  <div className="text-base font-black font-mono text-amber-400 mt-0.5">
+                    {customerInvoices.filter((i) => (i.balance_due || 0) > 0).length}
+                  </div>
+                </div>
+                <div className="p-2.5 rounded-xl bg-secondary/40 border border-border">
+                  <div className="text-[10px] text-muted-foreground uppercase font-semibold">Outstanding Due</div>
+                  <div className={`text-base font-black font-mono mt-0.5 ${(selected.balance_due || 0) > 0 ? "text-amber-400" : "text-emerald-400"}`}>
+                    ₹{(selected.balance_due || 0).toLocaleString("en-IN", { minimumFractionDigits: 2 })}
                   </div>
                 </div>
               </div>
