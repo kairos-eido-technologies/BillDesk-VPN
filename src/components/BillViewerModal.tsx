@@ -5,7 +5,7 @@ import { ThermalReceipt } from "./ThermalReceipt";
 import { A4Receipt } from "./A4Receipt";
 import { Printer, Download, X, FileText, Receipt, Check, Share2, Phone, MessageSquare, Clipboard, Image as ImageIcon } from "lucide-react";
 import { toast } from "sonner";
-import { captureReceiptAsImage } from "@/lib/capture-receipt-image";
+import { captureReceiptAsImage, getReceiptImageDataUrl } from "@/lib/capture-receipt-image";
 import { printIsolatedReceipt } from "@/lib/print-isolated-receipt";
 
 interface BillViewerModalProps {
@@ -431,15 +431,29 @@ export function BillViewerModal({
                     }
                     setCopyingImg(true);
                     try {
+                      let cleanPhone = whatsappPhone.replace(/\D/g, "");
+                      if (cleanPhone.length === 10) {
+                        cleanPhone = "91" + cleanPhone;
+                      }
+
+                      // Native Android Bridge Check
+                      const androidBridge = (window as any).AndroidPOS;
+                      const rawText = generateWhatsAppText(invoiceObj, items, storeSettings);
+
+                      if (androidBridge && typeof androidBridge.shareWhatsAppImage === "function") {
+                        const dataUrl = await getReceiptImageDataUrl(targetEl);
+                        if (dataUrl) {
+                          androidBridge.shareWhatsAppImage(cleanPhone, dataUrl, rawText);
+                          toast.success("Opening WhatsApp with Receipt Image!");
+                          setShowWhatsAppDialog(false);
+                          return;
+                        }
+                      }
+
                       const filename = `Bill_Receipt_${invoiceObj?.invoice_number || 'INV'}.png`;
                       const ok = await captureReceiptAsImage(targetEl, filename);
                       if (ok) {
-                        let cleanPhone = whatsappPhone.replace(/\D/g, "");
-                        if (cleanPhone.length === 10) {
-                          cleanPhone = "91" + cleanPhone;
-                        }
-
-                        // wa.me is the correct universal WhatsApp link format
+                        // wa.me is the universal WhatsApp link format
                         const waUrl = cleanPhone
                           ? `https://wa.me/${cleanPhone}`
                           : `https://web.whatsapp.com`;
@@ -464,7 +478,7 @@ export function BillViewerModal({
                       Send Receipt as Image (Recommended)
                     </div>
                     <div className="text-[10px] text-muted-foreground mt-0.5">
-                      Generates PNG receipt image, downloads & copies to clipboard, and opens WhatsApp.
+                      Sends PNG receipt image directly to customer's WhatsApp.
                     </div>
                   </div>
                 </button>
@@ -480,11 +494,21 @@ export function BillViewerModal({
                       if (cleanPhone.length === 10) {
                         cleanPhone = "91" + cleanPhone;
                       }
+
+                      const androidBridge = (window as any).AndroidPOS;
+                      if (androidBridge && typeof androidBridge.openWhatsApp === "function") {
+                        androidBridge.openWhatsApp(cleanPhone, rawText);
+                        toast.success("Opening WhatsApp with Bill!");
+                        setShowWhatsAppDialog(false);
+                        return;
+                      }
                       
                       const waUrl = `https://api.whatsapp.com/send?phone=${cleanPhone}&text=${encodeURIComponent(rawText)}`;
                       
-                      await navigator.clipboard.writeText(rawText);
-                      toast.success("Bill text copied to clipboard!");
+                      try {
+                        await navigator.clipboard.writeText(rawText);
+                      } catch (ignored) {}
+                      toast.success("Bill text prepared for WhatsApp!");
                       window.open(waUrl, "_blank");
                       setShowWhatsAppDialog(false);
                     } catch (e: any) {

@@ -16,6 +16,7 @@ import android.print.PrintAttributes;
 import android.print.PrintDocumentAdapter;
 import android.print.PrintManager;
 import android.text.TextUtils;
+import android.util.Base64;
 import android.view.View;
 import android.webkit.JavascriptInterface;
 import android.webkit.WebChromeClient;
@@ -31,10 +32,13 @@ import android.widget.TextView;
 import android.widget.Toast;
 
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.core.content.FileProvider;
 import androidx.swiperefreshlayout.widget.SwipeRefreshLayout;
 
 import com.google.android.material.textfield.TextInputEditText;
 
+import java.io.File;
+import java.io.FileOutputStream;
 import java.io.IOException;
 import java.net.HttpURLConnection;
 import java.net.URL;
@@ -45,6 +49,7 @@ public class MainActivity extends AppCompatActivity {
 
     private static final String PREFS_NAME = "mssp_store_prefs";
     private static final String KEY_SERVER_URL = "server_url";
+    private static final String KEY_HAS_CONFIGURED_SERVER = "has_configured_server";
     private static final String DEFAULT_SERVER_URL = "http://100.96.24.23:3000";
 
     private WebView webView;
@@ -61,6 +66,7 @@ public class MainActivity extends AppCompatActivity {
 
     private SharedPreferences prefs;
     private String currentServerUrl = "";
+    private boolean hasConfiguredServer = false;
     private boolean doubleBackToExitPressedOnce = false;
     private final ExecutorService executor = Executors.newSingleThreadExecutor();
     private final Handler mainHandler = new Handler(Looper.getMainLooper());
@@ -72,16 +78,22 @@ public class MainActivity extends AppCompatActivity {
 
         prefs = getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE);
         currentServerUrl = prefs.getString(KEY_SERVER_URL, "");
+        hasConfiguredServer = prefs.getBoolean(KEY_HAS_CONFIGURED_SERVER, false);
 
         initViews();
         setupWebView();
         setupListeners();
 
-        if (TextUtils.isEmpty(currentServerUrl)) {
+        if (TextUtils.isEmpty(currentServerUrl) || !hasConfiguredServer) {
+            // First launch onboarding: ask for server URL only once
             currentServerUrl = DEFAULT_SERVER_URL;
-            prefs.edit().putString(KEY_SERVER_URL, DEFAULT_SERVER_URL).apply();
+            etServerUrl.setText(DEFAULT_SERVER_URL);
+            showServerSetup(true);
+        } else {
+            // Server link already known: never prompt again, connect directly
+            serverSetupLayout.setVisibility(View.GONE);
+            loadStoreUrl(currentServerUrl);
         }
-        loadStoreUrl(currentServerUrl);
     }
 
     private void initViews() {
@@ -98,11 +110,7 @@ public class MainActivity extends AppCompatActivity {
         btnServerSettings = findViewById(R.id.btnServerSettings);
 
         swipeRefresh.setColorSchemeColors(Color.parseColor("#1B2D6B"), Color.parseColor("#E8151B"));
-        if (!TextUtils.isEmpty(currentServerUrl)) {
-            etServerUrl.setText(currentServerUrl);
-        } else {
-            etServerUrl.setText(DEFAULT_SERVER_URL);
-        }
+        topBar.setVisibility(View.GONE); // Dedicated full screen mobile interface
     }
 
     @SuppressLint("SetJavaScriptEnabled")
@@ -155,23 +163,24 @@ public class MainActivity extends AppCompatActivity {
             @Override
             public void onPageStarted(WebView view, String url, Bitmap favicon) {
                 super.onPageStarted(view, url, favicon);
-                setServerPill("CONNECTING...", "#D97706", "#FEF3C7");
             }
 
             @Override
             public void onPageFinished(WebView view, String url) {
                 super.onPageFinished(view, url);
-                setServerPill("ONLINE", "#16A34A", "#DCFCE7");
             }
 
             @Override
             public void onReceivedError(WebView view, WebResourceRequest request, WebResourceError error) {
                 super.onReceivedError(view, request, error);
                 if (request.isForMainFrame()) {
-                    setServerPill("OFFLINE", "#DC2626", "#FEE2E2");
-                    tvConnectionStatus.setVisibility(View.VISIBLE);
-                    tvConnectionStatus.setText("Cannot reach desktop server at: " + currentServerUrl + "\nVerify desktop PC is running on the same Wi-Fi.");
-                    showServerSetup(false);
+                    // Do NOT pop open server setup screen if user already configured it once.
+                    // Just show a non-intrusive toast notification and keep current page or retry.
+                    if (!hasConfiguredServer) {
+                        showServerSetup(true);
+                    } else {
+                        Toast.makeText(MainActivity.this, "Connecting to Desktop Host...", Toast.LENGTH_SHORT).show();
+                    }
                 }
             }
         });
@@ -184,21 +193,7 @@ public class MainActivity extends AppCompatActivity {
         if (url.startsWith("whatsapp://") ||
             url.startsWith("https://api.whatsapp.com/") ||
             url.startsWith("https://wa.me/")) {
-            try {
-                Intent intent = new Intent(Intent.ACTION_VIEW, Uri.parse(url));
-                intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-                startActivity(intent);
-                return true;
-            } catch (ActivityNotFoundException e) {
-                try {
-                    // Try without strict package
-                    Intent fallbackIntent = new Intent(Intent.ACTION_VIEW, Uri.parse(url));
-                    startActivity(fallbackIntent);
-                } catch (Exception ex) {
-                    Toast.makeText(this, "WhatsApp is not installed on this device.", Toast.LENGTH_SHORT).show();
-                }
-                return true;
-            }
+            return launchWhatsAppIntent(url);
         }
 
         // 2. Telephone calls and email links
@@ -218,6 +213,24 @@ public class MainActivity extends AppCompatActivity {
         return false;
     }
 
+    private boolean launchWhatsAppIntent(String uriString) {
+        try {
+            Intent intent = new Intent(Intent.ACTION_VIEW, Uri.parse(uriString));
+            intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+            startActivity(intent);
+            return true;
+        } catch (ActivityNotFoundException e) {
+            try {
+                Intent fallback = new Intent(Intent.ACTION_VIEW, Uri.parse(uriString));
+                startActivity(fallback);
+                return true;
+            } catch (Exception ex) {
+                Toast.makeText(this, "WhatsApp is not installed on this phone.", Toast.LENGTH_SHORT).show();
+                return false;
+            }
+        }
+    }
+
     private void setupListeners() {
         swipeRefresh.setOnRefreshListener(() -> {
             if (!TextUtils.isEmpty(currentServerUrl)) {
@@ -230,7 +243,7 @@ public class MainActivity extends AppCompatActivity {
         btnServerSettings.setOnClickListener(v -> showServerSetup(false));
 
         btnCancelConnect.setOnClickListener(v -> {
-            if (!TextUtils.isEmpty(currentServerUrl)) {
+            if (!TextUtils.isEmpty(currentServerUrl) && hasConfiguredServer) {
                 serverSetupLayout.setVisibility(View.GONE);
             }
         });
@@ -251,7 +264,7 @@ public class MainActivity extends AppCompatActivity {
 
             final String formattedUrl = rawUrl;
             tvConnectionStatus.setVisibility(View.VISIBLE);
-            tvConnectionStatus.setText("Testing connection to " + formattedUrl + " ...");
+            tvConnectionStatus.setText("Connecting to " + formattedUrl + " ...");
             btnConnect.setEnabled(false);
 
             executor.execute(() -> {
@@ -259,15 +272,19 @@ public class MainActivity extends AppCompatActivity {
                 mainHandler.post(() -> {
                     btnConnect.setEnabled(true);
                     if (reachable) {
-                        prefs.edit().putString(KEY_SERVER_URL, formattedUrl).apply();
+                        prefs.edit()
+                             .putString(KEY_SERVER_URL, formattedUrl)
+                             .putBoolean(KEY_HAS_CONFIGURED_SERVER, true)
+                             .apply();
                         currentServerUrl = formattedUrl;
+                        hasConfiguredServer = true;
                         tvConnectionStatus.setVisibility(View.GONE);
                         serverSetupLayout.setVisibility(View.GONE);
                         loadStoreUrl(formattedUrl);
                         Toast.makeText(MainActivity.this, "Connected to MSS Ponkumar Store Server!", Toast.LENGTH_SHORT).show();
                     } else {
                         tvConnectionStatus.setText("Could not reach desktop server at: " + formattedUrl + 
-                            "\n\nPlease verify:\n1. Desktop computer is ON & MSS Ponkumar Store is running.\n2. Both phone and PC are connected to the same shop Wi-Fi.\n3. Port (e.g. :3000) is included.");
+                            "\n\nPlease verify:\n1. Desktop computer is ON & MSS Ponkumar Store is running.\n2. Phone and PC are connected to the same Wi-Fi or Tailscale VPN.\n3. Port (e.g. :3000) is included.");
                     }
                 });
             });
@@ -285,7 +302,6 @@ public class MainActivity extends AppCompatActivity {
             int responseCode = conn.getResponseCode();
             return (responseCode >= 200 && responseCode < 400);
         } catch (IOException ignored) {
-            // Try fallback root
             try {
                 URL rootUrl = new URL(baseUrl);
                 HttpURLConnection rootConn = (HttpURLConnection) rootUrl.openConnection();
@@ -307,7 +323,7 @@ public class MainActivity extends AppCompatActivity {
 
     private void showServerSetup(boolean initial) {
         serverSetupLayout.setVisibility(View.VISIBLE);
-        btnCancelConnect.setVisibility((!initial && !TextUtils.isEmpty(currentServerUrl)) ? View.VISIBLE : View.GONE);
+        btnCancelConnect.setVisibility((!initial && !TextUtils.isEmpty(currentServerUrl) && hasConfiguredServer) ? View.VISIBLE : View.GONE);
         if (!TextUtils.isEmpty(currentServerUrl)) {
             etServerUrl.setText(currentServerUrl);
         } else {
@@ -320,15 +336,9 @@ public class MainActivity extends AppCompatActivity {
         webView.loadUrl(url);
     }
 
-    private void setServerPill(String status, String textColorHex, String bgHex) {
-        tvServerPill.setText(status);
-        tvServerPill.setTextColor(Color.parseColor(textColorHex));
-        tvServerPill.setBackgroundColor(Color.parseColor(bgHex));
-    }
-
     @Override
     public void onBackPressed() {
-        if (serverSetupLayout.getVisibility() == View.VISIBLE && !TextUtils.isEmpty(currentServerUrl)) {
+        if (serverSetupLayout.getVisibility() == View.VISIBLE && hasConfiguredServer) {
             serverSetupLayout.setVisibility(View.GONE);
             return;
         }
@@ -358,7 +368,7 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
-    // JavaScript Interface exposed to Web UI
+    // Native Bridge exposed to Web UI
     public class WebAppInterface {
         Context context;
 
@@ -382,14 +392,92 @@ public class MainActivity extends AppCompatActivity {
         public void openWhatsApp(String phone, String text) {
             mainHandler.post(() -> {
                 try {
-                    String cleanPhone = phone.replaceAll("[^0-9]", "");
+                    String cleanPhone = (phone != null) ? phone.replaceAll("[^0-9]", "") : "";
                     if (cleanPhone.length() == 10) cleanPhone = "91" + cleanPhone;
-                    String waUrl = "https://api.whatsapp.com/send?phone=" + cleanPhone + "&text=" + Uri.encode(text);
+
+                    String waUrl = "https://api.whatsapp.com/send?phone=" + cleanPhone + "&text=" + Uri.encode(text != null ? text : "");
                     Intent intent = new Intent(Intent.ACTION_VIEW, Uri.parse(waUrl));
+                    intent.setPackage("com.whatsapp");
                     intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-                    context.startActivity(intent);
+                    try {
+                        context.startActivity(intent);
+                    } catch (ActivityNotFoundException ex1) {
+                        try {
+                            Intent businessIntent = new Intent(Intent.ACTION_VIEW, Uri.parse(waUrl));
+                            businessIntent.setPackage("com.whatsapp.w4b");
+                            businessIntent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                            context.startActivity(businessIntent);
+                        } catch (ActivityNotFoundException ex2) {
+                            Intent generic = new Intent(Intent.ACTION_VIEW, Uri.parse(waUrl));
+                            generic.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                            context.startActivity(generic);
+                        }
+                    }
                 } catch (Exception e) {
                     Toast.makeText(context, "Could not open WhatsApp: " + e.getMessage(), Toast.LENGTH_SHORT).show();
+                }
+            });
+        }
+
+        @JavascriptInterface
+        public void shareWhatsAppImage(String phone, String base64Image, String text) {
+            mainHandler.post(() -> {
+                try {
+                    if (TextUtils.isEmpty(base64Image)) {
+                        openWhatsApp(phone, text);
+                        return;
+                    }
+
+                    // Remove Data URI header if present
+                    String cleanData = base64Image;
+                    if (cleanData.contains(",")) {
+                        cleanData = cleanData.substring(cleanData.indexOf(",") + 1);
+                    }
+                    byte[] imageBytes = Base64.decode(cleanData, Base64.DEFAULT);
+
+                    // Write to cache directory for FileProvider
+                    File cachePath = new File(context.getCacheDir(), "shared_bills");
+                    if (!cachePath.exists()) {
+                        cachePath.mkdirs();
+                    }
+                    File imageFile = new File(cachePath, "invoice_" + System.currentTimeMillis() + ".png");
+                    FileOutputStream stream = new FileOutputStream(imageFile);
+                    stream.write(imageBytes);
+                    stream.flush();
+                    stream.close();
+
+                    Uri contentUri = FileProvider.getUriForFile(
+                        context,
+                        context.getPackageName() + ".fileprovider",
+                        imageFile
+                    );
+
+                    Intent shareIntent = new Intent(Intent.ACTION_SEND);
+                    shareIntent.setType("image/png");
+                    shareIntent.putExtra(Intent.EXTRA_STREAM, contentUri);
+                    if (!TextUtils.isEmpty(text)) {
+                        shareIntent.putExtra(Intent.EXTRA_TEXT, text);
+                    }
+                    shareIntent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
+                    shareIntent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+
+                    // Try WhatsApp primary, then Business, then universal chooser
+                    shareIntent.setPackage("com.whatsapp");
+                    try {
+                        context.startActivity(shareIntent);
+                    } catch (ActivityNotFoundException e1) {
+                        try {
+                            shareIntent.setPackage("com.whatsapp.w4b");
+                            context.startActivity(shareIntent);
+                        } catch (ActivityNotFoundException e2) {
+                            shareIntent.setPackage(null);
+                            Intent chooser = Intent.createChooser(shareIntent, "Share Bill Receipt via");
+                            chooser.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                            context.startActivity(chooser);
+                        }
+                    }
+                } catch (Exception e) {
+                    Toast.makeText(context, "Share error: " + e.getMessage(), Toast.LENGTH_SHORT).show();
                 }
             });
         }
@@ -405,4 +493,3 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 }
-

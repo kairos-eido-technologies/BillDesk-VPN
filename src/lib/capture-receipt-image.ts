@@ -85,29 +85,23 @@ function getDocumentWidth(el: HTMLElement): number {
 }
 
 /**
- * Converts a DOM element to a PNG image using dom-to-image-more,
- * copies it to clipboard only (no download).
+ * Converts a DOM element to a PNG image data URL using dom-to-image-more.
  */
-export async function captureReceiptAsImage(
-  targetElement: HTMLElement,
-  _downloadFilename: string // kept for API compatibility
-): Promise<boolean> {
-  if (!targetElement) return false;
+export async function getReceiptImageDataUrl(
+  targetElement: HTMLElement
+): Promise<string | null> {
+  if (!targetElement) return null;
 
-  // --- STEP 1: Find the actual printable inner element ---
-  // BillViewerModal passes the wrapper ref; the real content is .a4-sheet or .thermal-receipt
   const innerA4 = targetElement.querySelector(".a4-sheet") as HTMLElement | null;
   const innerThermal = targetElement.querySelector(".thermal-receipt") as HTMLElement | null;
   const captureEl = innerA4 || innerThermal || targetElement;
 
-  // --- STEP 2: Hide any UI-only elements (buttons etc.) that shouldn't appear in the image ---
   const captureHideEls = Array.from(
     captureEl.querySelectorAll("[data-capture-hide='true']")
   ) as HTMLElement[];
   const prevDisplays: string[] = captureHideEls.map((el) => el.style.display);
   captureHideEls.forEach((el) => { el.style.display = "none"; });
 
-  // --- STEP 3: Temporarily reset CSS transform scale to 1 so we capture at true size ---
   const prevTransform = captureEl.style.transform;
   const prevMarginBottom = captureEl.style.marginBottom;
   const prevTransformOrigin = captureEl.style.transformOrigin;
@@ -116,15 +110,14 @@ export async function captureReceiptAsImage(
   captureEl.style.marginBottom = "0";
   captureEl.style.transformOrigin = "top center";
 
-  // Allow layout to update
   await new Promise((r) => setTimeout(r, 40));
 
   const captureWidth = getDocumentWidth(captureEl);
   const captureHeight = Math.max(captureEl.scrollHeight, captureEl.offsetHeight, 400) + 32;
 
-  let success = false;
+  let dataUrl: string | null = null;
   try {
-    const dataUrl: string = await domtoimage.toPng(captureEl, {
+    dataUrl = await domtoimage.toPng(captureEl, {
       width: captureWidth,
       height: captureHeight,
       bgcolor: "#ffffff",
@@ -135,19 +128,27 @@ export async function captureReceiptAsImage(
         maxHeight: "none",
       },
     });
-
-    await copyDataUrlToClipboard(dataUrl);
-    success = true;
   } catch (err) {
     console.error("dom-to-image-more failed:", err);
-    success = false;
   } finally {
-    // --- STEP 4: Restore original transform and hidden elements ---
     captureEl.style.transform = prevTransform;
     captureEl.style.marginBottom = prevMarginBottom;
     captureEl.style.transformOrigin = prevTransformOrigin;
     captureHideEls.forEach((el, i) => { el.style.display = prevDisplays[i]; });
   }
 
-  return success;
+  return dataUrl;
+}
+
+/**
+ * Converts a DOM element to a PNG image using dom-to-image-more,
+ * copies it to clipboard only (no download).
+ */
+export async function captureReceiptAsImage(
+  targetElement: HTMLElement,
+  _downloadFilename: string // kept for API compatibility
+): Promise<boolean> {
+  const dataUrl = await getReceiptImageDataUrl(targetElement);
+  if (!dataUrl) return false;
+  return await copyDataUrlToClipboard(dataUrl);
 }

@@ -149,20 +149,20 @@ function Shell() {
       <nav className="fixed bottom-0 left-0 right-0 bg-white/95 backdrop-blur-xl border-t border-[#E2E8F0] px-2 z-20 md:hidden print:hidden">
         <div className="flex items-center justify-around py-2 pb-safe">
           {[
-            { label: "Home", icon: "Home", to: "/apps" },
+            { label: "Home", icon: "Home", to: "/" },
+            { label: "Invoices", icon: "Receipt", to: "/invoices" },
             { label: "Customers", icon: "Users", to: "/customers" },
             { label: "Stock", icon: "Package", to: "/inventory" },
             { label: "Ledger", icon: "Landmark", to: "/ledger" },
-            { label: "More", icon: "Settings", to: "/settings" },
           ].map((item) => {
-            const icons: any = { Home, Users, Package, Landmark, Settings: SettingsIcon };
+            const icons: any = { Home, Receipt, Users, Package, Landmark, Settings: SettingsIcon };
             const Icon = icons[item.icon] || Home;
             return (
               <Link
                 key={item.to}
                 to={item.to as any}
-                className="flex flex-col items-center gap-1 px-3 py-1.5 rounded-xl min-w-[52px] active:scale-90 transition-transform"
-                activeProps={{ className: "text-[#E8151B]" }}
+                className="flex flex-col items-center gap-1 px-3 py-1.5 rounded-xl min-w-[52px] active:scale-90 transition-transform text-slate-500"
+                activeProps={{ className: "text-[#1B2D6B] font-black" }}
               >
                 <Icon className="h-5 w-5" />
                 <span className="text-[10px] font-bold">{item.label}</span>
