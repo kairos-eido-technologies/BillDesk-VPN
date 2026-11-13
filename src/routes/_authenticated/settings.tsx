@@ -900,16 +900,6 @@ function SettingsPage() {
                   />
                 </L>
 
-                <L label="Service Intake Token Terms & Disclaimer">
-                  <textarea
-                    value={settingsForm.service_ticket_terms || ""}
-                    onChange={(e) => setSettingsForm({ ...settingsForm, service_ticket_terms: e.target.value })}
-                    placeholder="e.g. Present this receipt token during device collection. Unclaimed items after 30 days are subject to shop terms."
-                    rows={2}
-                    className="w-full rounded bg-input border border-border p-2 text-xs focus:outline-none focus:border-primary font-mono"
-                  />
-                </L>
-
                 <L label="Purchase Order Default Terms / Note">
                   <textarea
                     value={settingsForm.po_footer_terms || ""}

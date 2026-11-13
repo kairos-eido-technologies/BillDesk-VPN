@@ -246,18 +246,6 @@ function InventoryPage() {
             >
               {t("inventory.filter.inShop")}
             </button>
-
-            <button
-              onClick={() => setLocationFilter(locationFilter === "LOW_STOCK" ? "ALL" : "LOW_STOCK")}
-              className={`h-8 px-2.5 rounded border transition flex items-center gap-1.5 cursor-pointer ${
-                locationFilter === "LOW_STOCK"
-                  ? "bg-amber-500 text-white border-amber-600 font-bold shadow-xs"
-                  : "bg-secondary text-muted-foreground border-border hover:text-foreground"
-              }`}
-            >
-              <TrendingDown className="h-3.5 w-3.5" />
-              <span>{t("inventory.filter.low")}</span>
-            </button>
           </div>
         </div>
 
