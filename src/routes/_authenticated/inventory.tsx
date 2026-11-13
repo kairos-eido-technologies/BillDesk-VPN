@@ -47,7 +47,11 @@ function InventoryPage() {
     queryKey: ["local-inventory-products", q, locationFilter],
     staleTime: 60_000,
     queryFn: async () => {
+      await db.loadPromise;
       const all = db.getInventory();
+      const settings = db.getSettings();
+      const globalThreshold = parseInt(String(settings?.low_stock_threshold ?? "10"), 10) || 10;
+
       return all.filter((p) => {
         if (q.trim()) {
           const clean = q.toLowerCase();
@@ -61,7 +65,13 @@ function InventoryPage() {
 
         if (locationFilter === "SHOP") return (p.stock_qty || 0) > 0;
         if (locationFilter === "GODOWN") return (p.godown_qty || 0) > 0;
-        if (locationFilter === "LOW_STOCK") return (p.stock_qty || 0) <= (p.moq || 5) || (p.godown_qty || 0) <= (p.moq || 5);
+        if (locationFilter === "LOW_STOCK") {
+          const threshold =
+            p.min_stock_alert !== undefined && p.min_stock_alert !== null && p.min_stock_alert > 0
+              ? p.min_stock_alert
+              : globalThreshold;
+          return Number(p.stock_qty || 0) <= threshold;
+        }
 
         return true;
       });
@@ -238,10 +248,15 @@ function InventoryPage() {
             </button>
 
             <button
-              onClick={() => setLocationFilter("LOW_STOCK")}
-              className={`h-8 px-2.5 rounded border transition ${locationFilter === "LOW_STOCK" ? "bg-amber-500/20 text-amber-400 border-amber-500/40 font-bold" : "bg-secondary text-muted-foreground border-border hover:text-foreground"}`}
+              onClick={() => setLocationFilter(locationFilter === "LOW_STOCK" ? "ALL" : "LOW_STOCK")}
+              className={`h-8 px-2.5 rounded border transition flex items-center gap-1.5 cursor-pointer ${
+                locationFilter === "LOW_STOCK"
+                  ? "bg-amber-500 text-white border-amber-600 font-bold shadow-xs"
+                  : "bg-secondary text-muted-foreground border-border hover:text-foreground"
+              }`}
             >
-              {t("inventory.filter.low")}
+              <TrendingDown className="h-3.5 w-3.5" />
+              <span>{t("inventory.filter.low")}</span>
             </button>
           </div>
         </div>

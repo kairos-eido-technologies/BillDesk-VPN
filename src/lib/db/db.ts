@@ -987,21 +987,124 @@ class BillDeskDB {
 
   public updateInvoice(invoiceOrId: Invoice | string, updates?: Partial<Invoice>): any {
     const id = typeof invoiceOrId === 'string' ? invoiceOrId : invoiceOrId.id;
-    const idx = this.store.invoices.findIndex((i) => i.id === id);
+    const idx = this.store.invoices.findIndex((i) => i.id === id || i.invoice_number === id);
     if (idx >= 0) {
       const existing = this.store.invoices[idx];
       const mergedUpdates = typeof invoiceOrId === 'string' ? updates : invoiceOrId;
-      const merged = { ...existing, ...mergedUpdates };
+      const merged: any = { ...existing, ...mergedUpdates };
 
-      // If items array was provided, replace line items in store
+      const oldGrandTotal = Number(existing.grand_total || 0);
+      const newGrandTotal = Number(merged.grand_total || 0);
+      const grandTotalDelta = newGrandTotal - oldGrandTotal;
+
+      const oldPaid = Number(existing.amount_paid || 0);
+      const newPaid = Number(merged.amount_paid || 0);
+
+      const oldDue = Number(existing.balance_due || 0);
+      const newDue = Number(merged.balance_due || 0);
+      const dueDelta = newDue - oldDue;
+
+      // 1. INVENTORY RECONCILIATION
+      // Find old items for this invoice
+      const oldItems = this.store.invoice_items.filter(
+        (it) => it.invoice_id === existing.id || it.invoice_id === existing.invoice_number
+      );
+
       if (mergedUpdates && (mergedUpdates as any).items && Array.isArray((mergedUpdates as any).items)) {
-        const newItems = (mergedUpdates as any).items;
+        const newItems: InvoiceItem[] = (mergedUpdates as any).items;
+
+        // Map old items by product identifier
+        const oldQtyByProd: Record<string, number> = {};
+        oldItems.forEach((it) => {
+          const key = it.product_id || it.barcode;
+          if (key) {
+            oldQtyByProd[key] = (oldQtyByProd[key] || 0) + Number(it.qty || 0);
+          }
+        });
+
+        const newQtyByProd: Record<string, number> = {};
+        newItems.forEach((it) => {
+          const key = it.product_id || it.barcode;
+          if (key) {
+            newQtyByProd[key] = (newQtyByProd[key] || 0) + Number(it.qty || 0);
+          }
+        });
+
+        const allProdKeys = new Set([...Object.keys(oldQtyByProd), ...Object.keys(newQtyByProd)]);
+
+        allProdKeys.forEach((key) => {
+          const oldQty = oldQtyByProd[key] || 0;
+          const newQty = newQtyByProd[key] || 0;
+          const deltaSold = newQty - oldQty; // >0 means more sold, <0 means returned/reduced
+
+          if (deltaSold !== 0) {
+            const prod = this.getProductById(key) || this.getProductByBarcode(key);
+            if (prod) {
+              prod.stock_qty = Number(prod.stock_qty || 0) - deltaSold;
+              prod.sales_count = Math.max(0, Number(prod.sales_count || 0) + deltaSold);
+              this.syncToServer('upsert', { table: 'inventory', data: prod });
+            }
+          }
+        });
+
+        // Replace line items in store
         this.store.invoice_items = this.store.invoice_items.filter(
-          (it) => it.invoice_id !== id && it.invoice_id !== existing.invoice_number
+          (it) => it.invoice_id !== existing.id && it.invoice_id !== existing.invoice_number
         );
         this.store.invoice_items.push(...newItems);
         merged.items = newItems;
       }
+
+      // 2. CUSTOMER RECONCILIATION
+      let cust = merged.customer_id
+        ? this.getCustomer(merged.customer_id)
+        : (merged.customer_mobile ? this.getCustomerByMobile(merged.customer_mobile) : null);
+
+      if (cust) {
+        cust.total_spent = Math.max(0, Number(cust.total_spent || 0) + grandTotalDelta);
+        cust.balance_due = Math.max(0, Number(cust.balance_due || 0) + dueDelta);
+        this.syncToServer('upsert', { table: 'customers', data: cust });
+      }
+
+      // 3. LEDGER RECONCILIATION
+      const invNum = existing.invoice_number || existing.id;
+      const debitEntry = this.store.ledger.find(
+        (l) => (l.reference_id === invNum || l.reference_id === existing.id) && l.type === 'DEBIT'
+      );
+      if (debitEntry) {
+        debitEntry.amount = newGrandTotal;
+        debitEntry.notes = `Invoice billed #${invNum} (Edited)`;
+        this.syncToServer('upsert', { table: 'ledger', data: debitEntry });
+      }
+
+      const creditEntry = this.store.ledger.find(
+        (l) => (l.reference_id === invNum || l.reference_id === existing.id) && l.type === 'CREDIT'
+      );
+      if (creditEntry) {
+        creditEntry.amount = newPaid;
+        this.syncToServer('upsert', { table: 'ledger', data: creditEntry });
+      } else if (newPaid > 0 && oldPaid === 0 && cust) {
+        const now = new Date().toISOString();
+        const newCredit: LedgerEntry = {
+          id: `ledg_${Date.now().toString(36)}_c`,
+          customer_id: cust.id,
+          customer_name: cust.name,
+          customer_mobile: cust.mobile,
+          date: now,
+          type: 'CREDIT',
+          amount: newPaid,
+          balance_after: cust.balance_due,
+          reference_type: 'PAYMENT',
+          reference_id: invNum,
+          payment_mode: merged.payment_method || 'CASH',
+          notes: `Payment received for bill #${invNum}`,
+          created_at: now,
+        };
+        this.store.ledger.unshift(newCredit);
+        this.syncToServer('upsert', { table: 'ledger', data: newCredit });
+      }
+
+      this.reconcileCustomersAndInvoices();
 
       this.store.invoices[idx] = merged as Invoice;
       this.persistLocal();

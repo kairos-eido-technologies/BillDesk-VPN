@@ -74,7 +74,7 @@ export async function copyDataUrlToClipboard(dataUrl: string): Promise<boolean> 
 function getDocumentWidth(el: HTMLElement): number {
   // Thermal receipt — 80mm paper
   if (el.classList.contains("thermal-receipt") || el.querySelector(".thermal-receipt")) {
-    return 302;
+    return 380;
   }
   // A4 sheet — 210mm paper
   if (el.classList.contains("a4-sheet") || el.querySelector(".a4-sheet")) {

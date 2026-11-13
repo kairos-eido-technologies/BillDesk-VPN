@@ -454,3 +454,4 @@ export async function renderThermalReceiptToDataUrl(
   const canvas = await renderThermalReceiptToCanvas(invoice, items, storeSettings);
   return canvas.toDataURL("image/png");
 }
+

@@ -1,7 +1,7 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useState, useEffect } from "react";
 import { db } from "@/lib/db/db";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   Users,
   Package,
@@ -74,9 +74,55 @@ function MobileAppRoot() {
 }
 
 function MobileDedicatedDashboard() {
-  const inventoryQuery = useQuery({ queryKey: ["inventory"], queryFn: () => db.getInventory() });
-  const customersQuery = useQuery({ queryKey: ["customers"], queryFn: () => db.getCustomers() });
-  const invoicesQuery = useQuery({ queryKey: ["invoices"], queryFn: () => db.getInvoices() });
+  const queryClient = useQueryClient();
+
+  useEffect(() => {
+    let active = true;
+    db.loadPromise.then(() => {
+      if (active) {
+        queryClient.invalidateQueries({ queryKey: ["inventory"] });
+        queryClient.invalidateQueries({ queryKey: ["customers"] });
+        queryClient.invalidateQueries({ queryKey: ["invoices"] });
+      }
+    });
+
+    db.fetchFromServer().then((ok) => {
+      if (ok && active) {
+        queryClient.invalidateQueries({ queryKey: ["inventory"] });
+        queryClient.invalidateQueries({ queryKey: ["customers"] });
+        queryClient.invalidateQueries({ queryKey: ["invoices"] });
+      }
+    });
+
+    return () => {
+      active = false;
+    };
+  }, [queryClient]);
+
+  const inventoryQuery = useQuery({
+    queryKey: ["inventory"],
+    queryFn: async () => {
+      await db.loadPromise;
+      return db.getInventory();
+    },
+  });
+
+  const customersQuery = useQuery({
+    queryKey: ["customers"],
+    queryFn: async () => {
+      await db.loadPromise;
+      return db.getCustomers();
+    },
+  });
+
+  const invoicesQuery = useQuery({
+    queryKey: ["invoices"],
+    queryFn: async () => {
+      await db.loadPromise;
+      return db.getInvoices();
+    },
+  });
+
   const settings = db.getSettings();
   const shopName = settings?.shop_name || "MSS Ponkumar Store";
 
@@ -91,14 +137,19 @@ function MobileDedicatedDashboard() {
 
   const totalDue = customers.reduce((s, c) => s + (c.balance_due || 0), 0);
 
+  // Match invoices from today (same calendar date OR within the last 24 hours of store operations)
   const todayInvoices = invoices.filter((inv) => {
+    if (!inv.created_at) return false;
     const d = new Date(inv.created_at);
     const now = new Date();
-    return (
+    const isSameDate =
       d.getFullYear() === now.getFullYear() &&
       d.getMonth() === now.getMonth() &&
-      d.getDate() === now.getDate()
-    );
+      d.getDate() === now.getDate();
+    const isWithin24Hrs =
+      now.getTime() - d.getTime() >= 0 &&
+      now.getTime() - d.getTime() <= 24 * 60 * 60 * 1000;
+    return isSameDate || isWithin24Hrs;
   });
   const todaySales = todayInvoices.reduce((s, inv) => s + (inv.grand_total || 0), 0);
 
@@ -108,11 +159,13 @@ function MobileDedicatedDashboard() {
   );
   const todayCustomersCount = todayCustomersSet.size;
 
-  const allInvoiceItems = db.getStore()?.invoice_items || [];
-  const todayInvoiceIds = new Set(todayInvoices.map((inv) => inv.id));
-  const todaySoldProductsQty = allInvoiceItems
-    .filter((it: any) => todayInvoiceIds.has(it.invoice_id))
-    .reduce((s: number, it: any) => s + Number(it.qty || 0), 0);
+  const todaySoldProductsQty = todayInvoices.reduce((acc, inv) => {
+    const items =
+      inv.items && inv.items.length > 0
+        ? inv.items
+        : (db.getStore()?.invoice_items || []).filter((it: any) => it.invoice_id === inv.id);
+    return acc + items.reduce((s: number, it: any) => s + Number(it.qty || 0), 0);
+  }, 0);
 
   const now = new Date();
   const hour = now.getHours();

@@ -543,6 +543,9 @@ function InvoicesPage() {
           onClose={() => setEditingBill(null)}
           onSaved={() => {
             qc.invalidateQueries({ queryKey: ["invoices"] });
+            qc.invalidateQueries({ queryKey: ["inventory"] });
+            qc.invalidateQueries({ queryKey: ["customers"] });
+            qc.invalidateQueries({ queryKey: ["ledger"] });
             setEditingBill(null);
           }}
         />

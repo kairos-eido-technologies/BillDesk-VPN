@@ -461,25 +461,28 @@ export function BillViewerModal({
                       }
 
                       // Web / Desktop Clipboard & WhatsApp Web
-                      const ok = await copyDataUrlToClipboard(dataUrl);
-                      if (ok) {
-                        const waUrl = cleanPhone
-                          ? `https://wa.me/${cleanPhone}`
-                          : `https://web.whatsapp.com`;
-
-                        window.open(waUrl, "_blank");
-                        toast.success("Receipt image copied! WhatsApp opened — press Ctrl+V to paste & send.");
-                        setShowWhatsAppDialog(false);
-                      } else {
-                        // Fallback trigger file download
-                        triggerDownload(dataUrl, `Bill_Receipt_${invoiceObj?.invoice_number || 'INV'}.png`);
-                        const waUrl = cleanPhone
-                          ? `https://wa.me/${cleanPhone}`
-                          : `https://web.whatsapp.com`;
-                        window.open(waUrl, "_blank");
-                        toast.success("Receipt downloaded! You can attach it in WhatsApp.");
-                        setShowWhatsAppDialog(false);
+                      let copied = false;
+                      try {
+                        copied = await copyDataUrlToClipboard(dataUrl);
+                      } catch (err) {
+                        console.warn("Clipboard copy failed:", err);
                       }
+
+                      // Also download PNG file so desktop users always have the crisp receipt image
+                      triggerDownload(dataUrl, `Bill_Receipt_${invoiceObj?.invoice_number || 'INV'}.png`);
+
+                      const waUrl = cleanPhone
+                        ? `https://wa.me/${cleanPhone}`
+                        : `https://web.whatsapp.com`;
+
+                      window.open(waUrl, "_blank");
+
+                      if (copied) {
+                        toast.success("Receipt image copied & downloaded! Press Ctrl+V in WhatsApp to send.");
+                      } else {
+                        toast.success("Receipt PNG downloaded! You can attach it in WhatsApp.");
+                      }
+                      setShowWhatsAppDialog(false);
                     } catch (e: any) {
                       toast.error("Error generating receipt image: " + e.message);
                     } finally {
@@ -494,9 +497,30 @@ export function BillViewerModal({
                       Send Receipt as Image (Recommended)
                     </div>
                     <div className="text-[10px] text-muted-foreground mt-0.5">
-                      Sends PNG receipt image directly to customer's WhatsApp.
+                      Copies crisp PNG receipt image & opens WhatsApp.
                     </div>
                   </div>
+                </button>
+
+                {/* Direct PNG Image Download */}
+                <button
+                  type="button"
+                  onClick={async () => {
+                    const dataUrl = mode === "thermal"
+                      ? await renderThermalReceiptToDataUrl(invoiceObj, items, storeSettings)
+                      : (targetEl ? await getReceiptImageDataUrl(targetEl) : null);
+                    if (dataUrl) {
+                      triggerDownload(dataUrl, `Bill_Receipt_${invoiceObj?.invoice_number || 'INV'}.png`);
+                      toast.success("Receipt PNG image downloaded!");
+                    }
+                  }}
+                  className="w-full p-2.5 bg-secondary hover:bg-muted border border-border rounded-lg flex items-center justify-between text-left transition cursor-pointer"
+                >
+                  <div className="flex items-center gap-2">
+                    <Download className="h-4 w-4 text-emerald-500" />
+                    <span className="text-xs font-semibold text-foreground">Save as PNG Image</span>
+                  </div>
+                  <span className="text-[10px] text-muted-foreground font-mono">.png receipt</span>
                 </button>
 
                 {/* Text format */}
