@@ -228,6 +228,13 @@ export class SQLiteDatabaseManager {
         payment_method TEXT,
         payment_status TEXT,
         is_synced REAL DEFAULT 0,
+        amount_paid REAL DEFAULT 0,
+        balance_due REAL DEFAULT 0,
+        round_off REAL DEFAULT 0,
+        customer_address TEXT,
+        customer_gstin TEXT,
+        notes TEXT,
+        created_by TEXT,
         created_at TEXT
       );
       CREATE TABLE IF NOT EXISTS invoice_items (
@@ -415,6 +422,7 @@ export class SQLiteDatabaseManager {
           api_key: 'mssp_' + Math.random().toString(36).substring(2, 12),
           server_port: '3000',
           currency_symbol: '₹',
+          low_stock_threshold: '10',
         };
         for (const [key, value] of Object.entries(defaultSettings)) {
           await db.run(`INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)`, [key, JSON.stringify(value)]);

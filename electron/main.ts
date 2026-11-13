@@ -129,15 +129,123 @@ async function createWindow() {
       sandbox: false,
     },
     icon: iconPath,
-    backgroundColor: '#F8FAFC',
+    backgroundColor: '#1B2D6B',
   });
 
   mainWindow.setMenu(null);
+
+  const splashHtml = `
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <meta charset="utf-8">
+      <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+          background-color: #1B2D6B;
+          color: #ffffff;
+          font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          justify-content: center;
+          height: 100vh;
+          width: 100vw;
+          user-select: none;
+          overflow: hidden;
+        }
+        .container {
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          animation: fadeIn 0.25s ease-out;
+        }
+        @keyframes fadeIn {
+          from { opacity: 0; transform: scale(0.97); }
+          to { opacity: 1; transform: scale(1); }
+        }
+        .logo-box {
+          width: 88px;
+          height: 88px;
+          border-radius: 20px;
+          background: #ffffff;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          padding: 8px;
+          box-shadow: 0 12px 30px rgba(0,0,0,0.35);
+          margin-bottom: 18px;
+        }
+        .logo-box svg {
+          width: 52px;
+          height: 52px;
+        }
+        .shop-name {
+          font-size: 22px;
+          font-weight: 900;
+          letter-spacing: 2px;
+          text-transform: uppercase;
+          text-align: center;
+        }
+        .shop-badge {
+          margin-top: 6px;
+          font-size: 11px;
+          font-weight: 800;
+          letter-spacing: 3px;
+          color: #E8151B;
+          background: rgba(255,255,255,0.12);
+          padding: 3px 12px;
+          border-radius: 999px;
+          text-transform: uppercase;
+        }
+        .spinner {
+          margin-top: 30px;
+          width: 32px;
+          height: 32px;
+          border: 3.5px solid rgba(255, 255, 255, 0.2);
+          border-top-color: #ffffff;
+          border-radius: 50%;
+          animation: spin 0.8s linear infinite;
+        }
+        @keyframes spin {
+          to { transform: rotate(360deg); }
+        }
+        .status {
+          margin-top: 14px;
+          font-size: 12px;
+          font-weight: 600;
+          color: rgba(255, 255, 255, 0.7);
+          letter-spacing: 0.5px;
+        }
+      </style>
+    </head>
+    <body>
+      <div class="container">
+        <div class="logo-box">
+          <svg viewBox="0 0 24 24" fill="none" stroke="%231B2D6B" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="m2 7 4.41-4.41A2 2 0 0 1 7.83 2h8.34a2 2 0 0 1 1.42.59L22 7"/>
+            <path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/>
+            <path d="M15 22v-4a2 2 0 0 0-2-2h-2a2 2 0 0 0-2 2v4"/>
+            <path d="M2 7h20"/>
+            <circle cx="12" cy="12" r="2"/>
+          </svg>
+        </div>
+        <div class="shop-name">MSS PONKUMAR STORE</div>
+        <div class="shop-badge">WHOLESALE SHOP • OFFLINE POS</div>
+        <div class="spinner"></div>
+        <div class="status">Starting Embedded Server & SQLite Database...</div>
+      </div>
+    </body>
+    </html>
+  `;
+
+  // Instantly show the branded splash window so there is zero white flash
+  await mainWindow.loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(splashHtml)}`);
+  mainWindow.show();
   mainWindow.maximize();
 
   const targetUrl = await startServerProcess();
-  await mainWindow.loadURL(targetUrl);
-  mainWindow.show();
+  await mainWindow.loadURL(`${targetUrl}/apps`);
 
   mainWindow.on('closed', () => {
     mainWindow = null;

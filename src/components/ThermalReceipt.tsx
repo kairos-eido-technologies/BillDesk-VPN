@@ -114,7 +114,7 @@ export function ThermalReceipt({ invoice: i, items = [], storeSettings }: Therma
           <img
             src={shopLogo}
             alt={shopName}
-            className="w-14 h-14 object-contain mx-auto mb-1.5"
+            className="w-14 h-14 object-contain mx-auto mb-1.5 grayscale"
             onError={(e) => {
               (e.target as HTMLElement).style.display = 'none';
             }}

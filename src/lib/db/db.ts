@@ -202,6 +202,7 @@ const DEFAULT_SETTINGS: Settings = {
   api_key: 'mssp_secret_key_88',
   server_port: '3000',
   custom_tunnel_url: '',
+  low_stock_threshold: '10',
 };
 
 const DEFAULT_STORE: DBStore = {

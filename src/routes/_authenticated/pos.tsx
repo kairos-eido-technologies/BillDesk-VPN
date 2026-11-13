@@ -678,47 +678,6 @@ function POSPage() {
             </table>
           </div>
         </div>
-
-        {/* Quick Add Catalog Grid */}
-        <div className="card-surface p-3">
-          <div className="text-[10px] uppercase font-semibold text-muted-foreground mb-2 tracking-wider flex justify-between">
-            <span>Quick Add Products</span>
-            <span className="text-primary font-mono">{products.data?.length ?? 0} items</span>
-          </div>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
-            {products.data?.map((p) => {
-              const shopQty = Number(p.stock_qty || 0);
-              const isOutOfStock = shopQty <= 0;
-
-              return (
-                <button
-                  key={p.id}
-                  onClick={() => handleProductClick(p)}
-                  className={`text-left p-2.5 rounded-md border transition group relative cursor-pointer ${
-                    isOutOfStock
-                      ? "bg-rose-500/5 border-rose-500/30 hover:border-rose-500/60"
-                      : "border-border hover:border-primary/50 hover:bg-secondary/60"
-                  }`}
-                >
-                  <div className="text-xs font-semibold truncate group-hover:text-primary flex justify-between items-center">
-                    <span className="truncate">{p.name}</span>
-                  </div>
-                  <div className="text-[10px] font-mono text-muted-foreground flex justify-between items-center mt-1">
-                    <span className={isOutOfStock ? "text-rose-500 font-bold" : "text-foreground"}>
-                      Stock: {qty(shopQty)}
-                    </span>
-                    <div className="flex items-center gap-1.5">
-                      {p.mrp && p.mrp > p.selling_price ? (
-                        <span className="text-[10px] text-muted-foreground line-through">₹{Number(p.mrp).toFixed(0)}</span>
-                      ) : null}
-                      <span className="text-primary font-bold">{inr(p.selling_price)}</span>
-                    </div>
-                  </div>
-                </button>
-              );
-            })}
-          </div>
-        </div>
       </div>
 
       {/* RIGHT: Customer & Payment Sidebar */}

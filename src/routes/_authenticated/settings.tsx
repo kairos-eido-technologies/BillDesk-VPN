@@ -199,7 +199,66 @@ function SettingsPage() {
     setStaffToDelete(null);
   }
 
-  function handleLogoUpload(e: React.ChangeEvent<HTMLInputElement>) {
+  function convertImageToBlackAndWhite(imgSrc: string): Promise<string> {
+    return new Promise((resolve, reject) => {
+      const img = new Image();
+      img.crossOrigin = "anonymous";
+      img.onload = () => {
+        const maxDim = 400;
+        let width = img.naturalWidth || img.width;
+        let height = img.naturalHeight || img.height;
+        if (width > maxDim || height > maxDim) {
+          if (width > height) {
+            height = Math.round((height * maxDim) / width);
+            width = maxDim;
+          } else {
+            width = Math.round((width * maxDim) / height);
+            height = maxDim;
+          }
+        }
+
+        const canvas = document.createElement("canvas");
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext("2d");
+        if (!ctx) {
+          resolve(imgSrc);
+          return;
+        }
+
+        ctx.drawImage(img, 0, 0, width, height);
+        const imageData = ctx.getImageData(0, 0, width, height);
+        const data = imageData.data;
+
+        for (let i = 0; i < data.length; i += 4) {
+          const r = data[i];
+          const g = data[i + 1];
+          const b = data[i + 2];
+          const a = data[i + 3];
+
+          // If mostly transparent, keep transparent
+          if (a < 20) {
+            data[i + 3] = 0;
+            continue;
+          }
+
+          // Perceived luminance formula (ITU-R BT.601)
+          const gray = Math.round(0.299 * r + 0.587 * g + 0.114 * b);
+
+          data[i] = gray;
+          data[i + 1] = gray;
+          data[i + 2] = gray;
+        }
+
+        ctx.putImageData(imageData, 0, 0);
+        resolve(canvas.toDataURL("image/png"));
+      };
+      img.onerror = (e) => reject(e);
+      img.src = imgSrc;
+    });
+  }
+
+  async function handleLogoUpload(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file) return;
     if (!file.type.startsWith("image/")) {
@@ -207,12 +266,29 @@ function SettingsPage() {
       return;
     }
     const reader = new FileReader();
-    reader.onload = () => {
-      const base64 = reader.result as string;
-      setSettingsForm((prev: any) => ({ ...prev, shop_logo: base64, show_logo: true }));
-      toast.success("Logo uploaded into preview! Click 'Save Store Profile & Invoice Texts' to apply.");
+    reader.onload = async () => {
+      const rawBase64 = reader.result as string;
+      try {
+        const bwBase64 = await convertImageToBlackAndWhite(rawBase64);
+        setSettingsForm((prev: any) => ({ ...prev, shop_logo: bwBase64, show_logo: true }));
+        toast.success("Logo uploaded and converted to Black & White! Click 'Save' to apply.");
+      } catch {
+        setSettingsForm((prev: any) => ({ ...prev, shop_logo: rawBase64, show_logo: true }));
+        toast.success("Logo uploaded! Click 'Save' to apply.");
+      }
     };
     reader.readAsDataURL(file);
+  }
+
+  async function handleConvertCurrentLogoToBW() {
+    if (!settingsForm.shop_logo) return;
+    try {
+      const bw = await convertImageToBlackAndWhite(settingsForm.shop_logo);
+      setSettingsForm((prev: any) => ({ ...prev, shop_logo: bw, show_logo: true }));
+      toast.success("Logo converted to Black & White!");
+    } catch {
+      toast.error("Could not convert current logo.");
+    }
   }
 
   function handleSaveSettings(e: React.FormEvent) {
@@ -228,6 +304,7 @@ function SettingsPage() {
       receipt_footer_note: settingsForm.receipt_footer_note || settingsForm.receipt_footer_message || "",
       receipt_footer_message: settingsForm.receipt_footer_note || settingsForm.receipt_footer_message || "",
       receipt_header_note: settingsForm.receipt_header_note || "",
+      low_stock_threshold: String(settingsForm.low_stock_threshold ?? "10"),
       shop_logo: settingsForm.shop_logo || "/mss-logo.png",
       show_logo: settingsForm.show_logo !== false,
     };
@@ -678,7 +755,7 @@ function SettingsPage() {
                     <img
                       src={settingsForm.shop_logo || "/mss-logo.png"}
                       alt="Store Logo"
-                      className="max-h-full max-w-full object-contain"
+                      className="max-h-full max-w-full object-contain grayscale"
                       onError={(e) => {
                         (e.target as HTMLImageElement).src = "/mss-logo.png";
                       }}
@@ -687,7 +764,7 @@ function SettingsPage() {
                   <div className="space-y-1.5 flex-1">
                     <div className="flex flex-wrap items-center gap-2">
                       <label className="cursor-pointer h-7 px-3 rounded bg-secondary text-foreground border border-border text-xs font-semibold inline-flex items-center gap-1 hover:bg-muted transition">
-                        <Upload className="h-3 w-3 text-primary" /> Upload Custom Logo
+                        <Upload className="h-3 w-3 text-primary" /> Upload Logo (Auto B&W)
                         <input
                           type="file"
                           accept="image/*"
@@ -695,6 +772,14 @@ function SettingsPage() {
                           className="hidden"
                         />
                       </label>
+                      <button
+                        type="button"
+                        onClick={handleConvertCurrentLogoToBW}
+                        className="h-7 px-2.5 rounded bg-secondary text-foreground text-[11px] font-medium hover:bg-muted border border-border transition"
+                        title="Convert currently displayed logo into Black & White"
+                      >
+                        Turn B&W
+                      </button>
                       <button
                         type="button"
                         onClick={() => {
@@ -705,6 +790,9 @@ function SettingsPage() {
                       >
                         Reset Default
                       </button>
+                    </div>
+                    <div className="text-[10px] text-muted-foreground flex items-center gap-1 font-medium">
+                      <span>• Automatically converted to clean Black & White for thermal receipt printers.</span>
                     </div>
                     <label className="flex items-center gap-2 text-xs font-medium text-muted-foreground cursor-pointer pt-0.5">
                       <input
@@ -764,6 +852,35 @@ function SettingsPage() {
                     placeholder="e.g. 33AAAAA0000A1Z5"
                     className={`${ic} font-mono uppercase`}
                   />
+                </L>
+              </div>
+
+              {/* Low Stock Alert Configuration */}
+              <div className="pt-2 border-t border-border space-y-2">
+                <div className="text-xs font-bold text-foreground flex items-center justify-between">
+                  <span className="flex items-center gap-1.5">
+                    <AlertTriangle className="h-3.5 w-3.5 text-amber-500" />
+                    Minimum Stock Alert Settings
+                  </span>
+                  <Link
+                    to="/low-stock"
+                    className="text-[11px] text-primary hover:underline font-semibold"
+                  >
+                    Open Low Stock Alert App &rarr;
+                  </Link>
+                </div>
+                <L label="Minimum Stock Alert Threshold (Units)">
+                  <input
+                    type="number"
+                    min={0}
+                    value={settingsForm.low_stock_threshold ?? "10"}
+                    onChange={(e) => setSettingsForm({ ...settingsForm, low_stock_threshold: e.target.value })}
+                    placeholder="e.g. 10"
+                    className={`${ic} font-semibold`}
+                  />
+                  <p className="text-[10px] text-muted-foreground mt-1">
+                    Products with inventory stock at or below this value (or their individual product alert quantity) will automatically show up in the Low Stock Alert app.
+                  </p>
                 </L>
               </div>
 

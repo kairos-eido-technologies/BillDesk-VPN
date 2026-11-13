@@ -13,6 +13,7 @@ import {
   Settings,
   Search,
   Server,
+  AlertTriangle,
 } from "lucide-react";
 import { useT } from "@/lib/lang/lang-context";
 
@@ -87,6 +88,17 @@ const INDIVIDUAL_APPS: SingleApp[] = [
     color: "text-teal-600",
     bgColor: "from-teal-100 to-emerald-50",
     borderColor: "border-teal-300",
+  },
+  {
+    id: "low-stock",
+    name: "Low Stock Alert",
+    category: "Stock",
+    desc: "Items Below Threshold",
+    to: "/low-stock",
+    icon: AlertTriangle,
+    color: "text-amber-600",
+    bgColor: "from-amber-100 to-orange-50",
+    borderColor: "border-amber-300",
   },
   {
     id: "customers",

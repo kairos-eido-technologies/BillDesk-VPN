@@ -20,6 +20,7 @@ import { Route as AuthenticatedGstRouteImport } from './routes/_authenticated/gs
 import { Route as AuthenticatedInventoryRouteImport } from './routes/_authenticated/inventory'
 import { Route as AuthenticatedInvoicesRouteImport } from './routes/_authenticated/invoices'
 import { Route as AuthenticatedLedgerRouteImport } from './routes/_authenticated/ledger'
+import { Route as AuthenticatedLowStockRouteImport } from './routes/_authenticated/low-stock'
 import { Route as AuthenticatedPosRouteImport } from './routes/_authenticated/pos'
 import { Route as AuthenticatedReportsRouteImport } from './routes/_authenticated/reports'
 import { Route as AuthenticatedServerRouteImport } from './routes/_authenticated/server'
@@ -81,6 +82,11 @@ const AuthenticatedLedgerRoute = AuthenticatedLedgerRouteImport.update({
   path: '/ledger',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const AuthenticatedLowStockRoute = AuthenticatedLowStockRouteImport.update({
+  id: '/low-stock',
+  path: '/low-stock',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
 const AuthenticatedPosRoute = AuthenticatedPosRouteImport.update({
   id: '/pos',
   path: '/pos',
@@ -124,6 +130,7 @@ export interface FileRoutesByFullPath {
   '/inventory': typeof AuthenticatedInventoryRoute
   '/invoices': typeof AuthenticatedInvoicesRouteWithChildren
   '/ledger': typeof AuthenticatedLedgerRoute
+  '/low-stock': typeof AuthenticatedLowStockRoute
   '/pos': typeof AuthenticatedPosRoute
   '/reports': typeof AuthenticatedReportsRoute
   '/server': typeof AuthenticatedServerRoute
@@ -141,6 +148,7 @@ export interface FileRoutesByTo {
   '/gst': typeof AuthenticatedGstRoute
   '/inventory': typeof AuthenticatedInventoryRoute
   '/ledger': typeof AuthenticatedLedgerRoute
+  '/low-stock': typeof AuthenticatedLowStockRoute
   '/pos': typeof AuthenticatedPosRoute
   '/reports': typeof AuthenticatedReportsRoute
   '/server': typeof AuthenticatedServerRoute
@@ -161,6 +169,7 @@ export interface FileRoutesById {
   '/_authenticated/inventory': typeof AuthenticatedInventoryRoute
   '/_authenticated/invoices': typeof AuthenticatedInvoicesRouteWithChildren
   '/_authenticated/ledger': typeof AuthenticatedLedgerRoute
+  '/_authenticated/low-stock': typeof AuthenticatedLowStockRoute
   '/_authenticated/pos': typeof AuthenticatedPosRoute
   '/_authenticated/reports': typeof AuthenticatedReportsRoute
   '/_authenticated/server': typeof AuthenticatedServerRoute
@@ -181,6 +190,7 @@ export interface FileRouteTypes {
     | '/inventory'
     | '/invoices'
     | '/ledger'
+    | '/low-stock'
     | '/pos'
     | '/reports'
     | '/server'
@@ -198,6 +208,7 @@ export interface FileRouteTypes {
     | '/gst'
     | '/inventory'
     | '/ledger'
+    | '/low-stock'
     | '/pos'
     | '/reports'
     | '/server'
@@ -217,6 +228,7 @@ export interface FileRouteTypes {
     | '/_authenticated/inventory'
     | '/_authenticated/invoices'
     | '/_authenticated/ledger'
+    | '/_authenticated/low-stock'
     | '/_authenticated/pos'
     | '/_authenticated/reports'
     | '/_authenticated/server'
@@ -310,6 +322,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedLedgerRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/low-stock': {
+      id: '/_authenticated/low-stock'
+      path: '/low-stock'
+      fullPath: '/low-stock'
+      preLoaderRoute: typeof AuthenticatedLowStockRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/pos': {
       id: '/_authenticated/pos'
       path: '/pos'
@@ -379,6 +398,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedInventoryRoute: typeof AuthenticatedInventoryRoute
   AuthenticatedInvoicesRoute: typeof AuthenticatedInvoicesRouteWithChildren
   AuthenticatedLedgerRoute: typeof AuthenticatedLedgerRoute
+  AuthenticatedLowStockRoute: typeof AuthenticatedLowStockRoute
   AuthenticatedPosRoute: typeof AuthenticatedPosRoute
   AuthenticatedReportsRoute: typeof AuthenticatedReportsRoute
   AuthenticatedServerRoute: typeof AuthenticatedServerRoute
@@ -394,6 +414,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedInventoryRoute: AuthenticatedInventoryRoute,
   AuthenticatedInvoicesRoute: AuthenticatedInvoicesRouteWithChildren,
   AuthenticatedLedgerRoute: AuthenticatedLedgerRoute,
+  AuthenticatedLowStockRoute: AuthenticatedLowStockRoute,
   AuthenticatedPosRoute: AuthenticatedPosRoute,
   AuthenticatedReportsRoute: AuthenticatedReportsRoute,
   AuthenticatedServerRoute: AuthenticatedServerRoute,

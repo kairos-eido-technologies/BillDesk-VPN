@@ -13,6 +13,9 @@ import {
   Settings as SettingsIcon,
   Store,
   Home,
+  Users,
+  Package,
+  Landmark,
 } from "lucide-react";
 
 export const Route = createFileRoute("/_authenticated")({
@@ -138,9 +141,36 @@ function Shell() {
       </header>
 
       {/* MAIN CONTENT AREA */}
-      <main className="flex-1 overflow-auto relative print:overflow-visible print:h-auto">
+      <main className="flex-1 overflow-auto relative print:overflow-visible print:h-auto pb-20 md:pb-0">
         <Outlet />
       </main>
+
+      {/* Mobile Bottom Navigation — only on mobile */}
+      <nav className="fixed bottom-0 left-0 right-0 bg-white/95 backdrop-blur-xl border-t border-[#E2E8F0] px-2 z-20 md:hidden print:hidden">
+        <div className="flex items-center justify-around py-2 pb-safe">
+          {[
+            { label: "Home", icon: "Home", to: "/apps" },
+            { label: "Customers", icon: "Users", to: "/customers" },
+            { label: "Stock", icon: "Package", to: "/inventory" },
+            { label: "Ledger", icon: "Landmark", to: "/ledger" },
+            { label: "More", icon: "Settings", to: "/settings" },
+          ].map((item) => {
+            const icons: any = { Home, Users, Package, Landmark, Settings: SettingsIcon };
+            const Icon = icons[item.icon] || Home;
+            return (
+              <Link
+                key={item.to}
+                to={item.to as any}
+                className="flex flex-col items-center gap-1 px-3 py-1.5 rounded-xl min-w-[52px] active:scale-90 transition-transform"
+                activeProps={{ className: "text-[#E8151B]" }}
+              >
+                <Icon className="h-5 w-5" />
+                <span className="text-[10px] font-bold">{item.label}</span>
+              </Link>
+            );
+          })}
+        </div>
+      </nav>
     </div>
   );
 }

@@ -165,10 +165,10 @@ function RootComponent() {
 
   if (!loaded) {
     return (
-      <div className="min-h-screen bg-background flex flex-col items-center justify-center text-foreground font-sans">
+      <div className="min-h-screen bg-[#1B2D6B] flex flex-col items-center justify-center text-white font-sans">
         <div className="space-y-4 text-center">
-          <div className="h-10 w-10 border-4 border-primary border-t-transparent rounded-full animate-spin mx-auto"></div>
-          <p className="text-sm font-semibold text-muted-foreground">Initializing MSS Ponkumar Store Database...</p>
+          <div className="h-10 w-10 border-4 border-white border-t-transparent rounded-full animate-spin mx-auto"></div>
+          <p className="text-sm font-semibold tracking-wide text-white/80">Initializing MSS Ponkumar Store...</p>
         </div>
       </div>
     );

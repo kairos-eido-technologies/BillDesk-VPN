@@ -6,7 +6,7 @@ import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { PageHeader } from "./dashboard";
 import { inr, qty } from "@/lib/format";
-import { Plus, X, Pencil, Download, Upload, FileSpreadsheet, AlertCircle, CheckCircle, Printer, Image, RefreshCw, Barcode, TrendingUp, TrendingDown, DollarSign, Store, Warehouse, Scale, Trash2, Calculator, Tag, Scissors } from "lucide-react";
+import { Plus, X, Pencil, Download, Upload, FileSpreadsheet, AlertCircle, CheckCircle, Printer, Image, RefreshCw, Barcode, TrendingUp, TrendingDown, DollarSign, Store, Warehouse, Scale, Trash2, Calculator, Tag, Scissors, Sliders, Type, ChevronDown, ChevronUp } from "lucide-react";
 import { useT } from "@/lib/lang/lang-context";
 import { printIsolatedLabels } from "@/lib/print-isolated-receipt";
 
@@ -1062,82 +1062,186 @@ function generateBarcodeSvg(code: string, height: number = 20, maxW: string = "1
 
 type LabelFormat = "50x25" | "34x20";
 
+const FONT_OPTIONS = [
+  { label: "Arial / Clean Sans", value: "Arial, Helvetica, sans-serif" },
+  { label: "Segoe UI / Modern", value: "'Segoe UI', Tahoma, sans-serif" },
+  { label: "Monospace / Bold", value: "'Courier New', Courier, monospace" },
+  { label: "Times / Serif", value: "Georgia, 'Times New Roman', serif" },
+  { label: "Impact / Heavy", value: "Impact, Haettenschweiler, sans-serif" },
+];
+
 function BarcodePrintModal({ product, onClose }: { product: InventoryItem; onClose: () => void }) {
   const [labelFormat, setLabelFormat] = useState<LabelFormat>("50x25");
   const [sheetCount, setSheetCount] = useState<number>(1);
   const [isPrinting, setIsPrinting] = useState<boolean>(false);
 
+  // Shop Name & Price Settings
+  const storeSettings = db.getSettings();
+  const defaultShop = storeSettings?.shop_name || "MSS PONKUMAR STORE";
+  const [customShopName, setCustomShopName] = useState<string>(defaultShop);
+  const [priceMode, setPriceMode] = useState<"retail" | "wholesale">("retail");
+  const [pricePrefix, setPricePrefix] = useState<"plain" | "price" | "mode">("plain");
+
+  // Component Typography & Sizes
+  const [shopFont, setShopFont] = useState<string>("Arial, Helvetica, sans-serif");
+  const [shopSize, setShopSize] = useState<number>(labelFormat === "34x20" ? 7 : 8.5);
+
+  const [productFont, setProductFont] = useState<string>("Arial, Helvetica, sans-serif");
+  const [productSize, setProductSize] = useState<number>(labelFormat === "34x20" ? 7.5 : 9.5);
+
+  const [barcodeHeight, setBarcodeHeight] = useState<number>(labelFormat === "34x20" ? 13 : 18);
+  const [barcodeTextSize, setBarcodeTextSize] = useState<number>(labelFormat === "34x20" ? 6.5 : 8);
+
+  const [priceFont, setPriceFont] = useState<string>("Arial, Helvetica, sans-serif");
+  const [priceSize, setPriceSize] = useState<number>(labelFormat === "34x20" ? 8 : 10);
+
+  const [showTypography, setShowTypography] = useState<boolean>(true);
+
   const barcodeCode = product.barcode || product.sku_code || generateMsspBarcode();
-  const skuCode = product.sku_code || product.barcode || barcodeCode;
-  const mrpVal = product.mrp && product.mrp > 0 ? product.mrp : product.selling_price;
   const stickersPerRow = labelFormat === "34x20" ? 3 : 2;
   const totalStickers = sheetCount * stickersPerRow;
 
+  const retailPrice = Number(product.selling_price || 0);
+  const wholesalePrice = Number(product.wholesale_price && product.wholesale_price > 0 ? product.wholesale_price : retailPrice);
+  const activePrice = priceMode === "wholesale" ? wholesalePrice : retailPrice;
+
+  function getPriceText(): string {
+    if (pricePrefix === "plain") return `₹${activePrice.toFixed(0)}`;
+    if (pricePrefix === "price") return `Price: ₹${activePrice.toFixed(0)}`;
+    return `${priceMode === "wholesale" ? "Wholesale" : "Retail"}: ₹${activePrice.toFixed(0)}`;
+  }
+
+  function handleFormatChange(fmt: LabelFormat) {
+    setLabelFormat(fmt);
+    if (fmt === "34x20") {
+      setShopSize(7);
+      setProductSize(7.5);
+      setBarcodeHeight(13);
+      setBarcodeTextSize(6.5);
+      setPriceSize(8);
+    } else {
+      setShopSize(8.5);
+      setProductSize(9.5);
+      setBarcodeHeight(18);
+      setBarcodeTextSize(8);
+      setPriceSize(10);
+    }
+  }
+
+  function handleResetTypography() {
+    if (labelFormat === "34x20") {
+      setShopFont("Arial, Helvetica, sans-serif");
+      setShopSize(7);
+      setProductFont("Arial, Helvetica, sans-serif");
+      setProductSize(7.5);
+      setBarcodeHeight(13);
+      setBarcodeTextSize(6.5);
+      setPriceFont("Arial, Helvetica, sans-serif");
+      setPriceSize(8);
+    } else {
+      setShopFont("Arial, Helvetica, sans-serif");
+      setShopSize(8.5);
+      setProductFont("Arial, Helvetica, sans-serif");
+      setProductSize(9.5);
+      setBarcodeHeight(18);
+      setBarcodeTextSize(8);
+      setPriceFont("Arial, Helvetica, sans-serif");
+      setPriceSize(10);
+    }
+    toast.success("Font sizes reset to defaults");
+  }
+
+  // 1. Render 50x25 mm Label (Only 4 components: Shop Name, Product Name, Barcode, Price)
   function renderSingle50x25Label(isPrint: boolean = false) {
+    const priceText = getPriceText();
     return (
       <div
-        className={`flex flex-col justify-between items-center text-center p-1 box-border overflow-hidden bg-white text-black font-sans ${
+        className={`flex flex-col justify-between items-center text-center p-1 box-border overflow-hidden bg-white text-black ${
           isPrint ? "h-[25mm] max-h-[25mm] w-[50mm]" : "h-full w-full"
         }`}
         style={{ color: "#000000", WebkitTextStroke: "0.15px #000000" }}
       >
-        <div className="w-full">
-          <div className="text-[7.5px] font-black uppercase tracking-wider text-black leading-none">
-            PONMANI AGENCIES
+        {/* 1. Shop Name */}
+        <div
+          className="w-full font-black uppercase truncate tracking-wider leading-none"
+          style={{ fontFamily: shopFont, fontSize: `${shopSize}px` }}
+        >
+          {customShopName}
+        </div>
+
+        {/* 2. Product Name */}
+        <div
+          className="w-full font-bold truncate leading-tight mt-0.5"
+          style={{ fontFamily: productFont, fontSize: `${productSize}px` }}
+          title={product.name}
+        >
+          {product.name}
+        </div>
+
+        {/* 3. Barcode Lines & Code */}
+        <div className="w-full flex flex-col items-center justify-center py-0.5">
+          <BarcodeVisual code={barcodeCode} height={barcodeHeight} maxW="130px" />
+          <div
+            className="font-mono font-bold tracking-wider leading-none mt-0.5"
+            style={{ fontSize: `${barcodeTextSize}px` }}
+          >
+            {barcodeCode}
           </div>
-          <div className="text-[8.5px] font-black truncate leading-tight text-black mt-0.5" title={product.name}>
-            {product.name}
-          </div>
         </div>
 
-        {/* MRP & SP (Symmetrically Aligned on the exact same baseline) */}
-        <div className="w-full flex items-baseline justify-center gap-3 font-mono text-[8.5px] font-black py-0.5 text-black leading-none">
-          <span>MRP: ₹{mrpVal.toFixed(0)}</span>
-          <span>SP: ₹{product.selling_price.toFixed(0)}</span>
-        </div>
-
-        {/* Barcode Lines */}
-        <div className="w-full flex justify-center py-0.5">
-          <BarcodeVisual code={barcodeCode} height={18} maxW="130px" />
-        </div>
-
-        {/* SKU Code at bottom (direct SKU code without prefix) */}
-        <div className="text-[7.5px] font-mono font-black tracking-wider text-black leading-none">
-          {skuCode}
+        {/* 4. Price */}
+        <div
+          className="w-full font-black leading-none"
+          style={{ fontFamily: priceFont, fontSize: `${priceSize}px` }}
+        >
+          {priceText}
         </div>
       </div>
     );
   }
 
+  // 2. Render 34x20 mm Label (Only 4 components: Shop Name, Product Name, Barcode, Price)
   function renderSingle34x20Label() {
+    const priceText = getPriceText();
     return (
       <div
-        className="flex flex-col justify-between items-center text-center p-0.5 box-border overflow-hidden bg-white text-black font-sans h-full w-full"
+        className="flex flex-col justify-between items-center text-center p-0.5 box-border overflow-hidden bg-white text-black h-full w-full"
         style={{ color: "#000000", WebkitTextStroke: "0.1px #000000" }}
       >
-        <div className="w-full">
-          <div className="text-[6.8px] font-black uppercase tracking-tight text-black leading-none">
-            PONMANI AGENCIES
+        {/* 1. Shop Name */}
+        <div
+          className="w-full font-black uppercase truncate tracking-tight leading-none"
+          style={{ fontFamily: shopFont, fontSize: `${shopSize}px` }}
+        >
+          {customShopName}
+        </div>
+
+        {/* 2. Product Name */}
+        <div
+          className="w-full font-bold truncate leading-tight mt-0.5"
+          style={{ fontFamily: productFont, fontSize: `${productSize}px` }}
+          title={product.name}
+        >
+          {product.name}
+        </div>
+
+        {/* 3. Barcode Lines & Code */}
+        <div className="w-full flex flex-col items-center justify-center py-0.5">
+          <BarcodeVisual code={barcodeCode} height={barcodeHeight} maxW="90px" />
+          <div
+            className="font-mono font-bold tracking-wider leading-none mt-0.5 truncate max-w-[32mm]"
+            style={{ fontSize: `${barcodeTextSize}px` }}
+          >
+            {barcodeCode}
           </div>
-          <div className="text-[7.2px] font-black truncate leading-tight text-black mt-0.5" title={product.name}>
-            {product.name}
-          </div>
         </div>
 
-        {/* MRP & SP (Symmetrically Aligned on the exact same baseline) */}
-        <div className="w-full flex items-baseline justify-center gap-2 font-mono text-[7px] font-black py-0.5 text-black leading-none">
-          <span>MRP: ₹{mrpVal.toFixed(0)}</span>
-          <span>SP: ₹{product.selling_price.toFixed(0)}</span>
-        </div>
-
-        {/* Barcode Lines */}
-        <div className="w-full flex justify-center py-0.5">
-          <BarcodeVisual code={barcodeCode} height={13} maxW="90px" />
-        </div>
-
-        {/* SKU Code at bottom (direct SKU code without prefix) */}
-        <div className="text-[6.5px] font-mono font-black tracking-wider text-black leading-none truncate max-w-[32mm]">
-          {skuCode}
+        {/* 4. Price */}
+        <div
+          className="w-full font-black leading-none"
+          style={{ fontFamily: priceFont, fontSize: `${priceSize}px` }}
+        >
+          {priceText}
         </div>
       </div>
     );
@@ -1148,23 +1252,20 @@ function BarcodePrintModal({ product, onClose }: { product: InventoryItem; onClo
     setIsPrinting(true);
 
     try {
+      const priceText = getPriceText();
+
       if (labelFormat === "34x20") {
-        const miniBarcodeSvg = generateBarcodeSvg(barcodeCode, 13, "90px");
+        const miniBarcodeSvg = generateBarcodeSvg(barcodeCode, barcodeHeight, "90px");
 
         const singleMiniHtml = `
-          <div style="width: 34mm; height: 100%; max-height: 20mm; box-sizing: border-box; padding: 0.8mm 1mm; display: flex; flex-direction: column; justify-content: space-between; align-items: center; text-align: center; background: #ffffff; color: #000000; overflow: hidden; font-family: Arial, Helvetica, sans-serif;">
-            <div style="width: 100%; line-height: 1;">
-              <div style="font-size: 6.8px; font-weight: 900; letter-spacing: 0.04em; text-transform: uppercase; color: #000000; -webkit-text-stroke: 0.1px #000;">PONMANI AGENCIES</div>
-              <div style="font-size: 7.2px; font-weight: 900; line-height: 1; max-width: 32mm; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: #000000; margin-top: 0.5px; -webkit-text-stroke: 0.1px #000;">${product.name}</div>
-            </div>
-            <div style="width: 100%; display: flex; justify-content: center; align-items: baseline; gap: 6px; font-family: monospace; font-size: 7px; font-weight: 900; color: #000000; line-height: 1; -webkit-text-stroke: 0.1px #000;">
-              <span>MRP: ₹${mrpVal.toFixed(0)}</span>
-              <span>SP: ₹${product.selling_price.toFixed(0)}</span>
-            </div>
-            <div style="width: 100%; display: flex; justify-content: center; align-items: center;">
+          <div style="width: 34mm; height: 100%; max-height: 20mm; box-sizing: border-box; padding: 0.6mm 1mm; display: flex; flex-direction: column; justify-content: space-between; align-items: center; text-align: center; background: #ffffff; color: #000000; overflow: hidden;">
+            <div style="width: 100%; font-family: ${shopFont}; font-size: ${shopSize}px; font-weight: 900; letter-spacing: 0.04em; text-transform: uppercase; color: #000000; line-height: 1; -webkit-text-stroke: 0.1px #000; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${customShopName}</div>
+            <div style="width: 100%; font-family: ${productFont}; font-size: ${productSize}px; font-weight: 700; line-height: 1; max-width: 32mm; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: #000000; margin-top: 0.4px; -webkit-text-stroke: 0.1px #000;">${product.name}</div>
+            <div style="width: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center;">
               ${miniBarcodeSvg}
+              <div style="font-family: monospace; font-size: ${barcodeTextSize}px; font-weight: 700; letter-spacing: 0.05em; color: #000000; line-height: 1; max-width: 32mm; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; margin-top: 0.4px;">${barcodeCode}</div>
             </div>
-            <div style="font-family: monospace; font-size: 6.5px; font-weight: 900; letter-spacing: 0.05em; color: #000000; line-height: 1; max-width: 32mm; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${skuCode}</div>
+            <div style="width: 100%; font-family: ${priceFont}; font-size: ${priceSize}px; font-weight: 900; color: #000000; line-height: 1; -webkit-text-stroke: 0.1px #000;">${priceText}</div>
           </div>
         `.trim();
 
@@ -1177,22 +1278,17 @@ function BarcodePrintModal({ product, onClose }: { product: InventoryItem; onClo
 
         printIsolatedLabels(sheetsList.join(""), 102, 20);
       } else {
-        const miniBarcodeSvg = generateBarcodeSvg(barcodeCode, 18, "130px");
+        const miniBarcodeSvg = generateBarcodeSvg(barcodeCode, barcodeHeight, "130px");
 
         const singleMiniHtml = `
-          <div style="width: 50mm; height: 100%; max-height: 25mm; box-sizing: border-box; padding: 1mm 1.5mm; display: flex; flex-direction: column; justify-content: space-between; align-items: center; text-align: center; background: #ffffff; color: #000000; overflow: hidden; font-family: Arial, Helvetica, sans-serif;">
-            <div style="width: 100%; line-height: 1.1;">
-              <div style="font-size: 7.5px; font-weight: 900; letter-spacing: 0.08em; text-transform: uppercase; color: #000000; -webkit-text-stroke: 0.15px #000;">PONMANI AGENCIES</div>
-              <div style="font-size: 8.5px; font-weight: 900; line-height: 1.1; max-width: 48mm; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: #000000; margin-top: 1px; -webkit-text-stroke: 0.15px #000;">${product.name}</div>
-            </div>
-            <div style="width: 100%; display: flex; justify-content: center; align-items: baseline; gap: 10px; font-family: monospace; font-size: 8.5px; font-weight: 900; color: #000000; line-height: 1; -webkit-text-stroke: 0.15px #000;">
-              <span>MRP: ₹${mrpVal.toFixed(0)}</span>
-              <span>SP: ₹${product.selling_price.toFixed(0)}</span>
-            </div>
-            <div style="width: 100%; display: flex; justify-content: center; align-items: center;">
+          <div style="width: 50mm; height: 100%; max-height: 25mm; box-sizing: border-box; padding: 1mm 1.5mm; display: flex; flex-direction: column; justify-content: space-between; align-items: center; text-align: center; background: #ffffff; color: #000000; overflow: hidden;">
+            <div style="width: 100%; font-family: ${shopFont}; font-size: ${shopSize}px; font-weight: 900; letter-spacing: 0.06em; text-transform: uppercase; color: #000000; line-height: 1.1; -webkit-text-stroke: 0.15px #000; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${customShopName}</div>
+            <div style="width: 100%; font-family: ${productFont}; font-size: ${productSize}px; font-weight: 700; line-height: 1.1; max-width: 48mm; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: #000000; margin-top: 0.5px; -webkit-text-stroke: 0.15px #000;">${product.name}</div>
+            <div style="width: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center;">
               ${miniBarcodeSvg}
+              <div style="font-family: monospace; font-size: ${barcodeTextSize}px; font-weight: 700; letter-spacing: 0.08em; color: #000000; line-height: 1; margin-top: 0.5px;">${barcodeCode}</div>
             </div>
-            <div style="font-family: monospace; font-size: 7.5px; font-weight: 900; letter-spacing: 0.08em; color: #000000; line-height: 1;">${skuCode}</div>
+            <div style="width: 100%; font-family: ${priceFont}; font-size: ${priceSize}px; font-weight: 900; color: #000000; line-height: 1.1; -webkit-text-stroke: 0.15px #000;">${priceText}</div>
           </div>
         `.trim();
 
@@ -1214,11 +1310,11 @@ function BarcodePrintModal({ product, onClose }: { product: InventoryItem; onClo
 
   return (
     <div className="fixed inset-0 z-[100] bg-black/75 backdrop-blur-sm flex justify-center items-center overflow-y-auto p-3 sm:p-6" onClick={onClose}>
-      <div onClick={(e) => e.stopPropagation()} className="w-full max-w-lg card-surface p-5 border-l-4 border-l-primary space-y-4 shadow-2xl rounded-xl my-auto">
+      <div onClick={(e) => e.stopPropagation()} className="w-full max-w-2xl card-surface p-5 border-l-4 border-l-primary space-y-4 shadow-2xl rounded-xl my-auto max-h-[92vh] overflow-y-auto">
         {/* Header */}
         <div className="flex justify-between items-center pb-2 border-b border-border">
           <div className="text-base font-bold text-foreground flex items-center gap-2">
-            <Barcode className="h-5 w-5 text-primary" /> Barcode Sticker Printer
+            <Barcode className="h-5 w-5 text-primary" /> Barcode Sticker Label Printer
           </div>
           <button onClick={onClose} className="h-7 w-7 rounded-lg hover:bg-muted text-muted-foreground flex items-center justify-center">
             <X className="h-4 w-4" />
@@ -1230,13 +1326,11 @@ function BarcodePrintModal({ product, onClose }: { product: InventoryItem; onClo
           <div className="min-w-0 pr-2">
             <div className="text-xs font-bold text-foreground truncate">{product.name}</div>
             <div className="text-[11px] font-mono text-muted-foreground flex items-center gap-2 mt-0.5">
-              <span>SKU: <strong className="text-foreground">{skuCode}</strong></span>
-              <span>•</span>
               <span>Barcode: <strong className="text-foreground">{barcodeCode}</strong></span>
               <span>•</span>
-              <span>MRP: ₹{mrpVal.toFixed(0)}</span>
+              <span>Retail SP: <strong className="text-emerald-500 font-bold">₹{retailPrice.toFixed(0)}</strong></span>
               <span>•</span>
-              <span className="text-primary font-bold">SP: ₹{product.selling_price.toFixed(0)}</span>
+              <span>Wholesale: <strong className="text-purple-500 font-bold">₹{wholesalePrice.toFixed(0)}</strong></span>
             </div>
           </div>
           <div className="shrink-0 text-right">
@@ -1244,6 +1338,308 @@ function BarcodePrintModal({ product, onClose }: { product: InventoryItem; onClo
               {labelFormat === "34x20" ? "3 Per Row (34×20 mm)" : "2 Per Row (50×25 mm)"}
             </span>
           </div>
+        </div>
+
+        {/* Configuration: Shop Name & Price Selector */}
+        <div className="bg-secondary/40 p-3 rounded-xl border border-border space-y-3">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3 items-end">
+            {/* 1. Editable Shop Name */}
+            <div>
+              <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground block mb-1">
+                Shop Name on Label
+              </label>
+              <input
+                type="text"
+                value={customShopName}
+                onChange={(e) => setCustomShopName(e.target.value)}
+                placeholder="e.g. MSS PONKUMAR STORE"
+                className="w-full h-8 px-2.5 rounded-lg bg-background border border-border text-xs font-bold uppercase text-foreground focus:outline-none focus:border-primary"
+              />
+            </div>
+
+            {/* 2. Retail vs Wholesale Price Toggle */}
+            <div>
+              <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground block mb-1">
+                Price Mode to Print
+              </label>
+              <div className="grid grid-cols-2 gap-1.5">
+                <button
+                  type="button"
+                  onClick={() => setPriceMode("retail")}
+                  className={`h-8 px-2 rounded-lg text-xs font-bold border transition flex items-center justify-center gap-1.5 ${
+                    priceMode === "retail"
+                      ? "bg-emerald-600 text-white border-emerald-600 shadow-xs"
+                      : "bg-background text-foreground border-border hover:bg-muted"
+                  }`}
+                >
+                  <Tag className="h-3 w-3" /> Retail (₹{retailPrice.toFixed(0)})
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setPriceMode("wholesale")}
+                  className={`h-8 px-2 rounded-lg text-xs font-bold border transition flex items-center justify-center gap-1.5 ${
+                    priceMode === "wholesale"
+                      ? "bg-purple-600 text-white border-purple-600 shadow-xs"
+                      : "bg-background text-foreground border-border hover:bg-muted"
+                  }`}
+                >
+                  <Store className="h-3 w-3" /> Wholesale (₹{wholesalePrice.toFixed(0)})
+                </button>
+              </div>
+            </div>
+          </div>
+
+          {/* Price Display Prefix Options */}
+          <div className="flex items-center gap-2 pt-1 border-t border-border/60">
+            <span className="text-[10px] uppercase font-bold text-muted-foreground tracking-wider">
+              Price Text:
+            </span>
+            <div className="flex items-center gap-1.5">
+              {[
+                { id: "plain", label: `₹${activePrice.toFixed(0)} (Plain)` },
+                { id: "price", label: `Price: ₹${activePrice.toFixed(0)}` },
+                { id: "mode", label: `${priceMode === "wholesale" ? "Wholesale" : "Retail"}: ₹${activePrice.toFixed(0)}` },
+              ].map((opt) => (
+                <button
+                  key={opt.id}
+                  type="button"
+                  onClick={() => setPricePrefix(opt.id as any)}
+                  className={`px-2.5 py-1 rounded-md text-[11px] font-semibold border transition ${
+                    pricePrefix === opt.id
+                      ? "bg-primary text-primary-foreground border-primary"
+                      : "bg-background text-muted-foreground border-border hover:text-foreground"
+                  }`}
+                >
+                  {opt.label}
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        {/* Component Font & Size Customizer (Collapsible) */}
+        <div className="border border-border rounded-xl bg-card overflow-hidden">
+          <div
+            onClick={() => setShowTypography(!showTypography)}
+            className="p-2.5 bg-muted/40 flex items-center justify-between cursor-pointer hover:bg-muted/60 transition"
+          >
+            <div className="flex items-center gap-2 text-xs font-bold text-foreground">
+              <Type className="h-4 w-4 text-primary" />
+              <span>Customize Font & Sizes (Each Component)</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleResetTypography();
+                }}
+                className="text-[10px] text-primary hover:underline font-semibold"
+              >
+                Reset Defaults
+              </button>
+              {showTypography ? <ChevronUp className="h-4 w-4 text-muted-foreground" /> : <ChevronDown className="h-4 w-4 text-muted-foreground" />}
+            </div>
+          </div>
+
+          {showTypography && (
+            <div className="p-3 grid grid-cols-2 md:grid-cols-4 gap-2.5 bg-card">
+              {/* 1. Shop Name Typography */}
+              <div className="p-2 rounded-lg bg-secondary/30 border border-border space-y-1.5">
+                <div className="text-[10px] font-bold uppercase text-foreground">1. Shop Name</div>
+                <div>
+                  <div className="text-[9px] text-muted-foreground">Font Size (px)</div>
+                  <div className="flex items-center gap-1 mt-0.5">
+                    <button
+                      type="button"
+                      onClick={() => setShopSize((s) => Math.max(5, Number((s - 0.5).toFixed(1))))}
+                      className="h-6 w-6 rounded bg-background border border-border text-xs font-bold"
+                    >
+                      -
+                    </button>
+                    <input
+                      type="number"
+                      step={0.5}
+                      min={5}
+                      max={18}
+                      value={shopSize}
+                      onChange={(e) => setShopSize(parseFloat(e.target.value) || 8)}
+                      className="w-12 h-6 text-center text-xs font-mono font-bold bg-background border border-border rounded"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShopSize((s) => Math.min(18, Number((s + 0.5).toFixed(1))))}
+                      className="h-6 w-6 rounded bg-background border border-border text-xs font-bold"
+                    >
+                      +
+                    </button>
+                  </div>
+                </div>
+                <div>
+                  <div className="text-[9px] text-muted-foreground">Font Family</div>
+                  <select
+                    value={shopFont}
+                    onChange={(e) => setShopFont(e.target.value)}
+                    className="w-full h-6 text-[10px] bg-background border border-border rounded mt-0.5"
+                  >
+                    {FONT_OPTIONS.map((f) => (
+                      <option key={f.value} value={f.value}>{f.label}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              {/* 2. Product Name Typography */}
+              <div className="p-2 rounded-lg bg-secondary/30 border border-border space-y-1.5">
+                <div className="text-[10px] font-bold uppercase text-foreground">2. Product Name</div>
+                <div>
+                  <div className="text-[9px] text-muted-foreground">Font Size (px)</div>
+                  <div className="flex items-center gap-1 mt-0.5">
+                    <button
+                      type="button"
+                      onClick={() => setProductSize((s) => Math.max(5, Number((s - 0.5).toFixed(1))))}
+                      className="h-6 w-6 rounded bg-background border border-border text-xs font-bold"
+                    >
+                      -
+                    </button>
+                    <input
+                      type="number"
+                      step={0.5}
+                      min={5}
+                      max={18}
+                      value={productSize}
+                      onChange={(e) => setProductSize(parseFloat(e.target.value) || 9)}
+                      className="w-12 h-6 text-center text-xs font-mono font-bold bg-background border border-border rounded"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setProductSize((s) => Math.min(18, Number((s + 0.5).toFixed(1))))}
+                      className="h-6 w-6 rounded bg-background border border-border text-xs font-bold"
+                    >
+                      +
+                    </button>
+                  </div>
+                </div>
+                <div>
+                  <div className="text-[9px] text-muted-foreground">Font Family</div>
+                  <select
+                    value={productFont}
+                    onChange={(e) => setProductFont(e.target.value)}
+                    className="w-full h-6 text-[10px] bg-background border border-border rounded mt-0.5"
+                  >
+                    {FONT_OPTIONS.map((f) => (
+                      <option key={f.value} value={f.value}>{f.label}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              {/* 3. Barcode Lines & Code Typography */}
+              <div className="p-2 rounded-lg bg-secondary/30 border border-border space-y-1.5">
+                <div className="text-[10px] font-bold uppercase text-foreground">3. Barcode</div>
+                <div>
+                  <div className="text-[9px] text-muted-foreground">Bar Height (px)</div>
+                  <div className="flex items-center gap-1 mt-0.5">
+                    <button
+                      type="button"
+                      onClick={() => setBarcodeHeight((h) => Math.max(8, h - 1))}
+                      className="h-6 w-6 rounded bg-background border border-border text-xs font-bold"
+                    >
+                      -
+                    </button>
+                    <input
+                      type="number"
+                      min={8}
+                      max={30}
+                      value={barcodeHeight}
+                      onChange={(e) => setBarcodeHeight(parseInt(e.target.value) || 16)}
+                      className="w-12 h-6 text-center text-xs font-mono font-bold bg-background border border-border rounded"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setBarcodeHeight((h) => Math.min(30, h + 1))}
+                      className="h-6 w-6 rounded bg-background border border-border text-xs font-bold"
+                    >
+                      +
+                    </button>
+                  </div>
+                </div>
+                <div>
+                  <div className="text-[9px] text-muted-foreground">Code Text Size</div>
+                  <div className="flex items-center gap-1 mt-0.5">
+                    <button
+                      type="button"
+                      onClick={() => setBarcodeTextSize((s) => Math.max(5, Number((s - 0.5).toFixed(1))))}
+                      className="h-6 w-6 rounded bg-background border border-border text-xs font-bold"
+                    >
+                      -
+                    </button>
+                    <input
+                      type="number"
+                      step={0.5}
+                      min={5}
+                      max={14}
+                      value={barcodeTextSize}
+                      onChange={(e) => setBarcodeTextSize(parseFloat(e.target.value) || 7)}
+                      className="w-12 h-6 text-center text-xs font-mono font-bold bg-background border border-border rounded"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setBarcodeTextSize((s) => Math.min(14, Number((s + 0.5).toFixed(1))))}
+                      className="h-6 w-6 rounded bg-background border border-border text-xs font-bold"
+                    >
+                      +
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              {/* 4. Price Typography */}
+              <div className="p-2 rounded-lg bg-secondary/30 border border-border space-y-1.5">
+                <div className="text-[10px] font-bold uppercase text-foreground">4. Price</div>
+                <div>
+                  <div className="text-[9px] text-muted-foreground">Font Size (px)</div>
+                  <div className="flex items-center gap-1 mt-0.5">
+                    <button
+                      type="button"
+                      onClick={() => setPriceSize((s) => Math.max(6, Number((s - 0.5).toFixed(1))))}
+                      className="h-6 w-6 rounded bg-background border border-border text-xs font-bold"
+                    >
+                      -
+                    </button>
+                    <input
+                      type="number"
+                      step={0.5}
+                      min={6}
+                      max={22}
+                      value={priceSize}
+                      onChange={(e) => setPriceSize(parseFloat(e.target.value) || 10)}
+                      className="w-12 h-6 text-center text-xs font-mono font-bold bg-background border border-border rounded"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setPriceSize((s) => Math.min(22, Number((s + 0.5).toFixed(1))))}
+                      className="h-6 w-6 rounded bg-background border border-border text-xs font-bold"
+                    >
+                      +
+                    </button>
+                  </div>
+                </div>
+                <div>
+                  <div className="text-[9px] text-muted-foreground">Font Family</div>
+                  <select
+                    value={priceFont}
+                    onChange={(e) => setPriceFont(e.target.value)}
+                    className="w-full h-6 text-[10px] bg-background border border-border rounded mt-0.5"
+                  >
+                    {FONT_OPTIONS.map((f) => (
+                      <option key={f.value} value={f.value}>{f.label}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Format Selector: 2 per row (50x25mm) vs 3 per row (34x20mm) */}
@@ -1254,7 +1650,7 @@ function BarcodePrintModal({ product, onClose }: { product: InventoryItem; onClo
           <div className="grid grid-cols-2 gap-2">
             <button
               type="button"
-              onClick={() => setLabelFormat("50x25")}
+              onClick={() => handleFormatChange("50x25")}
               className={`p-2.5 rounded-lg border text-left transition flex items-center justify-between ${
                 labelFormat === "50x25"
                   ? "bg-primary text-primary-foreground border-primary shadow"
@@ -1274,7 +1670,7 @@ function BarcodePrintModal({ product, onClose }: { product: InventoryItem; onClo
 
             <button
               type="button"
-              onClick={() => setLabelFormat("34x20")}
+              onClick={() => handleFormatChange("34x20")}
               className={`p-2.5 rounded-lg border text-left transition flex items-center justify-between ${
                 labelFormat === "34x20"
                   ? "bg-primary text-primary-foreground border-primary shadow"
