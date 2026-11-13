@@ -796,14 +796,15 @@ function POSPage() {
                 <input
                   value={cart.customerMobile}
                   onChange={(e) => {
-                    const val = e.target.value;
+                    const val = e.target.value.replace(/\D/g, "");
                     cart.setCustomer({ id: cart.customerId, mobile: val, name: cart.customerName, loyalty: cart.loyaltyAvailable });
-                    if (val.replace(/\D/g, "").length === 10) {
+                    if (val.length === 10) {
                       lookupCustomer(val);
                     }
                   }}
                   onBlur={(e) => lookupCustomer(e.target.value)}
-                  placeholder="Mobile / Phone"
+                  placeholder="Mobile (Numbers only)"
+                  maxLength={10}
                   className="flex-1 h-8 px-3 rounded bg-input border border-border text-xs font-mono focus:border-primary text-foreground"
                 />
               </div>
@@ -949,75 +950,40 @@ function POSPage() {
                 <span className="text-[11px] font-mono text-primary font-bold">
                   {paymentStatusOption === "PAID"
                     ? "Paid in Full"
-                    : paymentStatusOption === "PARTIAL"
-                    ? "Partial Paid"
                     : "Credit (Pay Later)"}
                 </span>
               </div>
 
-              <div className="grid grid-cols-3 gap-1.5">
+              <div className="grid grid-cols-2 gap-2">
                 <button
                   type="button"
                   onClick={() => setPaymentStatusOption("PAID")}
-                  className={`h-8 rounded-lg text-[11px] font-bold transition cursor-pointer ${
+                  className={`h-9 rounded-lg text-xs font-bold transition cursor-pointer flex items-center justify-center gap-1.5 ${
                     paymentStatusOption === "PAID"
                       ? "bg-emerald-600 text-white shadow-xs"
                       : "bg-secondary text-muted-foreground hover:text-foreground"
                   }`}
                 >
-                  Paid
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setPaymentStatusOption("PARTIAL");
-                    if (!partialAmountPaid) setPartialAmountPaid(String(Math.round(totals.total / 2)));
-                  }}
-                  className={`h-8 rounded-lg text-[11px] font-bold transition cursor-pointer ${
-                    paymentStatusOption === "PARTIAL"
-                      ? "bg-amber-600 text-white shadow-xs"
-                      : "bg-secondary text-muted-foreground hover:text-foreground"
-                  }`}
-                >
-                  Partial
+                  <Check className="h-4 w-4" />
+                  <span>Paid</span>
                 </button>
                 <button
                   type="button"
                   onClick={() => setPaymentStatusOption("UNPAID")}
-                  className={`h-8 rounded-lg text-[11px] font-bold transition cursor-pointer ${
+                  className={`h-9 rounded-lg text-xs font-bold transition cursor-pointer flex items-center justify-center gap-1.5 ${
                     paymentStatusOption === "UNPAID"
                       ? "bg-rose-600 text-white shadow-xs"
                       : "bg-secondary text-muted-foreground hover:text-foreground"
                   }`}
                 >
-                  Pay Later
+                  <AlertCircle className="h-4 w-4" />
+                  <span>Pay Later (Khata)</span>
                 </button>
               </div>
 
-              {paymentStatusOption === "PARTIAL" && (
-                <div className="p-2.5 rounded-lg bg-secondary/60 border border-border space-y-1.5">
-                  <div className="flex justify-between items-center text-xs">
-                    <span className="text-muted-foreground">Paid Now (₹):</span>
-                    <input
-                      type="number"
-                      value={partialAmountPaid}
-                      onChange={(e) => setPartialAmountPaid(e.target.value)}
-                      placeholder="0.00"
-                      className="w-24 h-7 rounded bg-input border border-border text-right px-2 font-mono font-bold text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
-                    />
-                  </div>
-                  <div className="flex justify-between items-center text-[11px] text-amber-400 font-mono font-semibold pt-1 border-t border-border/60">
-                    <span>Added to Balance:</span>
-                    <span>
-                      {inr(Math.max(0, totals.total - Number(partialAmountPaid || 0)))}
-                    </span>
-                  </div>
-                </div>
-              )}
-
               {paymentStatusOption === "UNPAID" && (
                 <div className="p-2 rounded-lg bg-rose-500/10 border border-rose-500/30 text-rose-300 text-[11px]">
-                  Full {inr(totals.total)} will be added to customer's account balance to pay later.
+                  Whole {inr(totals.total)} will be added to customer&rsquo;s Khata balance due.
                 </div>
               )}
             </div>

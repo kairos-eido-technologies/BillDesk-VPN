@@ -990,10 +990,22 @@ class BillDeskDB {
     const idx = this.store.invoices.findIndex((i) => i.id === id);
     if (idx >= 0) {
       const existing = this.store.invoices[idx];
-      const merged = typeof invoiceOrId === 'string' ? { ...existing, ...updates } : { ...existing, ...invoiceOrId };
+      const mergedUpdates = typeof invoiceOrId === 'string' ? updates : invoiceOrId;
+      const merged = { ...existing, ...mergedUpdates };
+
+      // If items array was provided, replace line items in store
+      if (mergedUpdates && (mergedUpdates as any).items && Array.isArray((mergedUpdates as any).items)) {
+        const newItems = (mergedUpdates as any).items;
+        this.store.invoice_items = this.store.invoice_items.filter(
+          (it) => it.invoice_id !== id && it.invoice_id !== existing.invoice_number
+        );
+        this.store.invoice_items.push(...newItems);
+        merged.items = newItems;
+      }
+
       this.store.invoices[idx] = merged as Invoice;
       this.persistLocal();
-      this.syncToServer('upsert', { table: 'invoices', data: merged });
+      this.syncToServer('upsert_invoice', { invoice: merged, items: merged.items || [] });
       return merged;
     }
     return typeof invoiceOrId === 'object' ? invoiceOrId : null;

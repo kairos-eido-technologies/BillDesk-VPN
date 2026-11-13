@@ -190,12 +190,6 @@ function BillingHubPage() {
                   <td className="px-4 py-2.5 text-right font-mono font-bold text-primary">{inr(i.grand_total)}</td>
                   <td className="px-4 py-2.5 text-right whitespace-nowrap space-x-1.5">
                     <button
-                      onClick={() => setSelectedInvoice({ invoice: i, items })}
-                      className="h-8 px-2.5 rounded bg-secondary hover:bg-muted text-xs font-semibold border border-border inline-flex items-center gap-1 transition"
-                    >
-                      <RotateCcw className="h-3.5 w-3.5 text-amber-400" /> {t("billing.return")}
-                    </button>
-                    <button
                       onClick={() => setEditingBill({ invoice: i, items })}
                       className="h-8 px-2.5 rounded bg-secondary hover:bg-muted text-xs font-semibold border border-border inline-flex items-center gap-1 transition"
                     >
