@@ -182,7 +182,7 @@ function MobileDedicatedDashboard() {
           </Link>
           <Link to="/customers" className="text-center p-2 rounded-xl hover:bg-slate-50 transition border-x border-slate-100 active:scale-95">
             <div className="text-lg font-black text-purple-700">{todayCustomersCount}</div>
-            <div className="text-[9.5px] font-bold uppercase text-slate-500 tracking-wider">Today's Clients</div>
+            <div className="text-[9.5px] font-bold uppercase text-slate-500 tracking-wider">Today's Customer</div>
           </Link>
           <Link to="/invoices" className="text-center p-2 rounded-xl hover:bg-slate-50 transition active:scale-95">
             <div className="text-lg font-black text-emerald-700">{todayInvoices.length}</div>
@@ -251,7 +251,7 @@ function MobileDedicatedDashboard() {
                 iconBg: "bg-blue-600 text-white",
               },
               {
-                label: "Customers & Khata",
+                label: "Customer",
                 desc: "Balances & Statements",
                 to: "/customers",
                 icon: Users,
@@ -267,7 +267,7 @@ function MobileDedicatedDashboard() {
                 iconBg: "bg-teal-600 text-white",
               },
               {
-                label: "Customer Ledger",
+                label: "Ledger",
                 desc: "Credit & Due Settlement",
                 to: "/ledger",
                 icon: Landmark,
@@ -373,7 +373,7 @@ function MobileDedicatedDashboard() {
           {[
             { label: "Home", icon: Home, to: "/", active: true },
             { label: "Invoices", icon: Receipt, to: "/invoices", active: false },
-            { label: "Customers", icon: Users, to: "/customers", active: false },
+            { label: "Customer", icon: Users, to: "/customers", active: false },
             { label: "Stock", icon: Package, to: "/inventory", active: false },
             { label: "Ledger", icon: Landmark, to: "/ledger", active: false },
           ].map((item) => {

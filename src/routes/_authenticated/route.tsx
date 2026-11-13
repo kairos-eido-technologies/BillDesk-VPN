@@ -152,7 +152,7 @@ function Shell() {
           {[
             { label: "Home", icon: "Home", to: "/" },
             { label: "Invoices", icon: "Receipt", to: "/invoices" },
-            { label: "Customers", icon: "Users", to: "/customers" },
+            { label: "Customer", icon: "Users", to: "/customers" },
             { label: "Stock", icon: "Package", to: "/inventory" },
             { label: "Ledger", icon: "Landmark", to: "/ledger" },
           ].map((item) => {

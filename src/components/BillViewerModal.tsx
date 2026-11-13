@@ -5,7 +5,8 @@ import { ThermalReceipt } from "./ThermalReceipt";
 import { A4Receipt } from "./A4Receipt";
 import { Printer, Download, X, FileText, Receipt, Check, Share2, Phone, MessageSquare, Clipboard, Image as ImageIcon } from "lucide-react";
 import { toast } from "sonner";
-import { captureReceiptAsImage, getReceiptImageDataUrl } from "@/lib/capture-receipt-image";
+import { captureReceiptAsImage, getReceiptImageDataUrl, copyDataUrlToClipboard, triggerDownload } from "@/lib/capture-receipt-image";
+import { renderThermalReceiptToDataUrl } from "@/lib/render-thermal-canvas";
 import { printIsolatedReceipt } from "@/lib/print-isolated-receipt";
 
 interface BillViewerModalProps {
@@ -424,7 +425,7 @@ export function BillViewerModal({
                   onClick={async () => {
                     const rawEl = mode === "a4" ? a4ReceiptRef.current : receiptRef.current;
                     const targetEl = (rawEl?.querySelector(".a4-sheet") as HTMLElement) || (rawEl?.querySelector(".thermal-receipt") as HTMLElement) || rawEl;
-                    if (!targetEl) {
+                    if (!targetEl && mode !== "thermal") {
                       toast.error("Receipt preview unavailable to capture image");
                       return;
                     }
@@ -435,33 +436,49 @@ export function BillViewerModal({
                         cleanPhone = "91" + cleanPhone;
                       }
 
+                      // Generate deterministic image data URL (Canvas for Thermal, dom-to-image for A4)
+                      let dataUrl: string | null = null;
+                      if (mode === "thermal") {
+                        dataUrl = await renderThermalReceiptToDataUrl(invoiceObj, items, storeSettings);
+                      } else if (targetEl) {
+                        dataUrl = await getReceiptImageDataUrl(targetEl);
+                      }
+
+                      if (!dataUrl) {
+                        toast.error("Failed to generate receipt image");
+                        return;
+                      }
+
                       // Native Android Bridge Check
                       const androidBridge = (window as any).AndroidPOS;
                       const rawText = generateWhatsAppText(invoiceObj, items, storeSettings);
 
                       if (androidBridge && typeof androidBridge.shareWhatsAppImage === "function") {
-                        const dataUrl = await getReceiptImageDataUrl(targetEl);
-                        if (dataUrl) {
-                          androidBridge.shareWhatsAppImage(cleanPhone, dataUrl, rawText);
-                          toast.success("Opening WhatsApp with Receipt Image!");
-                          setShowWhatsAppDialog(false);
-                          return;
-                        }
+                        androidBridge.shareWhatsAppImage(cleanPhone, dataUrl, rawText);
+                        toast.success("Opening WhatsApp with Receipt Image!");
+                        setShowWhatsAppDialog(false);
+                        return;
                       }
 
-                      const filename = `Bill_Receipt_${invoiceObj?.invoice_number || 'INV'}.png`;
-                      const ok = await captureReceiptAsImage(targetEl, filename);
+                      // Web / Desktop Clipboard & WhatsApp Web
+                      const ok = await copyDataUrlToClipboard(dataUrl);
                       if (ok) {
-                        // wa.me is the universal WhatsApp link format
                         const waUrl = cleanPhone
                           ? `https://wa.me/${cleanPhone}`
                           : `https://web.whatsapp.com`;
 
                         window.open(waUrl, "_blank");
-                        toast.success("Image copied! WhatsApp opened — press Ctrl+V to paste and send.");
+                        toast.success("Receipt image copied! WhatsApp opened — press Ctrl+V to paste & send.");
                         setShowWhatsAppDialog(false);
                       } else {
-                        toast.error("Failed converting receipt to image.");
+                        // Fallback trigger file download
+                        triggerDownload(dataUrl, `Bill_Receipt_${invoiceObj?.invoice_number || 'INV'}.png`);
+                        const waUrl = cleanPhone
+                          ? `https://wa.me/${cleanPhone}`
+                          : `https://web.whatsapp.com`;
+                        window.open(waUrl, "_blank");
+                        toast.success("Receipt downloaded! You can attach it in WhatsApp.");
+                        setShowWhatsAppDialog(false);
                       }
                     } catch (e: any) {
                       toast.error("Error generating receipt image: " + e.message);

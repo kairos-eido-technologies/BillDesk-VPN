@@ -48,7 +48,7 @@ export async function copyCanvasToClipboard(canvas: HTMLCanvasElement): Promise<
   return false;
 }
 
-async function copyDataUrlToClipboard(dataUrl: string): Promise<boolean> {
+export async function copyDataUrlToClipboard(dataUrl: string): Promise<boolean> {
   try {
     const res = await fetch(dataUrl);
     const blob = await res.blob();

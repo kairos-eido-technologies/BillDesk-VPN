@@ -72,6 +72,7 @@ function LedgerPage() {
   const [feedPage, setFeedPage] = useState(1);
   const [modalInvPage, setModalInvPage] = useState(1);
   const [modalLedgerPage, setModalLedgerPage] = useState(1);
+  const [modalTab, setModalTab] = useState<"invoices" | "ledger">("invoices");
 
   // Payment form state
   const [paymentAmount, setPaymentAmount] = useState<string>("");
@@ -109,6 +110,7 @@ function LedgerPage() {
   useEffect(() => {
     setModalInvPage(1);
     setModalLedgerPage(1);
+    setModalTab("invoices");
   }, [selectedBuyerId]);
 
   // -------------------------------------------------------------
@@ -365,7 +367,7 @@ function LedgerPage() {
             </div>
             <div>
               <h1 className="text-xl sm:text-2xl font-black text-foreground tracking-tight">
-                Customer Khata & Store Ledger
+                Ledger
               </h1>
               <p className="text-xs text-muted-foreground">
                 All store buyers, paid in full vs credit/due balances, invoices & receipts
@@ -1079,82 +1081,106 @@ function LedgerPage() {
               </div>
             </div>
 
-            {/* Invoices History Section */}
-            <div className="space-y-2">
-              <h4 className="text-xs font-bold text-muted-foreground uppercase tracking-wider flex items-center justify-between">
-                <span>Invoices History ({selectedBuyer.invoices.length})</span>
-                <span className="text-[11px] font-normal lowercase text-muted-foreground">
-                  Click 'View Bill' to inspect or print receipt (20 per page)
-                </span>
-              </h4>
-              <div className="rounded-xl border border-border overflow-hidden">
-                <table className="w-full text-left text-xs">
-                  <thead className="bg-secondary/60 text-muted-foreground font-semibold">
-                    <tr>
-                      <th className="py-2.5 px-3">Invoice #</th>
-                      <th className="py-2.5 px-3">Date</th>
-                      <th className="py-2.5 px-3">Type</th>
-                      <th className="py-2.5 px-3">Items Purchased</th>
-                      <th className="py-2.5 px-3 text-right">Grand Total</th>
-                      <th className="py-2.5 px-3 text-right">Paid</th>
-                      <th className="py-2.5 px-3 text-right">Due</th>
-                      <th className="py-2.5 px-3 text-center">Status</th>
-                      <th className="py-2.5 px-3 text-center">Action</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-border">
-                    {paginatedModalInvoices.map((inv) => {
-                      const isPaid = inv.payment_status === "PAID" || (inv.balance_due || 0) === 0;
-                      const itemsSummary = inv.items && inv.items.length > 0
-                        ? inv.items.map((it: any) => `${it.qty || 1}x ${it.product_name || it.name || "Item"}`).join(", ")
-                        : "—";
+            {/* Navigation Tabs: Invoices vs Ledger */}
+            <div className="flex border-b border-border">
+              <button
+                onClick={() => setModalTab("invoices")}
+                className={`flex-1 py-2.5 text-xs font-bold border-b-2 transition flex items-center justify-center gap-1.5 cursor-pointer ${
+                  modalTab === "invoices"
+                    ? "border-primary text-primary bg-primary/5"
+                    : "border-transparent text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                <Receipt className="h-4 w-4" />
+                <span>Purchase Invoices ({selectedBuyer.invoices.length})</span>
+              </button>
+              <button
+                onClick={() => setModalTab("ledger")}
+                className={`flex-1 py-2.5 text-xs font-bold border-b-2 transition flex items-center justify-center gap-1.5 cursor-pointer ${
+                  modalTab === "ledger"
+                    ? "border-primary text-primary bg-primary/5"
+                    : "border-transparent text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                <Landmark className="h-4 w-4" />
+                <span>Account Ledger ({selectedBuyerLedger.length})</span>
+              </button>
+            </div>
 
-                      return (
-                        <tr key={inv.id} className="hover:bg-muted/20 transition">
-                          <td className="py-2 px-3 font-mono font-bold text-primary">
-                            {inv.invoice_number}
-                          </td>
-                          <td className="py-2 px-3 text-muted-foreground font-mono">
-                            {inv.created_at ? format(new Date(inv.created_at), "dd MMM yyyy") : "—"}
-                          </td>
-                          <td className="py-2 px-3">
-                            <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-secondary text-foreground border border-border">
-                              {inv.bill_mode || "RETAIL"}
+            {/* TAB 1: Invoices History */}
+            {modalTab === "invoices" && (
+              <div className="space-y-3">
+                <div className="text-xs text-muted-foreground font-medium flex items-center justify-between">
+                  <span>Detailed record of all invoices for {selectedBuyer.name}:</span>
+                  <span className="text-[11px] font-normal lowercase text-muted-foreground hidden sm:inline">
+                    Click 'Bill' to view or share receipt
+                  </span>
+                </div>
+
+                {/* Mobile-Friendly Invoice Cards */}
+                <div className="md:hidden space-y-2.5 max-h-[420px] overflow-y-auto pr-1">
+                  {paginatedModalInvoices.map((inv) => {
+                    const isPaid = inv.payment_status === "PAID" || (inv.balance_due || 0) === 0;
+                    const isUnpaid = inv.payment_status === "UNPAID" || inv.amount_paid === 0;
+                    const isPartial = inv.payment_status === "PARTIAL" || (!isPaid && !isUnpaid);
+                    const itemsSummary = inv.items && inv.items.length > 0
+                      ? inv.items.map((it: any) => `${it.qty || 1}x ${it.product_name || it.name || "Item"}`).join(", ")
+                      : "";
+
+                    return (
+                      <div
+                        key={inv.id}
+                        className="p-3.5 rounded-xl bg-card border border-border hover:border-primary/40 transition space-y-2.5"
+                      >
+                        <div className="flex flex-col gap-2">
+                          <div className="flex items-center justify-between gap-2">
+                            <span className="font-mono font-bold text-primary text-xs">
+                              #{inv.invoice_number}
                             </span>
-                          </td>
-                          <td className="py-2 px-3 text-muted-foreground max-w-[200px] truncate" title={itemsSummary}>
-                            {itemsSummary}
-                          </td>
-                          <td className="py-2 px-3 text-right font-mono font-semibold text-foreground">
-                            ₹{inv.grand_total?.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
-                          </td>
-                          <td className="py-2 px-3 text-right font-mono text-emerald-600 dark:text-emerald-400">
-                            ₹{inv.amount_paid?.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
-                          </td>
-                          <td className="py-2 px-3 text-right font-mono font-bold">
-                            <span className={(inv.balance_due || 0) > 0 ? "text-amber-500" : "text-muted-foreground"}>
-                              ₹{inv.balance_due?.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
-                            </span>
-                          </td>
-                          <td className="py-2 px-3 text-center">
                             <span
-                              className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${isPaid
+                              className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                                isPaid
                                   ? "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30"
+                                  : isPartial
+                                  ? "bg-amber-500/15 text-amber-600 dark:text-amber-400 border border-amber-500/30"
                                   : "bg-rose-500/15 text-rose-600 dark:text-rose-400 border border-rose-500/30"
-                                }`}
+                              }`}
                             >
-                              {isPaid ? "PAID" : "CREDIT"}
+                              {isPaid ? "Paid" : isPartial ? "Partial" : "Credit"}
                             </span>
-                          </td>
-                          <td className="py-2 px-3 text-center">
-                            <div className="flex items-center justify-center gap-1.5">
+                          </div>
+
+                          <div className="text-[11px] text-muted-foreground font-mono flex items-center justify-between">
+                            <span>{inv.created_at ? format(new Date(inv.created_at), "dd MMM yyyy, hh:mm a") : "—"}</span>
+                            <span className="uppercase font-semibold">{inv.payment_method || "CASH"}</span>
+                          </div>
+
+                          {itemsSummary && (
+                            <div className="text-xs text-muted-foreground bg-secondary/50 px-2.5 py-1.5 rounded-lg border border-border/50 break-words">
+                              <span className="font-semibold text-foreground mr-1.5">Items:</span>
+                              {itemsSummary}
+                            </div>
+                          )}
+
+                          <div className="flex items-center justify-between gap-2 pt-2 border-t border-border/50 mt-1">
+                            <div>
+                              <div className="text-xs font-bold font-mono text-foreground">
+                                Total: ₹{(inv.grand_total || 0).toLocaleString("en-IN", { minimumFractionDigits: 2 })}
+                              </div>
+                              {!isPaid && (
+                                <div className="text-[11px] font-bold font-mono text-amber-500">
+                                  Due: ₹{(inv.balance_due || 0).toLocaleString("en-IN", { minimumFractionDigits: 2 })}
+                                </div>
+                              )}
+                            </div>
+
+                            <div className="flex items-center gap-1.5">
                               <button
                                 onClick={() => setViewingInvoice(inv)}
-                                className="h-6 px-2 rounded bg-primary/10 hover:bg-primary/20 text-primary border border-primary/25 text-[10px] font-bold flex items-center gap-1 transition cursor-pointer"
-                                title="View Thermal / A4 Bill"
+                                className="h-8 px-3 rounded-lg bg-primary/15 hover:bg-primary/25 text-primary border border-primary/30 text-xs font-bold flex items-center gap-1 transition cursor-pointer"
                               >
-                                <Eye className="h-2.5 w-2.5" />
-                                <span>View Bill</span>
+                                <Eye className="h-3.5 w-3.5" />
+                                <span>Bill</span>
                               </button>
                               {!isPaid && (
                                 <button
@@ -1164,107 +1190,265 @@ function LedgerPage() {
                                       amount: inv.grand_total,
                                     })
                                   }
-                                  className="h-6 px-2 rounded bg-emerald-600 hover:bg-emerald-500 text-white text-[10px] font-bold flex items-center gap-1 transition cursor-pointer shadow-xs"
+                                  className="h-8 px-3 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold flex items-center gap-1 shadow-xs cursor-pointer"
                                 >
+                                  <CheckCircle2 className="h-3.5 w-3.5" />
                                   <span>Pay</span>
                                 </button>
                               )}
                             </div>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+
+                  {selectedBuyer.invoices.length === 0 && (
+                    <div className="text-xs text-muted-foreground py-10 text-center">
+                      No invoices recorded for this buyer yet.
+                    </div>
+                  )}
+                </div>
+
+                {/* Desktop Invoices Table */}
+                <div className="hidden md:block rounded-xl border border-border overflow-hidden">
+                  <table className="w-full text-left text-xs">
+                    <thead className="bg-secondary/60 text-muted-foreground font-semibold">
+                      <tr>
+                        <th className="py-2.5 px-3">Invoice #</th>
+                        <th className="py-2.5 px-3">Date</th>
+                        <th className="py-2.5 px-3">Type</th>
+                        <th className="py-2.5 px-3">Items Purchased</th>
+                        <th className="py-2.5 px-3 text-right">Grand Total</th>
+                        <th className="py-2.5 px-3 text-right">Paid</th>
+                        <th className="py-2.5 px-3 text-right">Due</th>
+                        <th className="py-2.5 px-3 text-center">Status</th>
+                        <th className="py-2.5 px-3 text-center">Action</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-border">
+                      {paginatedModalInvoices.map((inv) => {
+                        const isPaid = inv.payment_status === "PAID" || (inv.balance_due || 0) === 0;
+                        const itemsSummary = inv.items && inv.items.length > 0
+                          ? inv.items.map((it: any) => `${it.qty || 1}x ${it.product_name || it.name || "Item"}`).join(", ")
+                          : "—";
+
+                        return (
+                          <tr key={inv.id} className="hover:bg-muted/20 transition">
+                            <td className="py-2 px-3 font-mono font-bold text-primary">
+                              {inv.invoice_number}
+                            </td>
+                            <td className="py-2 px-3 text-muted-foreground font-mono">
+                              {inv.created_at ? format(new Date(inv.created_at), "dd MMM yyyy") : "—"}
+                            </td>
+                            <td className="py-2 px-3">
+                              <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-secondary text-foreground border border-border">
+                                {inv.bill_mode || "RETAIL"}
+                              </span>
+                            </td>
+                            <td className="py-2 px-3 text-muted-foreground max-w-[200px] truncate" title={itemsSummary}>
+                              {itemsSummary}
+                            </td>
+                            <td className="py-2 px-3 text-right font-mono font-semibold text-foreground">
+                              ₹{inv.grand_total?.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
+                            </td>
+                            <td className="py-2 px-3 text-right font-mono text-emerald-600 dark:text-emerald-400">
+                              ₹{inv.amount_paid?.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
+                            </td>
+                            <td className="py-2 px-3 text-right font-mono font-bold">
+                              <span className={(inv.balance_due || 0) > 0 ? "text-amber-500" : "text-muted-foreground"}>
+                                ₹{inv.balance_due?.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
+                              </span>
+                            </td>
+                            <td className="py-2 px-3 text-center">
+                              <span
+                                className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${isPaid
+                                    ? "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30"
+                                    : "bg-rose-500/15 text-rose-600 dark:text-rose-400 border border-rose-500/30"
+                                  }`}
+                              >
+                                {isPaid ? "PAID" : "CREDIT"}
+                              </span>
+                            </td>
+                            <td className="py-2 px-3 text-center">
+                              <div className="flex items-center justify-center gap-1.5">
+                                <button
+                                  onClick={() => setViewingInvoice(inv)}
+                                  className="h-6 px-2 rounded bg-primary/10 hover:bg-primary/20 text-primary border border-primary/25 text-[10px] font-bold flex items-center gap-1 transition cursor-pointer"
+                                  title="View Thermal / A4 Bill"
+                                >
+                                  <Eye className="h-2.5 w-2.5" />
+                                  <span>Bill</span>
+                                </button>
+                                {!isPaid && (
+                                  <button
+                                    onClick={() =>
+                                      markInvoicePaidMutation.mutate({
+                                        invoiceId: inv.id,
+                                        amount: inv.grand_total,
+                                      })
+                                    }
+                                    className="h-6 px-2 rounded bg-emerald-600 hover:bg-emerald-500 text-white text-[10px] font-bold flex items-center gap-1 transition cursor-pointer shadow-xs"
+                                  >
+                                    <span>Pay</span>
+                                  </button>
+                                )}
+                              </div>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                      {selectedBuyer.invoices.length === 0 && (
+                        <tr>
+                          <td colSpan={9} className="py-6 text-center text-muted-foreground text-xs">
+                            No invoices generated for this buyer yet.
                           </td>
                         </tr>
-                      );
-                    })}
-                    {selectedBuyer.invoices.length === 0 && (
-                      <tr>
-                        <td colSpan={9} className="py-6 text-center text-muted-foreground text-xs">
-                          No invoices generated for this buyer yet.
-                        </td>
-                      </tr>
-                    )}
-                  </tbody>
-                </table>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+
+                <PaginationControls
+                  currentPage={modalInvPage}
+                  totalPages={totalModalInvPages}
+                  totalItems={selectedBuyer.invoices.length}
+                  pageSize={PAGE_SIZE}
+                  onPageChange={setModalInvPage}
+                />
               </div>
+            )}
 
-              <PaginationControls
-                currentPage={modalInvPage}
-                totalPages={totalModalInvPages}
-                totalItems={selectedBuyer.invoices.length}
-                pageSize={PAGE_SIZE}
-                onPageChange={setModalInvPage}
-              />
-            </div>
+            {/* TAB 2: Customer Ledger Statement */}
+            {modalTab === "ledger" && (
+              <div className="space-y-3">
+                <div className="text-xs text-muted-foreground font-medium">
+                  Audit trail of debits (bills) and credits (payments):
+                </div>
 
-            {/* Customer Ledger Statement */}
-            <div className="space-y-2">
-              <h4 className="text-xs font-bold text-muted-foreground uppercase tracking-wider flex items-center justify-between">
-                <span>Ledger Entries & Running Balance ({selectedBuyerLedger.length})</span>
-                <span className="text-[11px] font-normal lowercase text-muted-foreground">
-                  Receipts & Khata settlements (20 per page)
-                </span>
-              </h4>
-              <div className="rounded-xl border border-border overflow-hidden">
-                <table className="w-full text-left text-xs">
-                  <thead className="bg-secondary/60 text-muted-foreground font-semibold">
-                    <tr>
-                      <th className="py-2.5 px-3">Date</th>
-                      <th className="py-2.5 px-3">Type</th>
-                      <th className="py-2.5 px-3">Reference / Notes</th>
-                      <th className="py-2.5 px-3 text-right">Debit (+)</th>
-                      <th className="py-2.5 px-3 text-right">Credit (-)</th>
-                      <th className="py-2.5 px-3 text-right">Running Balance</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-border">
-                    {paginatedModalLedger.map((row) => (
-                      <tr key={row.id} className="hover:bg-muted/20">
-                        <td className="py-2 px-3 font-mono text-muted-foreground">
-                          {row.date ? format(new Date(row.date), "dd/MM/yyyy") : "—"}
-                        </td>
-                        <td className="py-2 px-3 font-semibold">
-                          {row.type === "DEBIT" ? (
-                            <span className="text-rose-600 dark:text-rose-400">Debit (Invoice)</span>
-                          ) : (
-                            <span className="text-emerald-600 dark:text-emerald-400">Credit (Payment)</span>
-                          )}
-                        </td>
-                        <td className="py-2 px-3 text-muted-foreground">
-                          <span className="font-mono text-foreground">{row.reference_id}</span>
-                          {row.notes && <span className="ml-1 text-[11px]">({row.notes})</span>}
-                        </td>
-                        <td className="py-2 px-3 text-right font-mono text-rose-600 dark:text-rose-400 font-semibold">
-                          {row.type === "DEBIT"
-                            ? `₹${Number(row.amount || 0).toLocaleString("en-IN", { minimumFractionDigits: 2 })}`
-                            : "—"}
-                        </td>
-                        <td className="py-2 px-3 text-right font-mono text-emerald-600 dark:text-emerald-400 font-semibold">
-                          {row.type === "CREDIT"
-                            ? `₹${Number(row.amount || 0).toLocaleString("en-IN", { minimumFractionDigits: 2 })}`
-                            : "—"}
-                        </td>
-                        <td className="py-2 px-3 text-right font-mono font-bold text-foreground">
-                          ₹{Number(row.balance_after || 0).toLocaleString("en-IN", { minimumFractionDigits: 2 })}
-                        </td>
-                      </tr>
-                    ))}
-                    {selectedBuyerLedger.length === 0 && (
+                {/* Mobile-Friendly Ledger Cards */}
+                <div className="md:hidden space-y-2 max-h-[420px] overflow-y-auto pr-1">
+                  {paginatedModalLedger.map((row) => {
+                    const isDebit = row.type === "DEBIT";
+                    return (
+                      <div
+                        key={row.id}
+                        className="p-3 rounded-xl bg-card border border-border flex items-center justify-between gap-3 text-xs"
+                      >
+                        <div className="flex items-center gap-2.5">
+                          <div
+                            className={`h-7 w-7 rounded-lg grid place-items-center ${
+                              isDebit
+                                ? "bg-rose-500/15 text-rose-400"
+                                : "bg-emerald-500/15 text-emerald-400"
+                            }`}
+                          >
+                            {isDebit ? <ArrowUpRight className="h-4 w-4" /> : <ArrowDownLeft className="h-4 w-4" />}
+                          </div>
+                          <div>
+                            <div className="font-semibold text-foreground">
+                              {isDebit ? "Bill Debit (Invoice)" : "Payment Credit Received"}
+                            </div>
+                            <div className="text-[10px] text-muted-foreground font-mono">
+                              Ref: {row.reference_id} • {row.date ? format(new Date(row.date), "dd MMM yyyy") : "—"}
+                              {row.payment_mode && ` (${row.payment_mode})`}
+                            </div>
+                            {row.notes && (
+                              <div className="text-[10px] text-muted-foreground italic">
+                                {row.notes}
+                              </div>
+                            )}
+                          </div>
+                        </div>
+
+                        <div className="text-right">
+                          <div
+                            className={`font-mono font-bold ${
+                              isDebit ? "text-rose-400" : "text-emerald-400"
+                            }`}
+                          >
+                            {isDebit ? "+" : "-"} ₹{Number(row.amount || 0).toLocaleString("en-IN", { minimumFractionDigits: 2 })}
+                          </div>
+                          <div className="text-[10px] text-muted-foreground font-mono">
+                            Bal: ₹{Number(row.balance_after || 0).toLocaleString("en-IN", { minimumFractionDigits: 2 })}
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+
+                  {selectedBuyerLedger.length === 0 && (
+                    <div className="text-xs text-muted-foreground py-10 text-center">
+                      No transactions recorded in ledger for this customer.
+                    </div>
+                  )}
+                </div>
+
+                {/* Desktop Ledger Table */}
+                <div className="hidden md:block rounded-xl border border-border overflow-hidden">
+                  <table className="w-full text-left text-xs">
+                    <thead className="bg-secondary/60 text-muted-foreground font-semibold">
                       <tr>
-                        <td colSpan={6} className="py-6 text-center text-muted-foreground text-xs">
-                          No direct ledger receipts logged for this buyer yet.
-                        </td>
+                        <th className="py-2.5 px-3">Date</th>
+                        <th className="py-2.5 px-3">Type</th>
+                        <th className="py-2.5 px-3">Reference / Notes</th>
+                        <th className="py-2.5 px-3 text-right">Debit (+)</th>
+                        <th className="py-2.5 px-3 text-right">Credit (-)</th>
+                        <th className="py-2.5 px-3 text-right">Running Balance</th>
                       </tr>
-                    )}
-                  </tbody>
-                </table>
-              </div>
+                    </thead>
+                    <tbody className="divide-y divide-border">
+                      {paginatedModalLedger.map((row) => (
+                        <tr key={row.id} className="hover:bg-muted/20">
+                          <td className="py-2 px-3 font-mono text-muted-foreground">
+                            {row.date ? format(new Date(row.date), "dd/MM/yyyy") : "—"}
+                          </td>
+                          <td className="py-2 px-3 font-semibold">
+                            {row.type === "DEBIT" ? (
+                              <span className="text-rose-600 dark:text-rose-400">Debit (Invoice)</span>
+                            ) : (
+                              <span className="text-emerald-600 dark:text-emerald-400">Credit (Payment)</span>
+                            )}
+                          </td>
+                          <td className="py-2 px-3 text-muted-foreground">
+                            <span className="font-mono text-foreground">{row.reference_id}</span>
+                            {row.notes && <span className="ml-1 text-[11px]">({row.notes})</span>}
+                          </td>
+                          <td className="py-2 px-3 text-right font-mono text-rose-600 dark:text-rose-400 font-semibold">
+                            {row.type === "DEBIT"
+                              ? `₹${Number(row.amount || 0).toLocaleString("en-IN", { minimumFractionDigits: 2 })}`
+                              : "—"}
+                          </td>
+                          <td className="py-2 px-3 text-right font-mono text-emerald-600 dark:text-emerald-400 font-semibold">
+                            {row.type === "CREDIT"
+                              ? `₹${Number(row.amount || 0).toLocaleString("en-IN", { minimumFractionDigits: 2 })}`
+                              : "—"}
+                          </td>
+                          <td className="py-2 px-3 text-right font-mono font-bold text-foreground">
+                            ₹{Number(row.balance_after || 0).toLocaleString("en-IN", { minimumFractionDigits: 2 })}
+                          </td>
+                        </tr>
+                      ))}
+                      {selectedBuyerLedger.length === 0 && (
+                        <tr>
+                          <td colSpan={6} className="py-6 text-center text-muted-foreground text-xs">
+                            No direct ledger receipts logged for this buyer yet.
+                          </td>
+                        </tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
 
-              <PaginationControls
-                currentPage={modalLedgerPage}
-                totalPages={totalModalLedgerPages}
-                totalItems={selectedBuyerLedger.length}
-                pageSize={PAGE_SIZE}
-                onPageChange={setModalLedgerPage}
-              />
-            </div>
+                <PaginationControls
+                  currentPage={modalLedgerPage}
+                  totalPages={totalModalLedgerPages}
+                  totalItems={selectedBuyerLedger.length}
+                  pageSize={PAGE_SIZE}
+                  onPageChange={setModalLedgerPage}
+                />
+              </div>
+            )}
           </div>
         </div>
       )}

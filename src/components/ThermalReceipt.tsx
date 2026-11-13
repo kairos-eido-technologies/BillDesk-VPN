@@ -95,10 +95,10 @@ export function ThermalReceipt({ invoice: i, items = [], storeSettings }: Therma
 
   return (
     <div
-      className="thermal-receipt bg-white text-black p-3 pb-1 print:p-1 print:pb-0 mx-auto select-none"
+      className="thermal-receipt bg-white text-black p-4 pb-2 print:p-1 print:pb-0 mx-auto select-none"
       style={{
-        width: "72mm",
-        maxWidth: "72mm",
+        width: "320px",
+        maxWidth: "100%",
         fontFamily: "'Courier New', Courier, monospace",
         fontSize: "11px",
         lineHeight: "1.4",
@@ -123,14 +123,14 @@ export function ThermalReceipt({ invoice: i, items = [], storeSettings }: Therma
           {shopName}
         </div>
         {shopHeader && (
-          <div className="text-[10px] font-black tracking-widest uppercase border border-black px-2 py-0.5 mt-1 inline-block">
+          <div className="text-[10px] font-black tracking-widest uppercase border border-black px-2.5 py-0.5 my-1.5 inline-block">
             {shopHeader}
           </div>
         )}
-        {shopAddress && <div className="text-[10px] font-bold mt-1.5 text-black whitespace-pre-line leading-snug">{shopAddress}</div>}
+        {shopAddress && <div className="text-[10px] font-bold mt-1 text-black whitespace-pre-line leading-snug">{shopAddress}</div>}
         {shopPhone && <div className="text-[10px] font-bold text-black mt-0.5">Ph: {shopPhone}</div>}
         {isGst && shopGstin && (
-          <div className="text-[9.5px] font-black mt-0.5 border border-black px-1.5 py-0.5 rounded-xs inline-block text-black">
+          <div className="text-[9.5px] font-black mt-1 border border-black px-1.5 py-0.5 rounded-xs inline-block text-black">
             GSTIN: {shopGstin}
           </div>
         )}
@@ -264,7 +264,10 @@ export function ThermalReceipt({ invoice: i, items = [], storeSettings }: Therma
 
         {/* ─── GRAND TOTAL HIGHLIGHT BOX ─── */}
         <div className="mt-2 pt-1 border-t-2 border-black">
-          <div className="bg-black text-white p-2 rounded-xs flex justify-between items-center font-black text-xs">
+          <div
+            style={{ backgroundColor: "#000000", color: "#ffffff" }}
+            className="p-2.5 rounded-xs flex justify-between items-center font-black text-xs"
+          >
             <span style={{ color: "#ffffff", fontWeight: "900" }}>NET AMOUNT:</span>
             <span style={{ color: "#ffffff", fontWeight: "900" }} className="text-base font-mono tracking-wide">
               ₹{Number(i.grand_total || 0).toFixed(2)}

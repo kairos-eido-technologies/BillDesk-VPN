@@ -102,7 +102,7 @@ const INDIVIDUAL_APPS: SingleApp[] = [
   },
   {
     id: "customers",
-    name: "Customers",
+    name: "Customer",
     category: "People",
     desc: "Clients & Balances",
     to: "/customers",
@@ -113,7 +113,7 @@ const INDIVIDUAL_APPS: SingleApp[] = [
   },
   {
     id: "ledger",
-    name: "Customer Ledger",
+    name: "Ledger",
     category: "Finance",
     desc: "Khata & Statements",
     to: "/ledger",
