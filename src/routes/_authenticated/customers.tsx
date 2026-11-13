@@ -386,81 +386,72 @@ function CustomersPage() {
                           key={inv.id}
                           className="p-3.5 rounded-xl bg-card border border-border hover:border-primary/40 transition space-y-2.5"
                         >
-                          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-                            <div className="flex flex-wrap items-center gap-2">
+                          {/* Mobile-Friendly Invoice Cards */}
+                          <div className="flex flex-col gap-2">
+                            <div className="flex items-center justify-between gap-2">
                               <span className="font-mono font-bold text-primary text-xs">
-                                {inv.invoice_number}
+                                #{inv.invoice_number}
                               </span>
                               <span
                                 className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
                                   isPaid
-                                    ? "bg-emerald-500/15 text-emerald-300 border border-emerald-500/30"
+                                    ? "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30"
                                     : isPartial
-                                    ? "bg-amber-500/15 text-amber-300 border border-amber-500/30"
-                                    : "bg-rose-500/15 text-rose-300 border border-rose-500/30"
+                                    ? "bg-amber-500/15 text-amber-600 dark:text-amber-400 border border-amber-500/30"
+                                    : "bg-rose-500/15 text-rose-600 dark:text-rose-400 border border-rose-500/30"
                                 }`}
                               >
-                                {isPaid ? "Paid in Full" : isPartial ? "Partially Paid" : "Unpaid / Credit"}
-                              </span>
-                              <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-secondary text-foreground border border-border">
-                                {inv.bill_mode || "RETAIL"}
-                              </span>
-                              <span className="text-[10px] font-mono text-muted-foreground uppercase">
-                                {inv.payment_method || "CASH"}
+                                {isPaid ? "Paid" : isPartial ? "Partial" : "Unpaid"}
                               </span>
                             </div>
 
-                            <div className="text-[11px] font-mono text-muted-foreground">
-                              {inv.created_at ? format(new Date(inv.created_at), "dd MMM yyyy, hh:mm a") : "—"}
+                            <div className="text-[11px] text-muted-foreground font-mono flex items-center justify-between">
+                              <span>{inv.created_at ? format(new Date(inv.created_at), "dd MMM yyyy, hh:mm a") : "—"}</span>
+                              <span className="uppercase font-semibold">{inv.payment_method || "CASH"}</span>
                             </div>
-                          </div>
 
-                          {itemsSummary && (
-                            <div className="text-xs text-muted-foreground bg-secondary/40 px-2.5 py-1.5 rounded-lg border border-border/50 truncate">
-                              <span className="font-semibold text-foreground mr-1.5">Items:</span>
-                              {itemsSummary}
-                            </div>
-                          )}
-
-                          <div className="flex items-center justify-between gap-4 pt-1 border-t border-border/50">
-                            <div className="flex items-center gap-3">
-                              <div className="font-mono font-bold text-foreground text-xs">
-                                Total: ₹{(inv.grand_total || 0).toLocaleString("en-IN", { minimumFractionDigits: 2 })}
+                            {itemsSummary && (
+                              <div className="text-xs text-muted-foreground bg-secondary/50 px-2.5 py-1.5 rounded-lg border border-border/50 break-words">
+                                <span className="font-semibold text-foreground mr-1.5">Items:</span>
+                                {itemsSummary}
                               </div>
-                              <div className="text-[11px] font-mono text-emerald-400">
-                                Paid: ₹{(inv.amount_paid || 0).toLocaleString("en-IN", { minimumFractionDigits: 2 })}
-                              </div>
-                              {!isPaid && (
-                                <div className="text-[11px] font-mono text-amber-400 font-bold">
-                                  Due: ₹{(inv.balance_due || 0).toLocaleString("en-IN", { minimumFractionDigits: 2 })}
+                            )}
+
+                            <div className="flex items-center justify-between gap-2 pt-2 border-t border-border/50 mt-1">
+                              <div>
+                                <div className="text-xs font-bold font-mono text-foreground">
+                                  Total: ₹{(inv.grand_total || 0).toLocaleString("en-IN", { minimumFractionDigits: 2 })}
                                 </div>
-                              )}
-                            </div>
+                                {!isPaid && (
+                                  <div className="text-[11px] font-bold font-mono text-amber-500">
+                                    Due: ₹{(inv.balance_due || 0).toLocaleString("en-IN", { minimumFractionDigits: 2 })}
+                                  </div>
+                                )}
+                              </div>
 
-                            <div className="flex items-center gap-2">
-                              <button
-                                onClick={() => setViewingInvoice(inv)}
-                                className="h-7 px-2.5 rounded-lg bg-primary/15 hover:bg-primary/25 text-primary border border-primary/30 text-[11px] font-bold flex items-center gap-1 transition cursor-pointer shrink-0"
-                                title="View & Print Bill"
-                              >
-                                <Eye className="h-3 w-3" />
-                                <span>View Bill</span>
-                              </button>
-
-                              {!isPaid && (
+                              <div className="flex items-center gap-1.5">
                                 <button
-                                  onClick={() =>
-                                    markInvoicePaidMutation.mutate({
-                                      invoiceId: inv.id,
-                                      amount: inv.grand_total,
-                                    })
-                                  }
-                                  className="h-7 px-2.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-[11px] font-bold flex items-center gap-1 transition cursor-pointer shadow-xs shrink-0"
+                                  onClick={() => setViewingInvoice(inv)}
+                                  className="h-8 px-3 rounded-lg bg-primary/15 hover:bg-primary/25 text-primary border border-primary/30 text-xs font-bold flex items-center gap-1 transition"
                                 >
-                                  <CheckCircle2 className="h-3 w-3" />
-                                  <span>Mark Paid</span>
+                                  <Eye className="h-3.5 w-3.5" />
+                                  <span>Bill</span>
                                 </button>
-                              )}
+                                {!isPaid && (
+                                  <button
+                                    onClick={() =>
+                                      markInvoicePaidMutation.mutate({
+                                        invoiceId: inv.id,
+                                        amount: inv.grand_total,
+                                      })
+                                    }
+                                    className="h-8 px-3 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold flex items-center gap-1 shadow-xs"
+                                  >
+                                    <CheckCircle2 className="h-3.5 w-3.5" />
+                                    <span>Pay</span>
+                                  </button>
+                                )}
+                              </div>
                             </div>
                           </div>
                         </div>

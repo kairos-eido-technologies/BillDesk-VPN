@@ -95,17 +95,16 @@ export function ThermalReceipt({ invoice: i, items = [], storeSettings }: Therma
 
   return (
     <div
-      className="thermal-receipt bg-white text-black p-2 pb-0 print:p-1 print:pb-0 mx-auto select-none"
+      className="thermal-receipt bg-white text-black p-3 pb-1 print:p-1 print:pb-0 mx-auto select-none"
       style={{
-        width: "70mm",
-        maxWidth: "70mm",
+        width: "72mm",
+        maxWidth: "72mm",
         fontFamily: "'Courier New', Courier, monospace",
-        fontSize: "10.5px",
-        lineHeight: "1.35",
+        fontSize: "11px",
+        lineHeight: "1.4",
         color: "#000000",
         fontWeight: "bold",
         boxSizing: "border-box",
-        WebkitTextStroke: "0.2px #000000",
       }}
     >
       {/* ─── BRANDING HEADER ─── */}
@@ -124,12 +123,12 @@ export function ThermalReceipt({ invoice: i, items = [], storeSettings }: Therma
           {shopName}
         </div>
         {shopHeader && (
-          <div className="text-[10px] font-black tracking-widest uppercase border border-black px-2 py-0.5 mt-1">
+          <div className="text-[10px] font-black tracking-widest uppercase border border-black px-2 py-0.5 mt-1 inline-block">
             {shopHeader}
           </div>
         )}
-        {shopAddress && <div className="text-[9.5px] font-bold mt-1 text-black whitespace-pre-line leading-tight">{shopAddress}</div>}
-        {shopPhone && <div className="text-[9.5px] font-bold text-black mt-0.5">Ph: {shopPhone}</div>}
+        {shopAddress && <div className="text-[10px] font-bold mt-1.5 text-black whitespace-pre-line leading-snug">{shopAddress}</div>}
+        {shopPhone && <div className="text-[10px] font-bold text-black mt-0.5">Ph: {shopPhone}</div>}
         {isGst && shopGstin && (
           <div className="text-[9.5px] font-black mt-0.5 border border-black px-1.5 py-0.5 rounded-xs inline-block text-black">
             GSTIN: {shopGstin}
@@ -138,31 +137,31 @@ export function ThermalReceipt({ invoice: i, items = [], storeSettings }: Therma
       </div>
 
       {/* ─── INVOICE META ─── */}
-      <div className="text-[10.5px] font-bold text-black space-y-0.5 pb-2 mb-2 border-b-2 border-black">
+      <div className="text-[10.5px] font-bold text-black space-y-1 pb-2 mb-2 border-b-2 border-black">
         <div className="text-center pb-1 mb-1 border-b border-dashed border-black">
           <span className="text-[11px] font-black tracking-widest uppercase">
             {isWholesale ? "★ WHOLESALE INVOICE ★" : "— RETAIL INVOICE —"}
           </span>
         </div>
-        <div className="flex justify-between font-black">
+        <div className="flex justify-between items-baseline font-black">
           <span>{isGst ? "TAX INVOICE" : "CASH BILL"}</span>
           <span className="font-mono text-[11px] font-black underline">{i.invoice_number}</span>
         </div>
-        <div className="flex justify-between text-[10px] font-bold text-black">
+        <div className="flex justify-between items-baseline text-[10px] font-bold text-black">
           <span>Date & Time:</span>
           <span className="font-bold text-black">{dateStr}</span>
         </div>
-        <div className="flex justify-between text-[10px] font-bold text-black">
+        <div className="flex justify-between items-baseline text-[10px] font-bold text-black">
           <span>Customer:</span>
           <span className="font-black text-black">{i.customer_name || "Walk-in Customer"}</span>
         </div>
         {i.customer_mobile && (
-          <div className="flex justify-between text-[10px] font-bold text-black">
+          <div className="flex justify-between items-baseline text-[10px] font-bold text-black">
             <span>Mobile:</span>
             <span className="font-mono font-bold text-black">{i.customer_mobile}</span>
           </div>
         )}
-        <div className="flex justify-between text-[10px] font-bold text-black">
+        <div className="flex justify-between items-baseline text-[10px] font-bold text-black">
           <span>Payment Mode:</span>
           <span className="font-black uppercase tracking-wider text-black">{i.payment_method || "CASH"}</span>
         </div>
@@ -266,8 +265,8 @@ export function ThermalReceipt({ invoice: i, items = [], storeSettings }: Therma
         {/* ─── GRAND TOTAL HIGHLIGHT BOX ─── */}
         <div className="mt-2 pt-1 border-t-2 border-black">
           <div className="bg-black text-white p-2 rounded-xs flex justify-between items-center font-black text-xs">
-            <span>NET AMOUNT:</span>
-            <span className="text-base font-mono font-black tracking-wide">
+            <span style={{ color: "#ffffff", fontWeight: "900" }}>NET AMOUNT:</span>
+            <span style={{ color: "#ffffff", fontWeight: "900" }} className="text-base font-mono tracking-wide">
               ₹{Number(i.grand_total || 0).toFixed(2)}
             </span>
           </div>
