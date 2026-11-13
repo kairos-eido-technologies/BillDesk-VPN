@@ -54,8 +54,7 @@ function generateWhatsAppText(i: Invoice, items: InvoiceItem[], storeSettings: a
     totalMrp += itemMrp * itemQty;
     totalSelling += unitPrice * itemQty;
 
-    const mrpInfo = itemMrp > unitPrice ? ` (MRP: ₹${itemMrp.toFixed(2)})` : "";
-    t += `${idx + 1}. *${name}* — ${qtyStr} x ₹${rateStr}${mrpInfo} = *₹${amtStr}*\n`;
+    t += `${idx + 1}. *${name}* — ${qtyStr} x ₹${rateStr} = *₹${amtStr}*\n`;
   });
 
   const totalSaved = Math.max(0, (totalMrp - totalSelling) + Number(i.discount_amount || 0));

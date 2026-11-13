@@ -195,7 +195,7 @@ function CustomersPage() {
 
       <div className="grid grid-cols-1 lg:grid-cols-[1fr_1.4fr] gap-4">
         {/* Left: Customer List */}
-        <div className="rounded-2xl border border-border bg-card overflow-hidden shadow-xs">
+        <div className={`rounded-2xl border border-border bg-card overflow-hidden shadow-xs ${selected ? "hidden lg:block" : "block"}`}>
           <div className="p-3 border-b border-border bg-card/60">
             <input
               value={q}
@@ -260,12 +260,18 @@ function CustomersPage() {
         </div>
 
         {/* Right: Selected Customer Profile & History */}
-        <div className="rounded-2xl border border-border bg-card p-5 shadow-xs">
+        <div className={`rounded-2xl border border-border bg-card p-4 sm:p-5 shadow-xs ${!selected ? "hidden lg:block" : "block"}`}>
           {selected ? (
             <div className="space-y-5">
               {/* Profile Card */}
               <div className="flex flex-col sm:flex-row justify-between sm:items-start gap-4 pb-4 border-b border-border">
                 <div>
+                  <button
+                    onClick={() => setSelected(null)}
+                    className="lg:hidden text-xs font-bold text-primary mb-2 flex items-center gap-1"
+                  >
+                    ← Back to Customer List
+                  </button>
                   <div className="text-lg font-black text-foreground">{selected.name}</div>
                   <div className="text-xs font-mono text-muted-foreground mt-0.5">
                     Phone: {selected.mobile || "N/A"}

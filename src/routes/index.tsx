@@ -102,6 +102,18 @@ function MobileDedicatedDashboard() {
   });
   const todaySales = todayInvoices.reduce((s, inv) => s + (inv.grand_total || 0), 0);
 
+  // Compute Today's Unique Customers and Today's Sold Items Qty
+  const todayCustomersSet = new Set(
+    todayInvoices.map((inv) => inv.customer_id || inv.customer_mobile || inv.customer_name).filter(Boolean)
+  );
+  const todayCustomersCount = todayCustomersSet.size;
+
+  const allInvoiceItems = db.getStore()?.invoice_items || [];
+  const todayInvoiceIds = new Set(todayInvoices.map((inv) => inv.id));
+  const todaySoldProductsQty = allInvoiceItems
+    .filter((it: any) => todayInvoiceIds.has(it.invoice_id))
+    .reduce((s: number, it: any) => s + Number(it.qty || 0), 0);
+
   const now = new Date();
   const hour = now.getHours();
   const greeting = hour < 12 ? "Good Morning" : hour < 17 ? "Good Afternoon" : "Good Evening";
@@ -162,19 +174,19 @@ function MobileDedicatedDashboard() {
       </div>
 
       <div className="px-4 -mt-3 relative z-10 space-y-4">
-        {/* ── Key Metrics Pills ── */}
+        {/* ── Key Metrics Pills: Today's Metrics ── */}
         <div className="grid grid-cols-3 gap-2 bg-white rounded-2xl p-3 shadow-sm border border-slate-200">
           <Link to="/inventory" className="text-center p-2 rounded-xl hover:bg-slate-50 transition active:scale-95">
-            <div className="text-lg font-black text-[#1B2D6B]">{inventory.length}</div>
-            <div className="text-[10px] font-bold uppercase text-slate-500 tracking-wider">Products</div>
+            <div className="text-lg font-black text-[#1B2D6B]">{todaySoldProductsQty} <span className="text-xs font-normal text-slate-400">pcs</span></div>
+            <div className="text-[9.5px] font-bold uppercase text-slate-500 tracking-wider">Today's Sold</div>
           </Link>
           <Link to="/customers" className="text-center p-2 rounded-xl hover:bg-slate-50 transition border-x border-slate-100 active:scale-95">
-            <div className="text-lg font-black text-purple-700">{customers.length}</div>
-            <div className="text-[10px] font-bold uppercase text-slate-500 tracking-wider">Customers</div>
+            <div className="text-lg font-black text-purple-700">{todayCustomersCount}</div>
+            <div className="text-[9.5px] font-bold uppercase text-slate-500 tracking-wider">Today's Clients</div>
           </Link>
           <Link to="/invoices" className="text-center p-2 rounded-xl hover:bg-slate-50 transition active:scale-95">
-            <div className="text-lg font-black text-emerald-700">{invoices.length}</div>
-            <div className="text-[10px] font-bold uppercase text-slate-500 tracking-wider">Invoices</div>
+            <div className="text-lg font-black text-emerald-700">{todayInvoices.length}</div>
+            <div className="text-[9.5px] font-bold uppercase text-slate-500 tracking-wider">Today's Bills</div>
           </Link>
         </div>
 

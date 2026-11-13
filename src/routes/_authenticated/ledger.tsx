@@ -539,9 +539,70 @@ function LedgerPage() {
             </button>
           </div>
 
-          {/* Buyers Ledger Table */}
+          {/* Buyers Ledger Responsive View */}
           <div className="rounded-2xl border border-border bg-card overflow-hidden shadow-xs">
-            <div className="overflow-x-auto">
+            {/* Mobile Card List */}
+            <div className="md:hidden divide-y divide-border">
+              {paginatedBuyers.map((b) => {
+                const hasDue = (b.balanceDue || 0) > 0;
+                return (
+                  <div key={b.id} className="p-3.5 flex flex-col gap-2 hover:bg-muted/20 transition">
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="min-w-0 flex-1">
+                        <div className="font-bold text-sm text-foreground leading-tight flex items-center gap-1.5">
+                          <span>{b.name}</span>
+                          {!b.isRegistered && (
+                            <span className="px-1 py-0.2 rounded text-[9px] font-mono bg-secondary text-muted-foreground">
+                              Walk-in
+                            </span>
+                          )}
+                        </div>
+                        <div className="text-xs text-muted-foreground font-mono mt-0.5">
+                          {b.mobile || "No phone"}
+                        </div>
+                      </div>
+                      <div className="text-right shrink-0">
+                        <div className={`text-sm font-black font-mono ${hasDue ? "text-amber-500" : "text-emerald-500"}`}>
+                          {hasDue ? `Due: ₹${b.balanceDue.toFixed(2)}` : "Fully Settled"}
+                        </div>
+                        <div className="text-[10px] text-muted-foreground">
+                          {b.totalBills} bills • Spent: ₹{b.totalSpent.toFixed(0)}
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center justify-between pt-1 border-t border-border/50 text-xs">
+                      <div className="text-[11px] text-muted-foreground">
+                        Paid: <span className="font-bold text-foreground">₹{b.totalPaid.toFixed(2)}</span>
+                      </div>
+
+                      <div className="flex items-center gap-1.5">
+                        <button
+                          onClick={() => {
+                            setSelectedBuyerId(b.id);
+                            setShowBuyerStatementModal(true);
+                          }}
+                          className="h-8 px-2.5 rounded bg-secondary hover:bg-muted text-foreground text-xs font-bold inline-flex items-center gap-1 border border-border"
+                        >
+                          <Eye className="h-3.5 w-3.5" /> Statement
+                        </button>
+                        {hasDue && (
+                          <button
+                            onClick={() => openPaymentForBuyer(b)}
+                            className="h-8 px-2.5 rounded bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold inline-flex items-center gap-1 shadow-xs"
+                          >
+                            <Wallet className="h-3.5 w-3.5" /> Settle
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* Desktop Table View */}
+            <div className="hidden md:block overflow-x-auto">
               <table className="w-full text-left text-xs">
                 <thead className="bg-secondary/60 border-b border-border text-muted-foreground font-semibold">
                   <tr>

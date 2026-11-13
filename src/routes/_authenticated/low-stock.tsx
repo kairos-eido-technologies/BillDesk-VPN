@@ -258,10 +258,83 @@ function LowStockPage() {
           </div>
         )}
 
-        {/* ── Main Table ── */}
+        {/* ── Main List (Responsive: Cards on Mobile, Table on Desktop) ── */}
         {lowStockItems.length > 0 && (
           <div className="bg-card border border-border rounded-2xl overflow-hidden shadow-sm">
-            <div className="overflow-x-auto">
+            {/* Mobile Card List */}
+            <div className="md:hidden divide-y divide-border">
+              {filtered.length === 0 ? (
+                <div className="text-center py-10 text-muted-foreground text-sm">
+                  No products match your search.
+                </div>
+              ) : (
+                paginatedItems.map((item) => {
+                  const isEditing = editingId === item.id;
+                  const itemThreshold = item.min_stock_alert !== undefined ? item.min_stock_alert : globalThreshold;
+
+                  return (
+                    <div key={item.id} className="p-3.5 flex flex-col gap-2">
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="min-w-0 flex-1">
+                          <p className="font-bold text-sm text-foreground leading-tight">{item.name}</p>
+                          <p className="text-xs text-muted-foreground font-mono mt-0.5">{item.barcode} • {item.category}</p>
+                        </div>
+                        {getStatusBadge(item.stock_qty)}
+                      </div>
+
+                      <div className="flex items-center justify-between pt-1 border-t border-border/50 text-xs">
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs font-black text-rose-600 bg-rose-50 px-2 py-0.5 rounded border border-rose-200">
+                            Current: {item.stock_qty} pcs
+                          </span>
+                        </div>
+
+                        <div className="flex items-center gap-1.5">
+                          {isEditing ? (
+                            <div className="flex items-center gap-1">
+                              <input
+                                type="number"
+                                min="0"
+                                value={editVal}
+                                onChange={(e) => setEditVal(e.target.value)}
+                                className="w-16 h-7 px-1.5 text-center text-xs font-mono font-bold border border-primary rounded bg-background"
+                                autoFocus
+                              />
+                              <button
+                                onClick={() => handleSaveThreshold(item)}
+                                className="h-7 w-7 rounded bg-green-500 text-white flex items-center justify-center"
+                              >
+                                <Check className="h-3.5 w-3.5" />
+                              </button>
+                              <button
+                                onClick={() => setEditingId(null)}
+                                className="h-7 w-7 rounded bg-muted text-muted-foreground flex items-center justify-center"
+                              >
+                                <X className="h-3.5 w-3.5" />
+                              </button>
+                            </div>
+                          ) : (
+                            <button
+                              onClick={() => {
+                                setEditingId(item.id);
+                                setEditVal(String(itemThreshold));
+                              }}
+                              className="h-7 px-2 rounded bg-muted hover:bg-muted/80 text-foreground text-xs font-bold flex items-center gap-1 border border-border"
+                            >
+                              Min: {itemThreshold}
+                              <Edit3 className="h-3 w-3 text-muted-foreground" />
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })
+              )}
+            </div>
+
+            {/* Desktop Table View */}
+            <div className="hidden md:block overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b border-border bg-muted/40">

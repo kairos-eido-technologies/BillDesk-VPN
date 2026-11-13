@@ -246,9 +246,83 @@ function InventoryPage() {
           </div>
         </div>
 
-        {/* Seamless No-Scroll Window Layout */}
-        <div className="w-full overflow-hidden">
-          <table className="w-full text-xs">
+        {/* Seamless Responsive Table / Card Layout */}
+        <div className="w-full overflow-x-auto">
+          {/* Mobile Card List (Hidden on tablet/desktop) */}
+          <div className="md:hidden divide-y divide-border">
+            {displayedProducts.map((p) => {
+              const shopQty = Number(p.stock_qty || 0);
+              const godownQty = Number(p.godown_qty || 0);
+              const totalStock = shopQty + godownQty;
+              const low = shopQty <= (p.min_stock_alert !== undefined ? p.min_stock_alert : 5);
+              const unitLabel = p.unit ? p.unit.split(' ')[0] : 'Pcs';
+
+              return (
+                <div key={p.id} className="p-3.5 bg-card hover:bg-muted/30 transition flex flex-col gap-2">
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="min-w-0 flex-1">
+                      <div className="font-bold text-sm text-foreground leading-tight">
+                        {p.name}
+                      </div>
+                      <div className="text-[11px] text-muted-foreground font-mono mt-0.5 flex items-center gap-2">
+                        <span>{p.barcode}</span>
+                        {p.category && <span className="px-1.5 py-0.2 bg-muted rounded">{p.category}</span>}
+                      </div>
+                    </div>
+                    <div className="text-right shrink-0">
+                      <div className="text-sm font-black text-[#1B2D6B]">
+                        ₹{Number(p.selling_price || 0).toFixed(2)}
+                      </div>
+                      {p.wholesale_price && p.wholesale_price > 0 && (
+                        <div className="text-[10px] font-bold text-[#E8151B]">
+                          WS: ₹{Number(p.wholesale_price).toFixed(2)}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="flex items-center justify-between pt-1 border-t border-border/50 text-xs">
+                    <div className="flex items-center gap-2">
+                      <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                        low ? "bg-amber-100 text-amber-900 border border-amber-300" : "bg-emerald-100 text-emerald-900"
+                      }`}>
+                        Stock: {shopQty} {unitLabel}
+                      </span>
+                      {godownQty > 0 && (
+                        <span className="text-[10px] text-muted-foreground font-medium">
+                          Godown: {godownQty}
+                        </span>
+                      )}
+                    </div>
+
+                    <div className="flex items-center gap-1.5">
+                      <button
+                        onClick={() => setPrintLabelProduct(p)}
+                        className="h-8 px-2.5 rounded bg-muted hover:bg-muted/80 text-foreground text-xs font-bold inline-flex items-center gap-1 border border-border"
+                      >
+                        <Tag className="h-3.5 w-3.5" /> Label
+                      </button>
+                      <button
+                        onClick={() => setEdit(p)}
+                        className="h-8 w-8 rounded bg-primary/10 hover:bg-primary/20 text-primary grid place-items-center border border-primary/20"
+                      >
+                        <Pencil className="h-3.5 w-3.5" />
+                      </button>
+                      <button
+                        onClick={() => handleDeleteProduct(p)}
+                        className="h-8 w-8 rounded bg-destructive/10 hover:bg-destructive/20 text-destructive grid place-items-center border border-destructive/20"
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+
+          {/* Desktop Table View */}
+          <table className="hidden md:table w-full text-xs">
             <thead className="text-[10px] uppercase text-muted-foreground tracking-tight bg-card border-b border-border">
               <tr>
                 <th className="text-left px-2.5 py-2.5">Product</th>

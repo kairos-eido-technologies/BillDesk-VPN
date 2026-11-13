@@ -113,7 +113,7 @@ export async function getReceiptImageDataUrl(
   await new Promise((r) => setTimeout(r, 40));
 
   const captureWidth = getDocumentWidth(captureEl);
-  const captureHeight = Math.max(captureEl.scrollHeight, captureEl.offsetHeight, 400) + 32;
+  const captureHeight = Math.max(captureEl.scrollHeight, captureEl.offsetHeight, 400) + 16;
 
   let dataUrl: string | null = null;
   try {
@@ -121,11 +121,20 @@ export async function getReceiptImageDataUrl(
       width: captureWidth,
       height: captureHeight,
       bgcolor: "#ffffff",
-      scale: 2,
+      quality: 1.0,
+      filter: (node: Node) => {
+        if (node instanceof HTMLElement && node.getAttribute("data-capture-hide") === "true") {
+          return false;
+        }
+        return true;
+      },
       style: {
         transform: "none",
         overflow: "visible",
         maxHeight: "none",
+        margin: "0",
+        padding: "12px",
+        background: "#ffffff",
       },
     });
   } catch (err) {

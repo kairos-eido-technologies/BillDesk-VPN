@@ -13,6 +13,7 @@ import {
   Settings as SettingsIcon,
   Store,
   Home,
+  Receipt,
   Users,
   Package,
   Landmark,

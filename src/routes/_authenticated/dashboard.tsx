@@ -26,7 +26,7 @@ export const Route = createFileRoute("/_authenticated/dashboard")({
   component: Dashboard,
 });
 
-function Dashboard() {
+export function Dashboard() {
   const stats = useQuery({
     queryKey: ["mss-dashboard-stats"],
     staleTime: 30_000,

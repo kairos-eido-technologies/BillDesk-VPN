@@ -206,11 +206,10 @@ export function A4Receipt({ invoice: i, items = [], storeSettings }: A4ReceiptPr
           <thead>
             <tr style={{ background: "#0f172a", color: "#ffffff" }}>
               <th style={{ padding: "8px 10px", textAlign: "left", fontSize: "11px", fontWeight: "bold", textTransform: "uppercase" }}>Item Description</th>
-              <th style={{ padding: "8px 10px", textAlign: "right", fontSize: "11px", fontWeight: "bold", textTransform: "uppercase", width: "90px" }}>MRP (₹)</th>
-              <th style={{ padding: "8px 10px", textAlign: "right", fontSize: "11px", fontWeight: "bold", textTransform: "uppercase", width: "90px" }}>Rate (₹)</th>
-              <th style={{ padding: "8px 10px", textAlign: "center", fontSize: "11px", fontWeight: "bold", textTransform: "uppercase", width: "60px" }}>Qty</th>
-              {isGst && <th style={{ padding: "8px 10px", textAlign: "right", fontSize: "11px", fontWeight: "bold", textTransform: "uppercase", width: "65px" }}>GST%</th>}
-              <th style={{ padding: "8px 10px", textAlign: "right", fontSize: "11px", fontWeight: "bold", textTransform: "uppercase", width: "110px" }}>Amount (₹)</th>
+              <th style={{ padding: "8px 10px", textAlign: "right", fontSize: "11px", fontWeight: "bold", textTransform: "uppercase", width: "100px" }}>Rate (₹)</th>
+              <th style={{ padding: "8px 10px", textAlign: "center", fontSize: "11px", fontWeight: "bold", textTransform: "uppercase", width: "70px" }}>Qty</th>
+              {isGst && <th style={{ padding: "8px 10px", textAlign: "right", fontSize: "11px", fontWeight: "bold", textTransform: "uppercase", width: "75px" }}>GST%</th>}
+              <th style={{ padding: "8px 10px", textAlign: "right", fontSize: "11px", fontWeight: "bold", textTransform: "uppercase", width: "120px" }}>Amount (₹)</th>
             </tr>
           </thead>
           <tbody>
@@ -222,10 +221,6 @@ export function A4Receipt({ invoice: i, items = [], storeSettings }: A4ReceiptPr
                 const totalPrice = Number(it.total_price ?? (itemQty * unitPrice));
                 const taxRate = isGst ? Number(it.tax_rate || it.gst_rate || 0) : 0;
                 const isReturn = Boolean(it.is_return);
-
-                const prod = it.product_id ? db.getProductById(it.product_id) : (it.barcode ? db.getProductByBarcode(it.barcode) : null);
-                const itemMrp = Number(it.mrp && it.mrp > 0 ? it.mrp : (prod?.mrp && prod.mrp > 0 ? prod.mrp : (prod?.selling_price || unitPrice)));
-                const savedPerPc = Math.max(0, itemMrp - unitPrice);
 
                 return (
                   <tr key={idx} style={{ borderBottom: "1px solid #e2e8f0", background: idx % 2 === 0 ? "#ffffff" : "#f8fafc" }}>
@@ -239,14 +234,6 @@ export function A4Receipt({ invoice: i, items = [], storeSettings }: A4ReceiptPr
                         )}
                       </div>
                       {it.barcode && <div style={{ fontSize: "10px", color: "#64748b", fontFamily: "monospace" }}>{it.barcode}</div>}
-                    </td>
-                    <td style={{ padding: "8px 10px", textAlign: "right", fontFamily: "monospace", color: "#64748b" }}>
-                      <div>{itemMrp.toFixed(2)}</div>
-                      {savedPerPc > 0 && (
-                        <div style={{ fontSize: "9px", color: "#16a34a", fontWeight: "bold" }}>
-                          -₹{(savedPerPc * itemQty).toFixed(0)}
-                        </div>
-                      )}
                     </td>
                     <td style={{ padding: "8px 10px", textAlign: "right", fontFamily: "monospace", fontWeight: "600" }}>
                       {unitPrice.toFixed(2)}

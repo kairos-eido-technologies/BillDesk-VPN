@@ -172,10 +172,9 @@ export function ThermalReceipt({ invoice: i, items = [], storeSettings }: Therma
       <div className="mb-2 font-bold text-black">
         <div className="flex justify-between font-black text-[9.5px] border-y-2 border-black py-1 mb-1 px-0.5 text-black">
           <span className="flex-1 pr-1 font-black">ITEM</span>
-          <span className="w-10 text-right font-black">MRP</span>
-          <span className="w-10 text-right font-black">RATE</span>
-          <span className="w-6 text-center font-black">QTY</span>
-          <span className="w-12 text-right pr-0.5 font-black">AMT(₹)</span>
+          <span className="w-14 text-right font-black">RATE</span>
+          <span className="w-8 text-center font-black">QTY</span>
+          <span className="w-14 text-right pr-0.5 font-black">AMT(₹)</span>
         </div>
 
         {items && items.length > 0 ? (
@@ -186,10 +185,6 @@ export function ThermalReceipt({ invoice: i, items = [], storeSettings }: Therma
             const totalPrice = Number(it.total_price ?? (itemQty * unitPrice));
             const taxRate = isGst ? Number(it.tax_rate || it.gst_rate || 0) : 0;
             const isReturn = Boolean(it.is_return);
-
-            const prod = it.product_id ? db.getProductById(it.product_id) : (it.barcode ? db.getProductByBarcode(it.barcode) : null);
-            const itemMrp = Number(it.mrp && it.mrp > 0 ? it.mrp : (prod?.mrp && prod.mrp > 0 ? prod.mrp : (prod?.selling_price || unitPrice)));
-            const savedPerPc = Math.max(0, itemMrp - unitPrice);
 
             return (
               <div key={idx} className="py-1 border-b border-black text-[9.5px] font-bold text-black flex justify-between items-start px-0.5">
@@ -207,16 +202,10 @@ export function ThermalReceipt({ invoice: i, items = [], storeSettings }: Therma
                       </span>
                     )}
                   </div>
-                  {savedPerPc > 0 && (
-                    <div className="text-[8px] text-black font-black">
-                      ★ Saved ₹{(savedPerPc * itemQty).toFixed(2)}
-                    </div>
-                  )}
                 </div>
-                <span className="w-10 text-right font-mono font-bold text-black text-[9px]">{itemMrp.toFixed(2)}</span>
-                <span className="w-10 text-right font-mono font-bold text-black">{unitPrice.toFixed(2)}</span>
-                <span className="w-6 text-center font-black font-mono text-black">{qty(itemQty)}</span>
-                <span className="w-12 text-right font-black font-mono pr-0.5 text-black">{totalPrice.toFixed(2)}</span>
+                <span className="w-14 text-right font-mono font-bold text-black">{unitPrice.toFixed(2)}</span>
+                <span className="w-8 text-center font-black font-mono text-black">{qty(itemQty)}</span>
+                <span className="w-14 text-right font-black font-mono pr-0.5 text-black">{totalPrice.toFixed(2)}</span>
               </div>
             );
           })
@@ -234,20 +223,8 @@ export function ThermalReceipt({ invoice: i, items = [], storeSettings }: Therma
           <span className="font-mono font-black">{items.length} items ({totalQty} pcs)</span>
         </div>
 
-        <div className="flex justify-between text-[10px] font-bold text-black">
-          <span>Total MRP Value:</span>
-          <span className="font-mono font-black">₹{totalMrp.toFixed(2)}</span>
-        </div>
-
-        {mrpSavings > 0 && (
-          <div className="flex justify-between text-[10px] font-black text-black">
-            <span>Product Savings (-):</span>
-            <span className="font-mono font-black">-₹{mrpSavings.toFixed(2)}</span>
-          </div>
-        )}
-
         <div className="flex justify-between font-bold text-black">
-          <span>Subtotal (Our Price):</span>
+          <span>Subtotal:</span>
           <span className="font-mono font-black">₹{Number(i.subtotal || 0).toFixed(2)}</span>
         </div>
 
