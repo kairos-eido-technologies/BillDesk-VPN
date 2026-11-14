@@ -311,6 +311,8 @@ function SettingsPage() {
     db.updateSettings(updated);
     toast.success("Store Profile & Invoice Customizations saved successfully!");
     qc.invalidateQueries({ queryKey: ["local-settings"] });
+    qc.invalidateQueries({ queryKey: ["inventory"] });
+    qc.invalidateQueries({ queryKey: ["local-inventory-products"] });
   }
 
   function handleExportBackup() {
@@ -879,7 +881,7 @@ function SettingsPage() {
                     className={`${ic} font-semibold`}
                   />
                   <p className="text-[10px] text-muted-foreground mt-1">
-                    Products with inventory stock at or below this value (or their individual product alert quantity) will automatically show up in the Low Stock Alert app.
+                    Global threshold: All products with stock quantity at or below this value will automatically show up in the Low Stock Alert app and reflect immediately after sales.
                   </p>
                 </L>
               </div>

@@ -9,7 +9,6 @@ import {
   Search,
   ArrowLeft,
   TrendingDown,
-  Edit3,
   Check,
   X,
   CheckCircle,
@@ -25,36 +24,53 @@ function LowStockPage() {
   const qc = useQueryClient();
   const [search, setSearch] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("All");
-  const [editingId, setEditingId] = useState<string | null>(null);
-  const [editVal, setEditVal] = useState<string>("");
   const [globalThresholdInput, setGlobalThresholdInput] = useState<string | null>(null);
   const [currentPage, setCurrentPage] = useState<number>(1);
   const pageSize = 30;
 
+  useEffect(() => {
+    let active = true;
+    db.loadPromise.then(async () => {
+      if (active) {
+        try {
+          await db.fetchFromServer();
+          qc.invalidateQueries({ queryKey: ["inventory"] });
+          qc.invalidateQueries({ queryKey: ["local-settings"] });
+        } catch {}
+      }
+    });
+    return () => {
+      active = false;
+    };
+  }, [qc]);
+
   const { data: inventory = [] } = useQuery({
     queryKey: ["inventory"],
-    queryFn: () => db.getInventory(),
-    staleTime: 30_000,
+    queryFn: async () => {
+      await db.loadPromise;
+      return db.getInventory();
+    },
   });
 
   const { data: settings } = useQuery({
     queryKey: ["local-settings"],
-    queryFn: () => db.getSettings(),
-    staleTime: 30_000,
+    queryFn: async () => {
+      await db.loadPromise;
+      return db.getSettings();
+    },
   });
 
   const globalThreshold = parseInt(String(settings?.low_stock_threshold ?? "10"), 10) || 10;
 
-  // Compute low-stock items
+  // Compute low-stock items strictly based on global threshold
   const lowStockItems = inventory
-    .filter((item) => {
-      const threshold = item.min_stock_alert > 0 ? item.min_stock_alert : globalThreshold;
-      return item.stock_qty <= threshold;
-    })
+    .filter((item) => Number(item.stock_qty || 0) <= globalThreshold)
     .sort((a, b) => {
-      if (a.stock_qty === 0 && b.stock_qty !== 0) return -1;
-      if (b.stock_qty === 0 && a.stock_qty !== 0) return 1;
-      return a.stock_qty - b.stock_qty;
+      const aQty = Number(a.stock_qty || 0);
+      const bQty = Number(b.stock_qty || 0);
+      if (aQty === 0 && bQty !== 0) return -1;
+      if (bQty === 0 && aQty !== 0) return 1;
+      return aQty - bQty;
     });
 
   // Unique categories from low-stock items
@@ -85,8 +101,8 @@ function LowStockPage() {
   const endIdx = Math.min(validPage * pageSize, filtered.length);
 
   // Stats
-  const outOfStock = lowStockItems.filter((i) => i.stock_qty === 0).length;
-  const criticallyLow = lowStockItems.filter((i) => i.stock_qty > 0 && i.stock_qty <= 3).length;
+  const outOfStock = lowStockItems.filter((i) => Number(i.stock_qty || 0) === 0).length;
+  const criticallyLow = lowStockItems.filter((i) => Number(i.stock_qty || 0) > 0 && Number(i.stock_qty || 0) <= 3).length;
   const belowThreshold = lowStockItems.length;
 
   function getStockColor(qty: number) {
@@ -103,22 +119,6 @@ function LowStockPage() {
     return <span className="px-2 py-0.5 rounded-full text-xs font-bold bg-yellow-100 text-yellow-700 border border-yellow-300 uppercase tracking-wide">Low</span>;
   }
 
-  async function handleSaveThreshold(item: (typeof inventory)[0]) {
-    const newVal = parseInt(editVal, 10);
-    if (isNaN(newVal) || newVal < 0) {
-      toast.error("Please enter a valid threshold value.");
-      return;
-    }
-    try {
-      db.saveInventoryItem({ ...item, min_stock_alert: newVal });
-      qc.invalidateQueries({ queryKey: ["inventory"] });
-      toast.success(`Alert threshold updated for ${item.name}`);
-    } catch {
-      toast.error("Failed to update threshold.");
-    }
-    setEditingId(null);
-  }
-
   async function handleGlobalThresholdSave(val: number) {
     if (isNaN(val) || val < 1) {
       toast.error("Global threshold must be at least 1.");
@@ -127,7 +127,9 @@ function LowStockPage() {
     try {
       db.updateSettings({ low_stock_threshold: String(val) });
       qc.invalidateQueries({ queryKey: ["local-settings"] });
-      toast.success("Global alert threshold updated.");
+      qc.invalidateQueries({ queryKey: ["inventory"] });
+      qc.invalidateQueries({ queryKey: ["local-inventory-products"] });
+      toast.success(`Global alert threshold updated to ${val}.`);
     } catch {
       toast.error("Failed to update global threshold.");
     }
@@ -152,7 +154,7 @@ function LowStockPage() {
               <AlertTriangle className="h-5 w-5 text-amber-500" />
               <div>
                 <h1 className="text-base font-bold leading-tight">Low Stock Alert</h1>
-                <p className="text-xs text-muted-foreground leading-tight">Items below minimum threshold</p>
+                <p className="text-xs text-muted-foreground leading-tight">Items at or below minimum threshold</p>
               </div>
             </div>
           </div>
@@ -253,7 +255,7 @@ function LowStockPage() {
             </div>
             <div>
               <p className="text-base font-bold text-foreground">All products are well stocked!</p>
-              <p className="text-sm text-muted-foreground mt-1">No items are below their minimum threshold.</p>
+              <p className="text-sm text-muted-foreground mt-1">No items are at or below the global minimum threshold ({globalThreshold} units).</p>
             </div>
           </div>
         )}
@@ -269,9 +271,6 @@ function LowStockPage() {
                 </div>
               ) : (
                 paginatedItems.map((item) => {
-                  const isEditing = editingId === item.id;
-                  const itemThreshold = item.min_stock_alert !== undefined ? item.min_stock_alert : globalThreshold;
-
                   return (
                     <div key={item.id} className="p-3.5 flex flex-col gap-2">
                       <div className="flex items-start justify-between gap-2">
@@ -279,53 +278,18 @@ function LowStockPage() {
                           <p className="font-bold text-sm text-foreground leading-tight">{item.name}</p>
                           <p className="text-xs text-muted-foreground font-mono mt-0.5">{item.barcode} • {item.category}</p>
                         </div>
-                        {getStatusBadge(item.stock_qty)}
+                        {getStatusBadge(Number(item.stock_qty || 0))}
                       </div>
 
                       <div className="flex items-center justify-between pt-1 border-t border-border/50 text-xs">
                         <div className="flex items-center gap-2">
                           <span className="text-xs font-black text-rose-600 bg-rose-50 px-2 py-0.5 rounded border border-rose-200">
-                            Current: {item.stock_qty} pcs
+                            Current: {item.stock_qty} {item.unit || "pcs"}
                           </span>
                         </div>
-
-                        <div className="flex items-center gap-1.5">
-                          {isEditing ? (
-                            <div className="flex items-center gap-1">
-                              <input
-                                type="number"
-                                min="0"
-                                value={editVal}
-                                onChange={(e) => setEditVal(e.target.value)}
-                                className="w-16 h-7 px-1.5 text-center text-xs font-mono font-bold border border-primary rounded bg-background"
-                                autoFocus
-                              />
-                              <button
-                                onClick={() => handleSaveThreshold(item)}
-                                className="h-7 w-7 rounded bg-green-500 text-white flex items-center justify-center"
-                              >
-                                <Check className="h-3.5 w-3.5" />
-                              </button>
-                              <button
-                                onClick={() => setEditingId(null)}
-                                className="h-7 w-7 rounded bg-muted text-muted-foreground flex items-center justify-center"
-                              >
-                                <X className="h-3.5 w-3.5" />
-                              </button>
-                            </div>
-                          ) : (
-                            <button
-                              onClick={() => {
-                                setEditingId(item.id);
-                                setEditVal(String(itemThreshold));
-                              }}
-                              className="h-7 px-2 rounded bg-muted hover:bg-muted/80 text-foreground text-xs font-bold flex items-center gap-1 border border-border"
-                            >
-                              Min: {itemThreshold}
-                              <Edit3 className="h-3 w-3 text-muted-foreground" />
-                            </button>
-                          )}
-                        </div>
+                        <span className="text-xs text-muted-foreground font-medium">
+                          Alert Threshold: <strong className="text-foreground">{globalThreshold} {item.unit || "pcs"}</strong>
+                        </span>
                       </div>
                     </div>
                   );
@@ -354,8 +318,6 @@ function LowStockPage() {
                     </tr>
                   ) : (
                     paginatedItems.map((item) => {
-                      const isEditing = editingId === item.id;
-
                       return (
                         <tr key={item.id} className="hover:bg-muted/30 transition-colors">
                           {/* Product */}
@@ -382,64 +344,21 @@ function LowStockPage() {
 
                           {/* Stock */}
                           <td className="px-4 py-3 text-center">
-                            <span className={`inline-block px-3 py-1 rounded-full text-xs font-black ${getStockColor(item.stock_qty)}`}>
+                            <span className={`inline-block px-3 py-1 rounded-full text-xs font-black ${getStockColor(Number(item.stock_qty || 0))}`}>
                               {item.stock_qty} {item.unit || ""}
                             </span>
                           </td>
 
-                          {/* Alert Threshold (editable) */}
+                          {/* Alert Threshold (Global) */}
                           <td className="px-4 py-3 text-center">
-                            {isEditing ? (
-                              <div className="flex items-center justify-center gap-1">
-                                <input
-                                  type="number"
-                                  min={0}
-                                  value={editVal}
-                                  onChange={(e) => setEditVal(e.target.value)}
-                                  className="w-16 h-7 px-1.5 text-xs rounded-md border border-primary bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-primary text-center"
-                                  autoFocus
-                                  onKeyDown={(e) => {
-                                    if (e.key === "Enter") handleSaveThreshold(item);
-                                    if (e.key === "Escape") setEditingId(null);
-                                  }}
-                                />
-                                <button
-                                  onClick={() => handleSaveThreshold(item)}
-                                  className="p-1 rounded bg-green-500 hover:bg-green-600 text-white transition-colors"
-                                >
-                                  <Check className="h-3 w-3" />
-                                </button>
-                                <button
-                                  onClick={() => setEditingId(null)}
-                                  className="p-1 rounded bg-muted hover:bg-muted/70 text-muted-foreground transition-colors"
-                                >
-                                  <X className="h-3 w-3" />
-                                </button>
-                              </div>
-                            ) : (
-                              <div className="flex items-center justify-center gap-1.5 group">
-                                <span className="text-xs font-semibold text-foreground">
-                                  {item.min_stock_alert > 0 ? item.min_stock_alert : (
-                                    <span className="text-muted-foreground italic">Global ({globalThreshold})</span>
-                                  )}
-                                </span>
-                                <button
-                                  onClick={() => {
-                                    setEditingId(item.id);
-                                    setEditVal(String(item.min_stock_alert > 0 ? item.min_stock_alert : globalThreshold));
-                                  }}
-                                  className="opacity-0 group-hover:opacity-100 p-0.5 rounded hover:bg-muted text-muted-foreground hover:text-foreground transition-all"
-                                  title="Edit threshold"
-                                >
-                                  <Edit3 className="h-3.5 w-3.5" />
-                                </button>
-                              </div>
-                            )}
+                            <span className="text-xs font-semibold text-foreground">
+                              {globalThreshold} {item.unit || "pcs"}
+                            </span>
                           </td>
 
                           {/* Status */}
                           <td className="px-4 py-3 text-center">
-                            {getStatusBadge(item.stock_qty)}
+                            {getStatusBadge(Number(item.stock_qty || 0))}
                           </td>
                         </tr>
                       );

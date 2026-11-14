@@ -368,6 +368,9 @@ function POSPage() {
       qc.invalidateQueries({ queryKey: ["pos-customers"] });
       qc.invalidateQueries({ queryKey: ["invoices"] });
       qc.invalidateQueries({ queryKey: ["ledger"] });
+      qc.invalidateQueries({ queryKey: ["inventory"] });
+      qc.invalidateQueries({ queryKey: ["local-inventory-products"] });
+      qc.invalidateQueries({ queryKey: ["local-settings"] });
       qc.invalidateQueries();
     },
     onError: (e: any) => toast.error(e.message),

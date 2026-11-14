@@ -83,6 +83,7 @@ function MobileDedicatedDashboard() {
         queryClient.invalidateQueries({ queryKey: ["inventory"] });
         queryClient.invalidateQueries({ queryKey: ["customers"] });
         queryClient.invalidateQueries({ queryKey: ["invoices"] });
+        queryClient.invalidateQueries({ queryKey: ["local-settings"] });
       }
     });
 
@@ -91,6 +92,7 @@ function MobileDedicatedDashboard() {
         queryClient.invalidateQueries({ queryKey: ["inventory"] });
         queryClient.invalidateQueries({ queryKey: ["customers"] });
         queryClient.invalidateQueries({ queryKey: ["invoices"] });
+        queryClient.invalidateQueries({ queryKey: ["local-settings"] });
       }
     });
 
@@ -123,7 +125,15 @@ function MobileDedicatedDashboard() {
     },
   });
 
-  const settings = db.getSettings();
+  const settingsQuery = useQuery({
+    queryKey: ["local-settings"],
+    queryFn: async () => {
+      await db.loadPromise;
+      return db.getSettings();
+    },
+  });
+
+  const settings = settingsQuery.data || db.getSettings();
   const shopName = settings?.shop_name || "MSS Ponkumar Store";
 
   const inventory = inventoryQuery.data || [];
@@ -132,7 +142,7 @@ function MobileDedicatedDashboard() {
 
   const globalThreshold = parseInt(String(settings?.low_stock_threshold ?? "10"), 10) || 10;
   const lowStockCount = inventory.filter(
-    (i) => i.stock_qty <= (i.min_stock_alert !== undefined && i.min_stock_alert !== null ? i.min_stock_alert : globalThreshold)
+    (i) => Number(i.stock_qty || 0) <= globalThreshold
   ).length;
 
   const totalDue = customers.reduce((s, c) => s + (c.balance_due || 0), 0);

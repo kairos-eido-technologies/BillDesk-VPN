@@ -43,14 +43,21 @@ function InventoryPage() {
     setCurrentPage(1);
   }, [q, locationFilter]);
 
+  const settingsQuery = useQuery({
+    queryKey: ["local-settings"],
+    queryFn: async () => {
+      await db.loadPromise;
+      return db.getSettings();
+    },
+  });
+  const globalThreshold = parseInt(String(settingsQuery.data?.low_stock_threshold ?? db.getSettings()?.low_stock_threshold ?? "10"), 10) || 10;
+
   const products = useQuery({
-    queryKey: ["local-inventory-products", q, locationFilter],
+    queryKey: ["local-inventory-products", q, locationFilter, globalThreshold],
     staleTime: 60_000,
     queryFn: async () => {
       await db.loadPromise;
       const all = db.getInventory();
-      const settings = db.getSettings();
-      const globalThreshold = parseInt(String(settings?.low_stock_threshold ?? "10"), 10) || 10;
 
       return all.filter((p) => {
         if (q.trim()) {
@@ -66,11 +73,7 @@ function InventoryPage() {
         if (locationFilter === "SHOP") return (p.stock_qty || 0) > 0;
         if (locationFilter === "GODOWN") return (p.godown_qty || 0) > 0;
         if (locationFilter === "LOW_STOCK") {
-          const threshold =
-            p.min_stock_alert !== undefined && p.min_stock_alert !== null && p.min_stock_alert > 0
-              ? p.min_stock_alert
-              : globalThreshold;
-          return Number(p.stock_qty || 0) <= threshold;
+          return Number(p.stock_qty || 0) <= globalThreshold;
         }
 
         return true;
@@ -257,7 +260,7 @@ function InventoryPage() {
               const shopQty = Number(p.stock_qty || 0);
               const godownQty = Number(p.godown_qty || 0);
               const totalStock = shopQty + godownQty;
-              const low = shopQty <= (p.min_stock_alert !== undefined ? p.min_stock_alert : 5);
+              const low = shopQty <= globalThreshold;
               const unitLabel = p.unit ? p.unit.split(' ')[0] : 'Pcs';
 
               return (
@@ -344,7 +347,7 @@ function InventoryPage() {
                 const shopQty = Number(p.stock_qty || 0);
                 const godownQty = Number(p.godown_qty || 0);
                 const totalStock = shopQty + godownQty;
-                const low = shopQty <= 5;
+                const low = shopQty <= globalThreshold;
                 const unitPnl = p.selling_price - p.cost_price;
                 const marginPct = p.selling_price > 0 ? (unitPnl / p.selling_price) * 100 : 0;
                 const unitLabel = p.unit ? p.unit.split(' ')[0] : 'Pcs';
