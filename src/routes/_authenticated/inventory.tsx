@@ -2,7 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { db, InventoryItem } from "@/lib/db/db";
 import { ExcelEngine } from "@/lib/excel/excel-engine";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, useRef } from "react";
 import { toast } from "sonner";
 import { PageHeader } from "./dashboard";
 import { inr, qty } from "@/lib/format";
@@ -38,6 +38,26 @@ function InventoryPage() {
   const [showImportModal, setShowImportModal] = useState(false);
   const [printLabelProduct, setPrintLabelProduct] = useState<InventoryItem | null>(null);
   const [pnlDetailProduct, setPnlDetailProduct] = useState<InventoryItem | null>(null);
+  const searchInputRef = useRef<HTMLInputElement>(null);
+
+  // Keyboard shortcuts for Inventory page
+  useEffect(() => {
+    function handleInventoryKeyDown(e: KeyboardEvent) {
+      if (showNew || edit || showImportModal || printLabelProduct || pnlDetailProduct) {
+        return;
+      }
+      if (e.altKey && !e.ctrlKey && e.key.toLowerCase() === "n") {
+        e.preventDefault();
+        setShowNew(true);
+      } else if (e.ctrlKey && !e.altKey && e.key.toLowerCase() === "f") {
+        e.preventDefault();
+        searchInputRef.current?.focus();
+        searchInputRef.current?.select();
+      }
+    }
+    window.addEventListener("keydown", handleInventoryKeyDown);
+    return () => window.removeEventListener("keydown", handleInventoryKeyDown);
+  }, [showNew, edit, showImportModal, printLabelProduct, pnlDetailProduct]);
 
   useEffect(() => {
     setCurrentPage(1);
@@ -198,7 +218,9 @@ function InventoryPage() {
               onClick={() => setShowNew(true)}
               className="h-9 px-3 rounded-md bg-primary text-primary-foreground text-xs font-semibold flex items-center gap-1.5 hover:accent-glow transition"
             >
-              <Plus className="h-4 w-4" /> {t("inventory.addProduct")}
+              <Plus className="h-4 w-4" />
+              <span>{t("inventory.addProduct")}</span>
+              <kbd className="text-[10px] font-mono px-1 py-0.2 rounded bg-black/20 opacity-80">Alt+N</kbd>
             </button>
           </div>
         }
@@ -229,12 +251,16 @@ function InventoryPage() {
 
       <div className="card-surface">
         <div className="p-3 border-b border-border flex flex-col sm:flex-row gap-2 items-center justify-between">
-          <input
-            value={q}
-            onChange={(e) => setQ(e.target.value)}
-            placeholder={t("inventory.search")}
-            className="w-full sm:flex-1 h-9 px-3 rounded-md bg-input border border-border text-sm font-mono text-foreground"
-          />
+          <div className="relative w-full sm:flex-1">
+            <input
+              ref={searchInputRef}
+              value={q}
+              onChange={(e) => setQ(e.target.value)}
+              placeholder={t("inventory.search") + "..."}
+              className="w-full h-9 pl-3 pr-16 rounded-md bg-input border border-border text-sm font-mono text-foreground focus:border-primary focus:outline-none"
+            />
+            <span className="absolute right-2 top-2 px-1.5 py-0.5 rounded text-[10px] font-mono font-bold text-muted-foreground bg-muted border border-border pointer-events-none">Ctrl+F</span>
+          </div>
 
           <div className="flex items-center gap-1 text-xs font-semibold shrink-0">
             <button
@@ -1140,7 +1166,7 @@ function generateBarcodeSvg(code: string, height: number = 20, maxW: string = "1
   return `<svg style="width: 100%; height: ${height}px; max-width: ${maxW};" viewBox="0 0 160 30" preserveAspectRatio="none"><rect width="160" height="30" fill="white" />${rects}</svg>`;
 }
 
-type LabelFormat = "50x25" | "34x20";
+type LabelFormat = "50x25_single" | "50x25" | "34x20";
 
 const FONT_OPTIONS = [
   { label: "Arial / Clean Sans", value: "Arial, Helvetica, sans-serif" },
@@ -1151,7 +1177,7 @@ const FONT_OPTIONS = [
 ];
 
 function BarcodePrintModal({ product, onClose }: { product: InventoryItem; onClose: () => void }) {
-  const [labelFormat, setLabelFormat] = useState<LabelFormat>("50x25");
+  const [labelFormat, setLabelFormat] = useState<LabelFormat>("50x25_single");
   const [sheetCount, setSheetCount] = useState<number>(1);
   const [isPrinting, setIsPrinting] = useState<boolean>(false);
 
@@ -1178,7 +1204,7 @@ function BarcodePrintModal({ product, onClose }: { product: InventoryItem; onClo
   const [showTypography, setShowTypography] = useState<boolean>(true);
 
   const barcodeCode = product.barcode || product.sku_code || generateMsspBarcode();
-  const stickersPerRow = labelFormat === "34x20" ? 3 : 2;
+  const stickersPerRow = labelFormat === "34x20" ? 3 : labelFormat === "50x25_single" ? 1 : 2;
   const totalStickers = sheetCount * stickersPerRow;
 
   const retailPrice = Number(product.selling_price || 0);
@@ -1357,6 +1383,29 @@ function BarcodePrintModal({ product, onClose }: { product: InventoryItem; onClo
         }
 
         printIsolatedLabels(sheetsList.join(""), 102, 20);
+      } else if (labelFormat === "50x25_single") {
+        const miniBarcodeSvg = generateBarcodeSvg(barcodeCode, barcodeHeight, "130px");
+
+        const singleMiniHtml = `
+          <div style="width: 50mm; height: 100%; max-height: 25mm; box-sizing: border-box; padding: 1mm 1.5mm; display: flex; flex-direction: column; justify-content: space-between; align-items: center; text-align: center; background: #ffffff; color: #000000; overflow: hidden;">
+            <div style="width: 100%; font-family: ${shopFont}; font-size: ${shopSize}px; font-weight: 900; letter-spacing: 0.06em; text-transform: uppercase; color: #000000; line-height: 1.1; -webkit-text-stroke: 0.15px #000; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${customShopName}</div>
+            <div style="width: 100%; font-family: ${productFont}; font-size: ${productSize}px; font-weight: 700; line-height: 1.1; max-width: 48mm; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: #000000; margin-top: 0.5px; -webkit-text-stroke: 0.15px #000;">${product.name}</div>
+            <div style="width: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center;">
+              ${miniBarcodeSvg}
+              <div style="font-family: monospace; font-size: ${barcodeTextSize}px; font-weight: 700; letter-spacing: 0.08em; color: #000000; line-height: 1; margin-top: 0.5px;">${barcodeCode}</div>
+            </div>
+            <div style="width: 100%; font-family: ${priceFont}; font-size: ${priceSize}px; font-weight: 900; color: #000000; line-height: 1.1; -webkit-text-stroke: 0.15px #000;">${priceText}</div>
+          </div>
+        `.trim();
+
+        const sheetsList: string[] = [];
+        for (let s = 0; s < sheetCount; s++) {
+          sheetsList.push(
+            `<div class="label-sheet" style="width: 50mm; height: 25mm; max-height: 25mm; display: block; box-sizing: border-box; background: #ffffff; color: #000000; overflow: hidden;"><div style="width: 50mm; height: 25mm; max-height: 25mm; box-sizing: border-box; overflow: hidden; display: flex;">${singleMiniHtml}</div></div>`
+          );
+        }
+
+        printIsolatedLabels(sheetsList.join(""), 50, 25);
       } else {
         const miniBarcodeSvg = generateBarcodeSvg(barcodeCode, barcodeHeight, "130px");
 
@@ -1722,12 +1771,32 @@ function BarcodePrintModal({ product, onClose }: { product: InventoryItem; onClo
           )}
         </div>
 
-        {/* Format Selector: 2 per row (50x25mm) vs 3 per row (34x20mm) */}
+        {/* Format Selector: 1 per row (50x25mm), 2 per row (50x25mm), 3 per row (34x20mm) */}
         <div className="bg-secondary/50 p-2.5 rounded-lg border border-border space-y-1.5">
           <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground block">
             Select Label Size / Roll Format
           </label>
-          <div className="grid grid-cols-2 gap-2">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+            <button
+              type="button"
+              onClick={() => handleFormatChange("50x25_single")}
+              className={`p-2.5 rounded-lg border text-left transition flex items-center justify-between ${
+                labelFormat === "50x25_single"
+                  ? "bg-primary text-primary-foreground border-primary shadow"
+                  : "bg-background text-foreground border-border hover:bg-muted"
+              }`}
+            >
+              <div>
+                <div className="text-xs font-bold">1 Per Row (50 × 25 mm)</div>
+                <div className={`text-[10px] mt-0.5 ${labelFormat === "50x25_single" ? "text-primary-foreground/80" : "text-muted-foreground"}`}>
+                  Single Label (50mm roll)
+                </div>
+              </div>
+              <span className="font-mono text-xs font-extrabold px-1.5 py-0.5 rounded bg-black/20 shrink-0 ml-1">
+                1/row
+              </span>
+            </button>
+
             <button
               type="button"
               onClick={() => handleFormatChange("50x25")}
@@ -1743,7 +1812,7 @@ function BarcodePrintModal({ product, onClose }: { product: InventoryItem; onClo
                   4" × 1" Roll (2-across)
                 </div>
               </div>
-              <span className="font-mono text-xs font-extrabold px-1.5 py-0.5 rounded bg-black/20">
+              <span className="font-mono text-xs font-extrabold px-1.5 py-0.5 rounded bg-black/20 shrink-0 ml-1">
                 2/row
               </span>
             </button>
@@ -1763,7 +1832,7 @@ function BarcodePrintModal({ product, onClose }: { product: InventoryItem; onClo
                   102mm × 20mm Roll (3-across)
                 </div>
               </div>
-              <span className="font-mono text-xs font-extrabold px-1.5 py-0.5 rounded bg-black/20">
+              <span className="font-mono text-xs font-extrabold px-1.5 py-0.5 rounded bg-black/20 shrink-0 ml-1">
                 3/row
               </span>
             </button>
@@ -1774,17 +1843,27 @@ function BarcodePrintModal({ product, onClose }: { product: InventoryItem; onClo
         <div className="space-y-1.5">
           <div className="flex justify-between items-center text-[10px] text-muted-foreground font-mono">
             <span>
-              {labelFormat === "34x20" ? 'Roll: 102mm × 20mm (~4" × 0.8")' : 'Roll: 100mm × 25mm (4" × 1")'}
+              {labelFormat === "50x25_single"
+                ? 'Roll: 50mm × 25mm (2" × 1")'
+                : labelFormat === "34x20"
+                ? 'Roll: 102mm × 20mm (~4" × 0.8")'
+                : 'Roll: 100mm × 25mm (4" × 1")'}
             </span>
             <span className="text-primary font-bold">
-              {labelFormat === "34x20"
+              {labelFormat === "50x25_single"
+                ? "1 Sticker Per Row (50mm × 25mm)"
+                : labelFormat === "34x20"
                 ? "3 Stickers Per Row (34mm × 20mm each)"
                 : "2 Stickers Per Row (50mm × 25mm each)"}
             </span>
           </div>
 
           <div className="bg-slate-200 dark:bg-zinc-800 p-3 rounded-lg border border-border flex justify-center">
-            {labelFormat === "34x20" ? (
+            {labelFormat === "50x25_single" ? (
+              <div className="w-[180px] h-[90px] bg-white rounded border-2 border-black shadow-md relative overflow-hidden flex items-center justify-center">
+                {renderSingle50x25Label()}
+              </div>
+            ) : labelFormat === "34x20" ? (
               <div className="w-[360px] h-[72px] bg-white rounded border-2 border-black shadow-md grid grid-cols-3 relative overflow-hidden">
                 <div className="border-r border-dashed border-gray-400 overflow-hidden">
                   {renderSingle34x20Label()}

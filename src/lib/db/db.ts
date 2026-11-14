@@ -32,6 +32,7 @@ export interface InventoryItem {
   moq?: number;
   min_stock_alert: number;
   sku_code?: string;
+  sales_count?: number;
   gst_rate: number;
   image_path?: string;
   created_at: string;

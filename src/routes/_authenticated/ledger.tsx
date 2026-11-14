@@ -582,7 +582,6 @@ function LedgerPage() {
                         <button
                           onClick={() => {
                             setSelectedBuyerId(b.id);
-                            setShowBuyerStatementModal(true);
                           }}
                           className="h-8 px-2.5 rounded bg-secondary hover:bg-muted text-foreground text-xs font-bold inline-flex items-center gap-1 border border-border"
                         >

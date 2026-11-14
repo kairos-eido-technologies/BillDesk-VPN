@@ -36,6 +36,8 @@ function POSPage() {
   const [customQty, setCustomQty] = useState("1");
   const [customGst, setCustomGst] = useState("0");
   const scanRef = useRef<HTMLInputElement>(null);
+  const customerMobileRef = useRef<HTMLInputElement>(null);
+  const discountInputRef = useRef<HTMLInputElement>(null);
   const qc = useQueryClient();
 
   const customersQuery = useQuery({
@@ -378,6 +380,145 @@ function POSPage() {
 
   const isPending = savePrint.isPending;
   const payTotal = cart.payments.reduce((s, p) => s + Number(p.amount || 0), 0);
+  const currentPayMethod = cart.payments[0]?.method || "Cash";
+
+  function setPayMethod(m: "Cash" | "UPI" | "Card") {
+    cart.setPayments([{ method: m, amount: totals.total }]);
+    setPaymentStatusOption("PAID");
+    toast.success(`Payment Mode: ${m}`);
+  }
+
+  // Counter POS Keyboard Shortcuts Handler
+  useEffect(() => {
+    function handlePosKeyDown(e: KeyboardEvent) {
+      // Don't trigger if viewing a bill or held bills modal
+      if (printedInvoiceData || showHeldBillsModal || showCustomModal) {
+        return;
+      }
+
+      // F1: Focus Barcode / Scan input
+      if (e.key === "F1") {
+        e.preventDefault();
+        scanRef.current?.focus();
+        scanRef.current?.select();
+        return;
+      }
+
+      // F2: Toggle Retail / Wholesale
+      if (e.key === "F2") {
+        e.preventDefault();
+        const nextMode = billMode === "RETAIL" ? "WHOLESALE" : "RETAIL";
+        handleModeChange(nextMode);
+        toast.info(`Switched to ${nextMode} rates (F2)`);
+        return;
+      }
+
+      // F3: Focus Customer Mobile
+      if (e.key === "F3") {
+        e.preventDefault();
+        customerMobileRef.current?.focus();
+        customerMobileRef.current?.select();
+        return;
+      }
+
+      // F4: Focus Discount
+      if (e.key === "F4") {
+        e.preventDefault();
+        discountInputRef.current?.focus();
+        discountInputRef.current?.select();
+        return;
+      }
+
+      // F5: Cash
+      if (e.key === "F5") {
+        e.preventDefault();
+        setPaymentStatusOption("PAID");
+        cart.setPayments([{ method: "Cash", amount: totals.total }]);
+        toast.success("Payment: Cash (F5)");
+        return;
+      }
+
+      // F6: UPI
+      if (e.key === "F6") {
+        e.preventDefault();
+        setPaymentStatusOption("PAID");
+        cart.setPayments([{ method: "UPI", amount: totals.total }]);
+        toast.success("Payment: UPI (F6)");
+        return;
+      }
+
+      // F7: Card
+      if (e.key === "F7") {
+        e.preventDefault();
+        setPaymentStatusOption("PAID");
+        cart.setPayments([{ method: "Card", amount: totals.total }]);
+        toast.success("Payment: Card (F7)");
+        return;
+      }
+
+      // F8: Pay Later / Credit (Khata)
+      if (e.key === "F8") {
+        e.preventDefault();
+        setPaymentStatusOption("UNPAID");
+        cart.setPayments([{ method: "Credit", amount: 0 }]);
+        toast.info("Payment: Pay Later / Khata (F8)");
+        return;
+      }
+
+      // F9 or Ctrl + Enter: Save & Print (Checkout)
+      if (e.key === "F9" || (e.ctrlKey && e.key === "Enter")) {
+        e.preventDefault();
+        if (cart.lines.length === 0) {
+          toast.error("Cart is empty! Scan or add items first.");
+          return;
+        }
+        if (!savePrint.isPending) {
+          savePrint.mutate();
+        }
+        return;
+      }
+
+      // F10: Clear Cart
+      if (e.key === "F10") {
+        e.preventDefault();
+        if (cart.lines.length === 0) return;
+        if (window.confirm("Clear all items from current cart? (F10)")) {
+          cart.clear();
+          toast.info("Cart cleared");
+        }
+        return;
+      }
+
+      // + / - / Delete to adjust quantity or remove last item when not typing in an input
+      const activeEl = document.activeElement;
+      const isInput =
+        activeEl instanceof HTMLInputElement ||
+        activeEl instanceof HTMLTextAreaElement ||
+        (activeEl as HTMLElement)?.isContentEditable;
+
+      if (!isInput && cart.lines.length > 0) {
+        const lastLine = cart.lines[cart.lines.length - 1];
+        if (e.key === "+" || e.key === "=") {
+          e.preventDefault();
+          cart.setQty(lastLine.product_id, lastLine.qty + 1);
+        } else if (e.key === "-") {
+          e.preventDefault();
+          if (lastLine.qty > 1) {
+            cart.setQty(lastLine.product_id, lastLine.qty - 1);
+          } else {
+            cart.remove(lastLine.product_id);
+          }
+        } else if (e.key === "Delete") {
+          e.preventDefault();
+          cart.remove(lastLine.product_id);
+          toast.info(`Removed ${lastLine.name}`);
+        }
+      }
+    }
+
+    window.addEventListener("keydown", handlePosKeyDown);
+    return () => window.removeEventListener("keydown", handlePosKeyDown);
+  }, [billMode, cart, handleModeChange, printedInvoiceData, savePrint, showCustomModal, showHeldBillsModal, totals.total]);
 
   return (
     <div className="p-4 grid grid-cols-12 gap-4 min-h-[calc(100vh-4rem)]">
@@ -395,7 +536,8 @@ function POSPage() {
                   : 'text-muted-foreground hover:text-foreground'
               }`}
             >
-              🏪 Retail Bill
+              <span>🏪 Retail Bill</span>
+              <kbd className="text-[9px] font-mono px-1 py-0.2 rounded bg-black/20 opacity-80">F2</kbd>
             </button>
             <button
               type="button"
@@ -406,7 +548,8 @@ function POSPage() {
                   : 'text-muted-foreground hover:text-foreground'
               }`}
             >
-              📦 Wholesale Bill
+              <span>📦 Wholesale Bill</span>
+              <kbd className="text-[9px] font-mono px-1 py-0.2 rounded bg-black/20 opacity-80">F2</kbd>
             </button>
           </div>
 
@@ -430,8 +573,9 @@ function POSPage() {
               onChange={(e) => setScan(e.target.value)}
               onKeyDown={(e) => e.key === "Enter" && handleScan(scan)}
               placeholder={t("pos.scanBarcode")}
-              className="w-full h-9 pl-9 pr-3 rounded bg-input border border-border text-xs font-mono focus:border-primary text-foreground"
+              className="w-full h-9 pl-9 pr-10 rounded bg-input border border-border text-xs font-mono focus:border-primary text-foreground"
             />
+            <span className="absolute right-2 top-2 px-1.5 py-0.5 rounded text-[10px] font-mono font-bold text-muted-foreground bg-muted border border-border pointer-events-none">F1</span>
           </div>
 
           <div className="relative flex-1 w-full">
@@ -795,8 +939,9 @@ function POSPage() {
                 Or Enter Customer Details
               </div>
 
-              <div className="flex gap-2">
+              <div className="flex gap-2 relative">
                 <input
+                  ref={customerMobileRef}
                   value={cart.customerMobile}
                   onChange={(e) => {
                     const val = e.target.value.replace(/\D/g, "");
@@ -808,8 +953,9 @@ function POSPage() {
                   onBlur={(e) => lookupCustomer(e.target.value)}
                   placeholder="Mobile (Numbers only)"
                   maxLength={10}
-                  className="flex-1 h-8 px-3 rounded bg-input border border-border text-xs font-mono focus:border-primary text-foreground"
+                  className="flex-1 h-8 px-3 pr-9 rounded bg-input border border-border text-xs font-mono focus:border-primary text-foreground"
                 />
+                <span className="absolute right-2 top-1.5 px-1.5 py-0.2 rounded text-[10px] font-mono font-bold text-muted-foreground bg-muted border border-border pointer-events-none">F3</span>
               </div>
 
               <input
@@ -917,8 +1063,12 @@ function POSPage() {
             )}
 
             <div className="flex justify-between items-center text-xs font-mono pt-1">
-              <span className="text-muted-foreground">{t("pos.breakdown.billDiscount")}</span>
+              <span className="text-muted-foreground flex items-center gap-1.5">
+                {t("pos.breakdown.billDiscount")}
+                <kbd className="text-[9px] px-1 py-0.2 rounded bg-muted border border-border font-mono text-muted-foreground">F4</kbd>
+              </span>
               <input
+                ref={discountInputRef}
                 type="number"
                 value={cart.invoiceDiscount || ""}
                 onChange={(e) => cart.setInvoiceDiscount(parseFloat(e.target.value) || 0)}
@@ -952,7 +1102,7 @@ function POSPage() {
                 <span className="text-muted-foreground">Payment Status:</span>
                 <span className="text-[11px] font-mono text-primary font-bold">
                   {paymentStatusOption === "PAID"
-                    ? "Paid in Full"
+                    ? `Paid in Full (${currentPayMethod})`
                     : "Credit (Pay Later)"}
                 </span>
               </div>
@@ -972,7 +1122,10 @@ function POSPage() {
                 </button>
                 <button
                   type="button"
-                  onClick={() => setPaymentStatusOption("UNPAID")}
+                  onClick={() => {
+                    setPaymentStatusOption("UNPAID");
+                    cart.setPayments([{ method: "Credit", amount: 0 }]);
+                  }}
                   className={`h-9 rounded-lg text-xs font-bold transition cursor-pointer flex items-center justify-center gap-1.5 ${
                     paymentStatusOption === "UNPAID"
                       ? "bg-rose-600 text-white shadow-xs"
@@ -981,8 +1134,51 @@ function POSPage() {
                 >
                   <AlertCircle className="h-4 w-4" />
                   <span>Pay Later (Khata)</span>
+                  <kbd className="text-[9px] font-mono px-1 py-0.2 bg-black/20 rounded">F8</kbd>
                 </button>
               </div>
+
+              {/* Sub Payment Mode Selector when Paid */}
+              {paymentStatusOption === "PAID" && (
+                <div className="grid grid-cols-3 gap-1.5 pt-1">
+                  <button
+                    type="button"
+                    onClick={() => setPayMethod("Cash")}
+                    className={`h-8 rounded-md text-[11px] font-bold border transition flex items-center justify-center gap-1 ${
+                      currentPayMethod === "Cash"
+                        ? "bg-emerald-500/20 text-emerald-500 border-emerald-500 font-black shadow-xs"
+                        : "bg-muted/40 text-muted-foreground border-border hover:text-foreground"
+                    }`}
+                  >
+                    <span>💵 Cash</span>
+                    <kbd className="text-[9px] font-mono px-1 py-0.2 bg-background/50 rounded border border-border/60">F5</kbd>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setPayMethod("UPI")}
+                    className={`h-8 rounded-md text-[11px] font-bold border transition flex items-center justify-center gap-1 ${
+                      currentPayMethod === "UPI"
+                        ? "bg-purple-500/20 text-purple-400 border-purple-500 font-black shadow-xs"
+                        : "bg-muted/40 text-muted-foreground border-border hover:text-foreground"
+                    }`}
+                  >
+                    <span>📱 UPI</span>
+                    <kbd className="text-[9px] font-mono px-1 py-0.2 bg-background/50 rounded border border-border/60">F6</kbd>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setPayMethod("Card")}
+                    className={`h-8 rounded-md text-[11px] font-bold border transition flex items-center justify-center gap-1 ${
+                      currentPayMethod === "Card"
+                        ? "bg-blue-500/20 text-blue-400 border-blue-500 font-black shadow-xs"
+                        : "bg-muted/40 text-muted-foreground border-border hover:text-foreground"
+                    }`}
+                  >
+                    <span>💳 Card</span>
+                    <kbd className="text-[9px] font-mono px-1 py-0.2 bg-background/50 rounded border border-border/60">F7</kbd>
+                  </button>
+                </div>
+              )}
 
               {paymentStatusOption === "UNPAID" && (
                 <div className="p-2 rounded-lg bg-rose-500/10 border border-rose-500/30 text-rose-300 text-[11px]">
@@ -1050,7 +1246,8 @@ function POSPage() {
             className="w-full h-12 rounded-lg bg-primary text-primary-foreground font-black text-sm uppercase tracking-wider hover:opacity-90 transition shadow-lg disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
           >
             <Printer className="h-5 w-5" />
-            {savePrint.isPending ? t("pos.saving") : t("pos.savePrint")}
+            <span>{savePrint.isPending ? t("pos.saving") : t("pos.savePrint")}</span>
+            <kbd className="text-[10px] font-mono bg-black/25 text-white/90 px-2 py-0.5 rounded border border-white/20 normal-case">F9 / Ctrl+↵</kbd>
           </button>
         </div>
       </div>

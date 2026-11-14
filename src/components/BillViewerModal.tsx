@@ -506,6 +506,8 @@ export function BillViewerModal({
                 <button
                   type="button"
                   onClick={async () => {
+                    const rawEl = mode === "a4" ? a4ReceiptRef.current : receiptRef.current;
+                    const targetEl = rawEl ? ((rawEl.querySelector(mode === "a4" ? ".a4-sheet" : ".thermal-receipt") as HTMLElement) || rawEl) : null;
                     const dataUrl = mode === "thermal"
                       ? await renderThermalReceiptToDataUrl(invoiceObj, items, storeSettings)
                       : (targetEl ? await getReceiptImageDataUrl(targetEl) : null);

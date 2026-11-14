@@ -114,8 +114,9 @@ export async function renderThermalReceiptToCanvas(
   const canvas = document.createElement("canvas");
   canvas.width = canvasWidth * scale;
   canvas.height = Math.max(650, estimatedHeight) * scale;
-  const ctx = canvas.getContext("2d");
-  if (!ctx) throw new Error("Could not get 2D canvas context");
+  const rawCtx = canvas.getContext("2d");
+  if (!rawCtx) throw new Error("Could not get 2D canvas context");
+  const ctx: CanvasRenderingContext2D = rawCtx;
 
   ctx.scale(scale, scale);
 
