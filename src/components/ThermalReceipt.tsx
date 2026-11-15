@@ -2,6 +2,7 @@ import React from "react";
 import { inr, qty } from "@/lib/format";
 import { db, Invoice, InvoiceItem } from "@/lib/db/db";
 import { MSSLogo } from "./KairosLogo";
+import { Code128Visual } from "@/lib/code128";
 
 interface ThermalReceiptProps {
   invoice: Invoice;
@@ -13,36 +14,9 @@ interface ThermalReceiptProps {
  * Generate SVG Barcode lines for Code128 / Code39 representation of Invoice Number
  */
 function SimpleBarcodeSVG({ value }: { value: string }) {
-  // Generate deterministic pattern based on invoice string ASCII values
-  const lines: number[] = [];
-  for (let i = 0; i < value.length; i++) {
-    const code = value.charCodeAt(i);
-    lines.push((code % 3) + 1, ((code * 7) % 3) + 1, ((code * 13) % 2) + 1);
-  }
-  
-  let currentX = 10;
-  const rects: { x: number; width: number }[] = [];
-  
-  lines.forEach((w) => {
-    rects.push({ x: currentX, width: w });
-    currentX += w + ((w % 2) + 1);
-  });
-
-  const totalWidth = currentX + 10;
-
   return (
     <div className="flex flex-col items-center my-2">
-      <svg
-        width={Math.min(totalWidth, 240)}
-        height="36"
-        viewBox={`0 0 ${totalWidth} 36`}
-        className="max-w-full"
-      >
-        <rect width={totalWidth} height="36" fill="#ffffff" />
-        {rects.map((r, idx) => (
-          <rect key={idx} x={r.x} y="2" width={r.width} height="32" fill="#000000" />
-        ))}
-      </svg>
+      <Code128Visual code={value} height={34} maxW="220px" />
       <div className="font-mono text-[9px] tracking-widest uppercase font-bold text-black mt-0.5">
         *{value}*
       </div>

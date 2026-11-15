@@ -4,7 +4,8 @@ import { db, InventoryItem } from "@/lib/db/db";
 import { ExcelEngine } from "@/lib/excel/excel-engine";
 import { useEffect, useMemo, useState, useRef } from "react";
 import { toast } from "sonner";
-import { PageHeader } from "./dashboard";
+import { PageHeader } from "@/components/PageHeader";
+import { generateCode128Svg, Code128Visual } from "@/lib/code128";
 import { inr, qty } from "@/lib/format";
 import { Plus, X, Pencil, Download, Upload, FileSpreadsheet, AlertCircle, CheckCircle, Printer, Image, RefreshCw, Barcode, TrendingUp, TrendingDown, DollarSign, Store, Warehouse, Scale, Trash2, Calculator, Tag, Scissors, Sliders, Type, ChevronDown, ChevronUp } from "lucide-react";
 import { useT } from "@/lib/lang/lang-context";
@@ -1152,19 +1153,6 @@ function ProductModal({ product, onClose, onSaved }: { product: InventoryItem | 
   );
 }
 
-function generateBarcodeSvg(code: string, height: number = 20, maxW: string = "140px"): string {
-  const clean = (code || "PMA000").toUpperCase();
-  const bars: boolean[] = [];
-  for (let i = 0; i < clean.length; i++) {
-    const charCode = clean.charCodeAt(i);
-    bars.push(true, (charCode % 2 === 0), false, true, (charCode % 3 === 0), true, false);
-  }
-  const rects = bars.map((b, idx) =>
-    b ? `<rect x="${(idx * (160 / bars.length)).toFixed(2)}" y="1" width="${((160 / bars.length) * 0.9).toFixed(2)}" height="28" fill="black" />` : ''
-  ).join('');
-
-  return `<svg style="width: 100%; height: ${height}px; max-width: ${maxW};" viewBox="0 0 160 30" preserveAspectRatio="none"><rect width="160" height="30" fill="white" />${rects}</svg>`;
-}
 
 type LabelFormat = "50x25_single" | "50x25" | "34x20";
 
@@ -1286,7 +1274,7 @@ function BarcodePrintModal({ product, onClose }: { product: InventoryItem; onClo
 
         {/* 3. Barcode Lines & Code */}
         <div className="w-full flex flex-col items-center justify-center py-0.5">
-          <BarcodeVisual code={barcodeCode} height={barcodeHeight} maxW="130px" />
+          <Code128Visual code={barcodeCode} height={barcodeHeight} maxW="130px" />
           <div
             className="font-mono font-bold tracking-wider leading-none mt-0.5"
             style={{ fontSize: `${barcodeTextSize}px` }}
@@ -1333,7 +1321,7 @@ function BarcodePrintModal({ product, onClose }: { product: InventoryItem; onClo
 
         {/* 3. Barcode Lines & Code */}
         <div className="w-full flex flex-col items-center justify-center py-0.5">
-          <BarcodeVisual code={barcodeCode} height={barcodeHeight} maxW="90px" />
+          <Code128Visual code={barcodeCode} height={barcodeHeight} maxW="90px" />
           <div
             className="font-mono font-bold tracking-wider leading-none mt-0.5 truncate max-w-[32mm]"
             style={{ fontSize: `${barcodeTextSize}px` }}
@@ -1361,7 +1349,7 @@ function BarcodePrintModal({ product, onClose }: { product: InventoryItem; onClo
       const priceText = getPriceText();
 
       if (labelFormat === "34x20") {
-        const miniBarcodeSvg = generateBarcodeSvg(barcodeCode, barcodeHeight, "90px");
+        const miniBarcodeSvg = generateCode128Svg(barcodeCode, { height: barcodeHeight, maxW: "90px" });
 
         const singleMiniHtml = `
           <div style="width: 34mm; height: 100%; max-height: 20mm; box-sizing: border-box; padding: 0.6mm 1mm; display: flex; flex-direction: column; justify-content: space-between; align-items: center; text-align: center; background: #ffffff; color: #000000; overflow: hidden;">
@@ -1384,7 +1372,7 @@ function BarcodePrintModal({ product, onClose }: { product: InventoryItem; onClo
 
         printIsolatedLabels(sheetsList.join(""), 102, 20);
       } else if (labelFormat === "50x25_single") {
-        const miniBarcodeSvg = generateBarcodeSvg(barcodeCode, barcodeHeight, "130px");
+        const miniBarcodeSvg = generateCode128Svg(barcodeCode, { height: barcodeHeight, maxW: "130px" });
 
         const singleMiniHtml = `
           <div style="width: 50mm; height: 100%; max-height: 25mm; box-sizing: border-box; padding: 1mm 1.5mm; display: flex; flex-direction: column; justify-content: space-between; align-items: center; text-align: center; background: #ffffff; color: #000000; overflow: hidden;">
@@ -1407,7 +1395,7 @@ function BarcodePrintModal({ product, onClose }: { product: InventoryItem; onClo
 
         printIsolatedLabels(sheetsList.join(""), 50, 25);
       } else {
-        const miniBarcodeSvg = generateBarcodeSvg(barcodeCode, barcodeHeight, "130px");
+        const miniBarcodeSvg = generateCode128Svg(barcodeCode, { height: barcodeHeight, maxW: "130px" });
 
         const singleMiniHtml = `
           <div style="width: 50mm; height: 100%; max-height: 25mm; box-sizing: border-box; padding: 1mm 1.5mm; display: flex; flex-direction: column; justify-content: space-between; align-items: center; text-align: center; background: #ffffff; color: #000000; overflow: hidden;">
@@ -1977,32 +1965,6 @@ function BarcodePrintModal({ product, onClose }: { product: InventoryItem; onClo
   );
 }
 
-function BarcodeVisual({ code, height = 22, maxW = "160px" }: { code: string; height?: number; maxW?: string }) {
-  const clean = code.toUpperCase();
-  const bars: boolean[] = [];
-  for (let i = 0; i < clean.length; i++) {
-    const charCode = clean.charCodeAt(i);
-    bars.push(true, (charCode % 2 === 0), false, true, (charCode % 3 === 0), true, false);
-  }
-
-  return (
-    <svg className="w-full" style={{ height: `${height}px`, maxWidth: maxW }} viewBox="0 0 160 30" preserveAspectRatio="none">
-      <rect width="160" height="30" fill="white" />
-      {bars.map((b, idx) =>
-        b ? (
-          <rect
-            key={idx}
-            x={idx * (160 / bars.length)}
-            y="1"
-            width={(160 / bars.length) * 0.9}
-            height="28"
-            fill="black"
-          />
-        ) : null
-      )}
-    </svg>
-  );
-}
 
 function ExcelImportModal({ onClose, onImported }: { onClose: () => void; onImported: () => void }) {
   const [parsedRows, setParsedRows] = useState<any[]>([]);

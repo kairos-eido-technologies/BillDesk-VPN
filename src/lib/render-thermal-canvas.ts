@@ -1,4 +1,5 @@
 import { Invoice, InvoiceItem } from "@/lib/db/db";
+import { drawCode128ToCanvas } from "@/lib/code128";
 
 interface CanvasReceiptOptions {
   scale?: number;
@@ -359,29 +360,13 @@ export async function renderThermalReceiptToCanvas(
 
   y += boxHeight + 14;
 
-  // 11. Barcode
+  // 11. Barcode (Standard ISO/IEC 15417 Code 128)
   const barcodeValue = invoice.invoice_number || "INV-0000";
   const barcodeWidth = 240;
   const barcodeHeight = 34;
   const barcodeLeft = centerX - barcodeWidth / 2;
 
-  // Draw deterministic barcode lines
-  let curX = barcodeLeft + 8;
-  const maxWidth = barcodeLeft + barcodeWidth - 8;
-  ctx.fillStyle = "#000000";
-
-  for (let i = 0; i < barcodeValue.length && curX < maxWidth; i++) {
-    const code = barcodeValue.charCodeAt(i);
-    const w1 = (code % 3) + 1.2;
-    const gap = ((code * 7) % 3) + 1.8;
-    const w2 = ((code * 13) % 2) + 1.2;
-
-    ctx.fillRect(curX, y, w1, barcodeHeight);
-    curX += w1 + gap;
-    if (curX >= maxWidth) break;
-    ctx.fillRect(curX, y, w2, barcodeHeight);
-    curX += w2 + 2.2;
-  }
+  drawCode128ToCanvas(ctx, barcodeValue, barcodeLeft, y, barcodeWidth, barcodeHeight, 6);
 
   y += barcodeHeight + 4;
   ctx.font = "bold 10px 'Courier New', Courier, monospace";

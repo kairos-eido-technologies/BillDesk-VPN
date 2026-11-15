@@ -2,6 +2,7 @@ import React, { useRef, useState, useEffect } from "react";
 import { db, Invoice, InvoiceItem } from "@/lib/db/db";
 import { qty } from "@/lib/format";
 import { MSSLogo } from "./KairosLogo";
+import { Code128Visual } from "@/lib/code128";
 
 interface A4ReceiptProps {
   invoice: Invoice;
@@ -13,35 +14,9 @@ interface A4ReceiptProps {
  * Generate SVG Barcode lines for Code128 representation of Invoice Number
  */
 function SimpleBarcodeSVG({ value }: { value: string }) {
-  const lines: number[] = [];
-  for (let i = 0; i < value.length; i++) {
-    const code = value.charCodeAt(i);
-    lines.push((code % 3) + 1, ((code * 7) % 3) + 1, ((code * 13) % 2) + 1);
-  }
-
-  let currentX = 10;
-  const rects: { x: number; width: number }[] = [];
-
-  lines.forEach((w) => {
-    rects.push({ x: currentX, width: w });
-    currentX += w + ((w % 2) + 1);
-  });
-
-  const totalWidth = currentX + 10;
-
   return (
     <div style={{ display: "flex", flexDirection: "column", alignItems: "center", marginTop: "20px" }}>
-      <svg
-        width={Math.min(totalWidth, 260)}
-        height="36"
-        viewBox={`0 0 ${totalWidth} 36`}
-        style={{ maxWidth: "100%" }}
-      >
-        <rect width={totalWidth} height="36" fill="#ffffff" />
-        {rects.map((r, idx) => (
-          <rect key={idx} x={r.x} y="2" width={r.width} height="32" fill="#000000" />
-        ))}
-      </svg>
+      <Code128Visual code={value} height={36} maxW="260px" />
       <div style={{ fontFamily: "monospace", fontSize: "10px", letterSpacing: "2px", textTransform: "uppercase", fontWeight: "bold", color: "#000", marginTop: "2px" }}>
         *{value}*
       </div>
